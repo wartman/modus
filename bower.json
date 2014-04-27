@@ -1,0 +1,26 @@
+{
+  "name": "modus",
+  "version": "0.1.0",
+  "authors": [
+    "Peter Wartman"
+  ],
+  "description": "A lightweight module loader",
+  "main": "dist/z.js",
+  "keywords": [
+    "module",
+    "loader",
+    "amd"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bin",
+    "src",
+    "Gruntfile.js",
+    "package.json",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
