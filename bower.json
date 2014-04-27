@@ -5,11 +5,10 @@
     "Peter Wartman"
   ],
   "description": "A lightweight module loader",
-  "main": "dist/z.js",
+  "main": "modus.js",
   "keywords": [
     "module",
-    "loader",
-    "amd"
+    "loader"
   ],
   "license": "MIT",
   "ignore": [
