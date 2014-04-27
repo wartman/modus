@@ -1,5 +1,5 @@
 {
-  "name": "modkit",
+  "name": "modus",
   "version": "0.1.0",
   "keywords": [
     "module",
@@ -11,7 +11,7 @@
     "url": "https://github.com/wartman/modus.git"
   },
   "license": "MIT",
-  "main": "modkit.js",
+  "main": "modus.js",
   "author": {
     "name": "Peter Wartman",
     "email": "pwartman@wartfolio.com"
