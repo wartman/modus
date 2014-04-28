@@ -7,6 +7,7 @@ var Namespace = Modus.Namespace = function (options) {
   this.wait = new Wait();
   this.is = new Is();
   this._modules = [];
+  this._imports = [];
 };
 
 Namespace.prototype.options = {
@@ -31,8 +32,19 @@ Namespace.prototype.module = function (name, factory) {
   return module;
 };
 
+Namespace.prototype.imports = function (deps) {
+  this.is.pending(true);
+  var item = new Modus.Import(deps, this);
+  this._imports.push(item);
+  return item;
+};
+
 Namespace.prototype.run = function () {
   if (this.is.pending()) {
+    this._loadImports();
+  } else if (this.is.loaded()) {
+    this._checkDependencies();
+  } else if (this.is.ready()) {
     this._enableModules();
   } else if (this.is.enabled()) {
     this.wait.resolve();
@@ -41,12 +53,29 @@ Namespace.prototype.run = function () {
   }
 };
 
+Namespace.prototype.disable = function (reason) {
+  this.is.failed(true);
+  this.wait.reject(reason);
+}
+
 Namespace.prototype.getName = function () {
+  return this.options.namespaceName;
+};
+
+Namespace.prototype.getFullName = function () {
   return this.options.namespaceName;
 };
 
 Namespace.prototype.compile = function () {
   // do compile code.
+};
+
+Namespace.prototype._loadImports = function () {
+  Modus.Module.prototype._loadImports.apply(this);
+};
+
+Namespace.prototype._checkDependencies = function () {
+  Modus.Module.prototype._checkDependencies.apply(this)
 };
 
 Namespace.prototype._enableModules = function () {
@@ -63,8 +92,7 @@ Namespace.prototype._enableModules = function () {
         self.run();
       }
     }, function () {
-      self.is.failed(true);
-      self.run();
+      self.disable('A module failed');
     })
   });
 };

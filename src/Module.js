@@ -16,6 +16,7 @@ Module.prototype.options = {
 };
 
 Module.prototype.imports = function (deps) {
+  this.is.pending(true);
   var item = new Modus.Import(deps, this);
   this._imports.push(item);
   return item;
@@ -62,20 +63,15 @@ Module.prototype.compile = function () {
 };
 
 Module.prototype._loadImports = function () {
-  var queue = []
-  var remaining = 0;
+  var remaining = this._imports.length;
   var self = this;
   this.is.working(true);
-  each(this._imports, function (item) {
-    if (!self.is.loaded()) queue.push(item);
-  });
-  remaining = queue.length;
   if (!remaining) {
     this.is.loaded(true);
     this.run();
     return;
   }
-  each(queue, function (item) {
+  each(this._imports, function (item) {
     item.load(function (err) {
       if (err) {
         self.disable(err);

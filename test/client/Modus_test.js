@@ -94,4 +94,23 @@
     });
   });
 
+  test('Modus.namespace several modules at once', function (test) {
+    stop();
+    Modus.namespace('foo', function (foo) {
+      foo.imports('fixtures.test_imports').as('imp');
+      foo.module('test_bar', function (test_bar) {
+        test_bar.exports('foo', 'foo');
+      });
+      foo.module('test_ban', function (test_ban) {
+        test_ban.exports('ban', 'ban');
+      });
+      foo.wait.done(function () {
+        start();
+        test.equal(foo.imp.test, 'foobar:got', 'namespace can import');
+        test.equal(foo.test_ban.ban, 'ban', 'Can define modules');
+      });
+    })
+
+  });
+
 })();

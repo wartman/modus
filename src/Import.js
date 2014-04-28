@@ -39,7 +39,7 @@ Import.prototype.load = function (next) {
   this._from = this._ensureNamespace(this._from);
   var fromName = 'Modus.env.' + this._from;
   var self = this;
-  if (getObjectByName(fromName)) {
+  if (this.is.loaded() || getObjectByName(fromName)) {
     this._applyDependencies();
     next();
     return;
