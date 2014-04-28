@@ -1,3 +1,7 @@
+
+// --------------------
+// Modus.Loader
+
 var Loader = Modus.Loader = function (handler) {
   this.wait = new Wait();
   this.is = new Is();
@@ -11,9 +15,8 @@ Loader.prototype.handler = function (handler) {
   };
 };
 
-Loader.prototype.run = function (request, next) {
-  var src = this._getMappedPath(request);
-  this._handler(src, next);
+Loader.prototype.run = function (module, next) {
+  this._handler(module, next);
 };
 
 Loader.prototype._getMappedPath = function (module) {
@@ -23,7 +26,6 @@ Loader.prototype._getMappedPath = function (module) {
       if (map.test(module)){
         mappedPath = path;
         var matches = map.exec(module);
-
         // NOTE: The following doesn't take ordering into account.
         // Could pose an issue for paths like: 'foo/*/**.js'
         // Think more on this. Could be fine as is! Not sure what the use cases are like.

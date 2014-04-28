@@ -1,3 +1,7 @@
+
+// --------------------
+// Modus.Module
+
 var Module = Modus.Module = function (options) {
   this.options = defaults(this.options, options);
   this.wait = new Wait();
@@ -23,6 +27,10 @@ Module.prototype.exports = function (name, factory) {
   return item;
 };
 
+Module.prototype.getName = function () {
+  return this.options.moduleName;
+};
+
 Module.prototype.getFullName = function () {
   return this.options.namespace + '.' + this.options.moduleName;
 };
@@ -44,7 +52,9 @@ Module.prototype.run = function () {
 
 Module.prototype.disable = function (reason) {
   this.is.failed(true);
-  this.wait.reject(reason);
+  this.wait.reject(function () {
+    throw new Error(reason)
+  });
 };
 
 Module.prototype.compile = function () {
@@ -52,11 +62,12 @@ Module.prototype.compile = function () {
 };
 
 Module.prototype._loadImports = function () {
-  var queue, remaining;
+  var queue = []
+  var remaining = 0;
   var self = this;
   this.is.working(true);
   each(this._imports, function (item) {
-    if (!item.is.loaded()) queue.push(item);
+    if (!self.is.loaded()) queue.push(item);
   });
   remaining = queue.length;
   if (!remaining) {
@@ -81,13 +92,15 @@ Module.prototype._loadImports = function () {
 
 Module.prototype._checkDependencies = function () {
   var self = this;
-  self.is.working(true);
+  if (this.is.ready() || this.is.enabled()) return;
+  this.is.working(true);
   each(this._imports, function (item) {
     var module = item.getModule();
-    if (!this.is.working()) return;
-    if (module.is.failed()) {
-      this.disable('An import ' + module.getFullName() + ' failed: ' + self.getFullName() );
-    } if (!module.is.ready()) {
+    if (!self.is.working()) return;
+    if (!module || module.is.failed()) {
+      self.is.failed(true);
+      self.disable('An import [' + item._from + '] failed for: ' + self.getFullName() );
+    } else if (!module.is.ready() && !module.is.enabled()) {
       self.is.loaded(true);
       module.run();
       module.wait.done(function () { self.run(); });

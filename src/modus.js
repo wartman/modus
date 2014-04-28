@@ -1,3 +1,4 @@
+
 // --------------------
 // Modus
 
@@ -23,7 +24,7 @@ Modus.config = function (key, val) {
     return;
   }
   if(arguments.length < 2){
-    return ( Modus.options[key] || false );
+    return ("undefined" === typeof Modus.options[key])? false : Modus.options[key];
   }
   if ( 'map' === key ) {
     return Modus.map(val);
@@ -100,21 +101,25 @@ Modus.isClient = isClient;
 
 // Namespace factory.
 Modus.namespace = function (name, factory) {
-  var namespace = new Modus.Namespace({
-    namespaceName: name
-  });
+  var namespace;
   var namespaceEnv = 'Modus.env.' + name;
+
   if (reservedName(name)) {
     throw new Error ('Cannot create a namespace with a reserved name: ' + name);
     return;
   }
-  if (getObjectFromName(namespaceEnv)) {
-    throw new Error('Module already exists: ' + this.getName() + '.' + name );
-    return;
+  if (getObjectByName(namespaceEnv)) {
+    namespace = getObjectByName(namespaceEnv);
+  } else {
+    namespace = new Modus.Namespace({
+      namespaceName: name
+    });
+    createObjectByName(namespaceEnv, namespace);
   }
-  createObjectFromName(namespaceEnv, namespace);
-  if (factory) factory(namespace);
-  namespace.run();
+  if (factory) {
+    factory(namespace);
+    namespace.run();
+  }
   return namespace;
 };
 

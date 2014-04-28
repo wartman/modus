@@ -1,11 +1,10 @@
-/*!
- * Modus @VERSION
- *
- * Copyright 2014
- * Released under the MIT license
- *
- * Date: @DATE
- */
+//!
+// Modus @VERSION
+//
+// Copyright 2014
+// Released under the MIT license
+//
+// Date: @DATE
 
 (function (factory) {
 

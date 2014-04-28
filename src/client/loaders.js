@@ -27,7 +27,8 @@ if (Modus.isClient()) {
   })();
 
   Modus.plugins.script = new Modus.Loader(function (module, cb) {
-    var src = Modus.config('root') + this._getMappedPath(module) + '.js';
+    var src = Modus.config('root') + ( this._getMappedPath(module)
+      || module.replace(/\./g, '/') + '.js' );
     var error = function (e) { cb(e); };
 
     if (visited.hasOwnProperty(src)) {
@@ -54,7 +55,8 @@ if (Modus.isClient()) {
 
   Modus.plugins.file = new Modus.Loader(function(file, cb) {
 
-    var src = Modus.config('root') + this._getMappedPath(file) + '.' + this.options.type );
+    var src = Modus.config('root') + ( this._getMappedPath(module)
+      || module.replace(/\./g, '/') + '.' + this.options.type );
     var error = function (e) { cb(e); };
     var next = function (data) {
       Modus.module(file, function (file) {

@@ -1,8 +1,16 @@
+
+// --------------------
+// Modus.Namespace
+
 var Namespace = Modus.Namespace = function (options) {
   this.options = defaults(this.options, options);
   this.wait = new Wait();
   this.is = new Is();
-  this._modules = {};
+  this._modules = [];
+};
+
+Namespace.prototype.options = {
+  namespaceName: 'root'
 };
 
 Namespace.prototype.module = function (name, factory) {
@@ -14,8 +22,12 @@ Namespace.prototype.module = function (name, factory) {
     throw new Error ('Cannot create a module with a reserved name: ' + name);
     return;
   }
-  this._modules[name] = module;
-  if (factory) factory(module);
+  this._modules.push(module);
+  createObjectByName('Modus.env.' + this.getName() + '.' + name, module);
+  if (factory) { 
+    factory(module);
+    module.run();
+  }
   return module;
 };
 
@@ -29,6 +41,10 @@ Namespace.prototype.run = function () {
   }
 };
 
+Namespace.prototype.getName = function () {
+  return this.options.namespaceName;
+};
+
 Namespace.prototype.compile = function () {
   // do compile code.
 };
@@ -36,7 +52,8 @@ Namespace.prototype.compile = function () {
 Namespace.prototype._enableModules = function () {
   var remaining = this._modules.length;
   var self = this;
-  this.isWorking(true);
+  if (!remaining) return;
+  this.is.working(true);
   each(this._modules, function (module) {
     module.run();
     module.wait.done(function () {

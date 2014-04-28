@@ -8,7 +8,8 @@ if (Modus.isServer()) {
   GLOBAL.Modus = Modus;
 
   Modus.plugins.script = new Modus.Loader(function (module, cb) {
-    var src = Modus.config('root') + this._getMappedPath(file) + '.' + js );
+    var src = Modus.config('root') + ( this._getMappedPath(module)
+      || module.replace(/\./g, '/') + '.js' );
     try {
       require(src);
       cb();
@@ -18,7 +19,8 @@ if (Modus.isServer()) {
   });
 
   Modus.plugins.file = new Modus.Loader(function (file, cb) {
-    var src = Modus.config('root') + this._getMappedPath(file) + '.' + this.options.type );
+    var src = Modus.config('root') + ( this._getMappedPath(module)
+      || module.replace(/\./g, '/') + '.' + this.options.type );
     var fs = require('fs');
     fs.readFile(src, function (err, data) {
       if (err) return cb(err);

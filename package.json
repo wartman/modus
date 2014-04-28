@@ -16,13 +16,6 @@
     "name": "Peter Wartman",
     "email": "pwartman@wartfolio.com"
   },
-  "devDependencies": {
-    "qunitjs": "~1.13.0",
-    "grunt": "~0.4.2",
-    "grunt-contrib-connect": "~0.7.1",
-    "grunt-contrib-qunit": "~0.4.0",
-    "grunt-contrib-nodeunit": "~0.3.3"
-  },
   "bin": {
     "modus": "./bin/modus"
   },
@@ -30,5 +23,11 @@
     "commander": "~2.1.0",
     "uglify-js": "~2.4.12",
     "lodash": "~2.4.1"
+  },
+  "devDependencies": {
+    "gulp": "^3.6.2",
+    "gulp-concat": "^2.2.0",
+    "gulp-qunit": "^0.3.3",
+    "qunitjs": "^1.14.0"
   }
 }

@@ -1,7 +1,12 @@
+
+// --------------------
+// Modus.Export
+
 var Export = Modus.Export = function (name, factory, module) {
   this._name = name;
   this._module = module;
-  this._factory = factory;
+  this._definition = factory;
+  this._value = {};
 };
 
 Export.prototype.getFullName = function () {
@@ -10,9 +15,12 @@ Export.prototype.getFullName = function () {
 
 // Run the export. Will apply it directly to the module object in Modus.env.
 Export.prototype.run = function () {
-  createObjectFromName('Modus.env.' + this.getFullName());
-  var prop = getObjectByName('Modus.env.' + this.getFullName());
-  this._factory(prop);
+  if ('function' === typeof this._definition) {
+    this._value = this._definition();
+  } else {
+    this._value = this._definition;
+  }
+  createObjectByName('Modus.env.' + this.getFullName(), this._value);
 };
 
 Export.prototype.compile = function () {

@@ -1,5 +1,32 @@
+
 // --------------------
 // Modus helpers
+
+// Iterator for arrays or objects. Uses native forEach if available.
+var each = function (obj, callback, context) {
+  if(!obj){
+    return obj;
+  }
+  context = (context || obj);
+  if(Array.prototype.forEach && obj.forEach){
+    obj.forEach(callback)
+  } else if ( obj instanceof Array ){
+    for (var i = 0; i < obj.length; i += 1) {
+      if (obj[i] && callback.call(context, obj[i], i, obj)) {
+        break;
+      }
+    }
+  } else {
+    for(var key in obj){
+      if(obj.hasOwnProperty(key)){
+        if(key && callback.call(context, obj[key], key, obj)){
+          break;
+        }
+      }
+    }
+  }
+  return obj;
+}
 
 // Enxure things are loaded async.
 var nextTick = ( function () {
@@ -37,32 +64,6 @@ var nextTick = ( function () {
     return function (fn, ctx) { enqueueFn(fn, ctx) && global.postMessage(msg, '*'); };
   }
 })();
-
-// Iterator for arrays or objects. Uses native forEach if available.
-var each = function (obj, callback, context) {
-  if(!obj){
-    return obj;
-  }
-  context = (context || obj);
-  if(Array.prototype.forEach && obj.forEach){
-    obj.forEach(callback)
-  } else if ( obj instanceof Array ){
-    for (var i = 0; i < obj.length; i += 1) {
-      if (obj[i] && callback.call(context, obj[i], i, obj)) {
-        break;
-      }
-    }
-  } else {
-    for(var key in obj){
-      if(obj.hasOwnProperty(key)){
-        if(key && callback.call(context, obj[key], key, obj)){
-          break;
-        }
-      }
-    }
-  }
-  return obj;
-}
 
 // Wait is a minnimal implementation of a promise-like class.
 // Writing a full on, Promise/A+ complient module is a bit 
@@ -130,17 +131,26 @@ var STATES = {
   FAILED: -1,
   PENDING: 0,
   WORKING: 1,
-  READY: 2,
-  ENABLED: 3
+  LOADED: 2,
+  READY: 3,
+  ENABLED: 4
 };
 var Is = function () {
   this._state = STATES.PENDING;
 }
 each(STATES, function (state, key) {
-  IS.prototype[key.toLowerCase()] = function(set){
+  Is.prototype[key.toLowerCase()] = function(set){
     if(set) this._state = state;
     return this._state === state;
   } 
+});
+
+// type-checking
+var kind = {};
+each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp'], function(name) {
+  kind['is' + name] = function(obj) {
+    return toString.call(obj) == '[object ' + name + ']';
+  };
 });
 
 // Create an object, ensuring that every level is defined
@@ -187,14 +197,14 @@ var checkEnv = function () {
 
 // Are we running Modus on a server?
 var isServer = function () {
-  if (!Modus.config('environment')) Modus.checkEnv();
+  if (!Modus.config('environment')) checkEnv();
   return Modus.config('environment') === 'node'
     || Modus.config('environment') === 'server';
 };
 
 // Are we running Modus on a client?
 var isClient = function () {
-  if (!Modus.config('environment')) Modus.checkEnv();
+  if (!Modus.config('environment')) checkEnv();
   return Modus.config('environment') != 'node'
     && Modus.config('environment') != 'server';
 };
