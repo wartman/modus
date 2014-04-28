@@ -1,10 +1,10 @@
 /*!
- * modus 0.1.0
+ * modus @VERSION
  *
  * Copyright 2014
  * Released under the MIT license
  *
- * Date: 2014-04-27T16:46Z
+ * Date: @DATE
  */
 
 (function (global, factory) {
@@ -236,7 +236,7 @@ modus.env = {
   plugins: {},
   pluginPattern: /([\s\S]+?)\!/,
   environment: false,
-  VERSION: '0.1.0',
+  VERSION: '@VERSION',
   MODULE_STATE: {
     PENDING: 0,
     LOADED: 1,
