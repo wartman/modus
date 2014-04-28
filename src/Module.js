@@ -95,15 +95,17 @@ Module.prototype._checkDependencies = function () {
   if (this.is.ready() || this.is.enabled()) return;
   this.is.working(true);
   each(this._imports, function (item) {
-    var module = item.getModule();
     if (!self.is.working()) return;
-    if (!module || module.is.failed()) {
-      self.is.failed(true);
-      self.disable('An import [' + item._from + '] failed for: ' + self.getFullName() );
+    var module = item.getModule();
+    if (Modus.shims.hasOwnProperty(item.from())) {
+      if (!getObjectByName(item.from())) {
+        self.disable('A shimmed import [' + item.from() + '] failed for: ' + self.getFullName() );
+      }
+    } else if (!module || module.is.failed()) {
+      self.disable('An import [' + item.from() + '] failed for: ' + self.getFullName() );
     } else if (!module.is.ready() && !module.is.enabled()) {
       self.is.loaded(true);
-      module.run();
-      module.wait.done(function () { self.run(); });
+      module.run().wait.done(function () { self.run(); });
       return true;
     }
   });

@@ -256,6 +256,9 @@ var defaults = function(defaults, options){
 // 'env' holds all registered modules and namespaces.
 Modus.env = {};
 
+// 'shims' holds references to shimmed modules.
+Modus.shims = {};
+
 // Holds various loader plugins.
 Modus.plugins = {};
 
@@ -325,8 +328,6 @@ Modus.map = function (path, provides) {
 // Shim a module. This will work with any module that returns
 // something in the global scope.
 Modus.shim = function (name, options) {
-  // Will need to rewrite this, I bet.
-  // Just here for ref.
   if ("object" === typeof name){
     for ( var item in name ) {
       Modus.shim(item, name[item]);
@@ -337,13 +338,7 @@ Modus.shim = function (name, options) {
   if (options.map) {
     Modus.map(options.map, name);
   }
-  var mod = Modus.namespace('shim').module(name, function(mod) {
-    if (options.imports) {
-      each(options.imports, function (item) {
-        mod.imports(item);
-      });
-    }
-  });
+  Modus.shims[name] = options;
 };
 
 // Aliases to environment helpers.
@@ -391,7 +386,8 @@ Modus.load = function (plugin, module, next) {
 // --------------------
 // Modus.Import
 //
-// Import does what you expect: it handles all imports for Modus namespaces and Modus modules.
+// Import does what you expect: it handles all imports for 
+// Modus namespaces and Modus modules.
 
 var Import = Modus.Import = function (items, module) {
   this.is = new Is();
@@ -404,17 +400,20 @@ var Import = Modus.Import = function (items, module) {
 };
 
 Import.prototype.from = function (module) {
+  if (!module) return this._from;
   this._components = this._from;
   this._from = module;
   return this;
 };
 
 Import.prototype.as = function (alias) {
+  if (!alias) return this._as;
   this._as = alias;
   return this;
 };
 
 Import.prototype.uses = function (plugin) {
+  if (!plugin) return this._uses;
   this._uses = plugin;
   return this;
 };
@@ -467,6 +466,9 @@ Import.prototype._applyDependencies = function () {
   var fromName = 'Modus.env.' + this._from;
   var dep = getObjectByName(fromName);
   var module = this._module;
+  if (Modus.shims.hasOwnProperty(this._from)) {
+    dep = getObjectByName(this._from);
+  }
   if (this._components instanceof Array) {
     each(this._components, function (component) {
       module[component] = dep[component];
@@ -678,15 +680,17 @@ Module.prototype._checkDependencies = function () {
   if (this.is.ready() || this.is.enabled()) return;
   this.is.working(true);
   each(this._imports, function (item) {
-    var module = item.getModule();
     if (!self.is.working()) return;
-    if (!module || module.is.failed()) {
-      self.is.failed(true);
-      self.disable('An import [' + item._from + '] failed for: ' + self.getFullName() );
+    var module = item.getModule();
+    if (Modus.shims.hasOwnProperty(item.from())) {
+      if (!getObjectByName(item.from())) {
+        self.disable('A shimmed import [' + item.from() + '] failed for: ' + self.getFullName() );
+      }
+    } else if (!module || module.is.failed()) {
+      self.disable('An import [' + item.from() + '] failed for: ' + self.getFullName() );
     } else if (!module.is.ready() && !module.is.enabled()) {
       self.is.loaded(true);
-      module.run();
-      module.wait.done(function () { self.run(); });
+      module.run().wait.done(function () { self.run(); });
       return true;
     }
   });
@@ -733,7 +737,7 @@ Loader.prototype.run = function (module, next) {
 
 Loader.prototype._getMappedPath = function (module) {
   var mappedPath = false;
-  each(Modus.config('map', []), function (maps, path) {
+  each(Modus.config('map'), function (maps, path) {
     each(maps, function (map) {
       if (map.test(module)){
         mappedPath = path;

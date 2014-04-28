@@ -21,7 +21,7 @@ Loader.prototype.run = function (module, next) {
 
 Loader.prototype._getMappedPath = function (module) {
   var mappedPath = false;
-  each(Modus.config('map', []), function (maps, path) {
+  each(Modus.config('map'), function (maps, path) {
     each(maps, function (map) {
       if (map.test(module)){
         mappedPath = path;

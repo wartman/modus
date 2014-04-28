@@ -2,7 +2,8 @@
 // --------------------
 // Modus.Import
 //
-// Import does what you expect: it handles all imports for Modus namespaces and Modus modules.
+// Import does what you expect: it handles all imports for 
+// Modus namespaces and Modus modules.
 
 var Import = Modus.Import = function (items, module) {
   this.is = new Is();
@@ -15,17 +16,20 @@ var Import = Modus.Import = function (items, module) {
 };
 
 Import.prototype.from = function (module) {
+  if (!module) return this._from;
   this._components = this._from;
   this._from = module;
   return this;
 };
 
 Import.prototype.as = function (alias) {
+  if (!alias) return this._as;
   this._as = alias;
   return this;
 };
 
 Import.prototype.uses = function (plugin) {
+  if (!plugin) return this._uses;
   this._uses = plugin;
   return this;
 };
@@ -78,6 +82,9 @@ Import.prototype._applyDependencies = function () {
   var fromName = 'Modus.env.' + this._from;
   var dep = getObjectByName(fromName);
   var module = this._module;
+  if (Modus.shims.hasOwnProperty(this._from)) {
+    dep = getObjectByName(this._from);
+  }
   if (this._components instanceof Array) {
     each(this._components, function (component) {
       module[component] = dep[component];

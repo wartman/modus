@@ -77,7 +77,21 @@
         start();
         test.equal(again.testing.bar, 'bar', 'Can import without from');
       });
-    })
-  })
+    });
+  });
+
+  test('Modus imports shims', function (test) {
+    stop();
+    Modus.shim('shim', {
+      map: 'fixtures/shim.js'
+    });
+    Modus.namespace('foo').module('shimmed', function (shimmed) {
+      shimmed.imports('shim');
+      shimmed.wait.done(function () {
+        start();
+        test.equal(shimmed.shim, 'shim', 'Got shim');
+      })
+    });
+  });
 
 })();

@@ -5,6 +5,9 @@
 // 'env' holds all registered modules and namespaces.
 Modus.env = {};
 
+// 'shims' holds references to shimmed modules.
+Modus.shims = {};
+
 // Holds various loader plugins.
 Modus.plugins = {};
 
@@ -74,8 +77,6 @@ Modus.map = function (path, provides) {
 // Shim a module. This will work with any module that returns
 // something in the global scope.
 Modus.shim = function (name, options) {
-  // Will need to rewrite this, I bet.
-  // Just here for ref.
   if ("object" === typeof name){
     for ( var item in name ) {
       Modus.shim(item, name[item]);
@@ -86,13 +87,7 @@ Modus.shim = function (name, options) {
   if (options.map) {
     Modus.map(options.map, name);
   }
-  var mod = Modus.namespace('shim').module(name, function(mod) {
-    if (options.imports) {
-      each(options.imports, function (item) {
-        mod.imports(item);
-      });
-    }
-  });
+  Modus.shims[name] = options;
 };
 
 // Aliases to environment helpers.
