@@ -8,6 +8,7 @@ var Module = Modus.Module = function (options) {
   this.options = defaults(this.options, options);
   this.wait = new Wait();
   this.is = new Is();
+  this._body = false;
   this._imports = [];
   this._exports = [];
 };
@@ -77,7 +78,9 @@ Module.prototype.exports = function (name, factory) {
 // Synatic sugar for wrapping code that needs to be run
 // after the module has collected all its imports, but 
 // either doesn't export anything, or defines several of the
-// module's exports. 
+// module's exports. Will always be run BEFORE any exports,
+// even if it is written last. Can only be called once per
+// module.
 //
 // example:
 //    module.imports('foo.bar').as('importedFoo');
@@ -86,13 +89,18 @@ Module.prototype.exports = function (name, factory) {
 //    });
 //    // or:
 //    module.body(function () {
-//      return {
+//      plus.exports({
 //        foo: module.importedFoo,
 //        bar: 'bar'
-//      };
+//      });
 //    });
 Module.prototype.body = function (factory) {
-  return this.exports(factory);
+  if (this._body) {
+    this.disable('Cannot define [body] more then once: ', this.getFullName);
+    return;
+  }
+  this._body = factory;
+  return this;
 };
 
 // Get the name of the module, excluding the namespace.
@@ -160,6 +168,7 @@ Module.prototype._loadImports = function () {
 // Iterate through exports and run them.
 Module.prototype._enableExports = function () {
   var self = this;
+  if (this._body) this._body();
   this.is.working(true);
   each(this._exports, function (item) {
     try {
