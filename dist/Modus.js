@@ -150,9 +150,9 @@ Wait.prototype.reject = function(value, ctx){
 
 // Helper to run callbacks.
 Wait.prototype._dispatch = function (fns, value, ctx) {
+  var self = this;
   this._value = (value || this._value);
   ctx = (ctx || this);
-  var self = this;
   each(fns, function(fn){ fn.call(ctx, self._value); });
 }
 
@@ -190,8 +190,8 @@ each(STATES, function (state, key) {
 // example:
 //    foo.bar.baz -> (foo={}), (foo.bar={}), (foo.bar.baz={})
 var createObjectByName = function (namespace, exports, env) {
-  var cur = env || global
-    , parts = namespace.split('.');
+  var cur = env || global;
+  var parts = namespace.split('.');
   for (var part; parts.length && (part = parts.shift()); ) {
     if(!parts.length && exports !== undefined){
       // Last part, so export to this.
@@ -207,8 +207,8 @@ var createObjectByName = function (namespace, exports, env) {
 
 // Convert a string into an object
 var getObjectByName = function (name, env) {
-  var cur = env || global
-    , parts = name.split('.');
+  var cur = env || global;
+  var parts = name.split('.');
   for (var part; part = parts.shift(); ) {
     if(typeof cur[part] !== "undefined"){
       cur = cur[part];
@@ -386,6 +386,22 @@ Modus.load = function (plugin, module, next) {
 // Import does what you expect: it handles all imports for 
 // Modus namespaces and Modus modules.
 
+// Create a new import. [request] can be several things,
+// depening on how you modify the import later. To explain
+// this, here are some examples:
+//
+// example:
+//    // finds the 'app.foo' module. Avilable as 'module.app.foo'
+//    module.imports('app.foo'); 
+//    // Imports 'app.foo' and aliases it as 'bin'.
+//    // Available as 'module.bin'.
+//    module.imports('app.foo').as('bin');
+//    // Finds 'foo' and 'bar' from 'app.foo'
+//    // Available as 'module.foo' and 'module.bar'
+//    module.imports(['foo', 'bar']).from('app.foo');
+//    // Imports 'foo' and 'bar' for 'app.foo' and aliases them.
+//    // Available as 'module.fooAlias' and 'module.barAlias'
+//    module.imports({fooAlias:'foo', barAlias:'bar'}).from('app.foo');
 var Import = Modus.Import = function (request, module) {
   this.is = new Is();
   this._module = module;
@@ -396,7 +412,7 @@ var Import = Modus.Import = function (request, module) {
   this._inNamespace = false;
 };
 
-// Import components from this module.
+// Import components from the request.
 Import.prototype.from = function (request) {
   if (!request) return this._request;
   if (!this._components) this._components = this._request;
@@ -407,16 +423,12 @@ Import.prototype.from = function (request) {
 // Use an alias for this import. This will only work if
 // you're importing a single item.
 Import.prototype.as = function (alias) {
-  if (this._components) {
-    throw new Error('Cannot use an alias when importing'
-      + 'more then one component: ' + this._request);
-  }
   if (!alias) return this._as;
   this._as = alias;
   return this;
 };
 
-// Use a plugin to import.
+// Import using the plugin.
 Import.prototype.uses = function (plugin) {
   if (!plugin) return this._uses;
   this._uses = plugin;
@@ -427,7 +439,12 @@ Import.prototype.uses = function (plugin) {
 // appropriate Modus.Loader if needed. 
 Import.prototype.load = function (next, error) {
   if (this.is.failed()) return error();
-  this._ensureNamespace();
+  try {
+    this._ensureNamespace();
+  } catch(e) {
+    error(e);
+    return;
+  }
   var fromName = 'Modus.env.' + this._request;
   var self = this;
   var importError = function (reason) {
@@ -452,22 +469,27 @@ Import.prototype.compile = function () {
 };
 
 // Ensure that the request is a full namespace.
-Import.prototype._ensureNamespace = function () {
+Import.prototype._ensureNamespace = function (error) {
   var request = this._request
   if ('string' !== typeof request) {
     throw new TypeError('Request must be a string: ' 
       + typeof request);
   }
+  if (this._as && this._components) {
+    throw new Error('Cannot use an alias when importing'
+      + 'more then one component: ' + this._request);
+  }
   if (!request) this._request = '';
   if (request.indexOf('.') === 0 && this._module) {
-    this._inNamespace = request;
+    // Drop the starting '.'
+    this._inNamespace = request.substring(1);
     this._request = this._module.options.namespace + request;
   }
 };
 
 // Ensure imported modules are enabled.
 Import.prototype._enableImportedModule = function (next, error) {
-  var module = getObjectByName('Modus.env.' + this._request);
+  var module = getObjectByName(this._request, Modus.env);
   var self = this;
   if (Modus.shims.hasOwnProperty(this._request)) {
     if (!getObjectByName(this._request)) {
@@ -492,7 +514,7 @@ Import.prototype._enableImportedModule = function (next, error) {
 
 // Apply requested components to the parent module.
 Import.prototype._applyDependencies = function () {
-  var dep = getObjectByName('Modus.env.' + this._request);
+  var dep = getObjectByName(this._request, Modus.env);
   var module = this._module;
   if (Modus.shims.hasOwnProperty(this._request)) {
     dep = getObjectByName(this._request);
@@ -501,18 +523,20 @@ Import.prototype._applyDependencies = function () {
     each(this._components, function (component) {
       module[component] = dep[component];
     });
+  } else if ("object" === typeof this._components) {
+    each(this._components, function (component, alias) {
+      module[alias] = dep[component];
+    });
   } else if (this._components) {
     module[this._components] = dep[this._components];
   } else if (this._as) {
     module[this._as] = dep;
   } else {
     if (this._inNamespace) {
-      createObjectByName('Modus.env.' + module.getFullName() 
-        + this._inNamespace, dep);
+      createObjectByName(this._inNamespace, dep, module);
       return;
     }
-    createObjectByName('Modus.env.' + module.getFullName() 
-      + '.' + this._request, dep);
+    createObjectByName(this._request, dep, module);
   }
 }
 
@@ -520,6 +544,12 @@ Import.prototype._applyDependencies = function () {
 // Modus.Export
 
 var Export = Modus.Export = function (name, factory, module) {
+  if (arguments.length < 3) {
+    module = factory;
+    factory = name;
+    name = false;
+  }
+  this.is = new Is();
   this._name = name;
   this._module = module;
   this._definition = factory;
@@ -534,6 +564,7 @@ Export.prototype.getFullName = function () {
 
 // Run the export. Will apply it directly to the module object in Modus.env.
 Export.prototype.run = function () {
+  if (this.is.enabled() || this.is.failed()) return;
   var self = this;
   if ('function' === typeof this._definition) {
     this._value = this._definition();
@@ -541,12 +572,17 @@ Export.prototype.run = function () {
     this._value = this._definition;
   }
   if (this._name) {
-    createObjectByName('Modus.env.' + this.getFullName(), this._value);
+    createObjectByName(this._name, this._value, this._module);
   } else {
+    if ("object" !== typeof this._value) {
+      throw new Error('Unnamed exports must return an object: ' + typeof this._value);
+      return;
+    }
     each(this._value, function (value, key) {
-      createObjectByName('Modus.env.' + self.getFullName() + '.' + key, value);
-    })
+      createObjectByName(key, value, self._module);
+    });
   }
+  self.is.enabled(true);
 };
 
 Export.prototype.compile = function () {
@@ -680,13 +716,15 @@ var Module = Modus.Module = function (options) {
   this.options = defaults(this.options, options);
   this.wait = new Wait();
   this.is = new Is();
+  this._body = false;
   this._imports = [];
   this._exports = [];
 };
 
 Module.prototype.options = {
   namespace: 'root',
-  moduleName: null
+  moduleName: null,
+  throwErrors: true
 };
 
 // Import a dependency into this module.
@@ -749,7 +787,10 @@ Module.prototype.exports = function (name, factory) {
 // Synatic sugar for wrapping code that needs to be run
 // after the module has collected all its imports, but 
 // either doesn't export anything, or defines several of the
-// module's exports. 
+// module's exports. Will always be run last, after any 
+// export calls.
+//
+// Can only be called once per module.
 //
 // example:
 //    module.imports('foo.bar').as('importedFoo');
@@ -758,13 +799,18 @@ Module.prototype.exports = function (name, factory) {
 //    });
 //    // or:
 //    module.body(function () {
-//      return {
+//      plus.exports({
 //        foo: module.importedFoo,
 //        bar: 'bar'
-//      };
+//      });
 //    });
 Module.prototype.body = function (factory) {
-  return this.exports(factory);
+  if (this._body) {
+    this.disable('Cannot define [body] more then once: ', this.getFullName);
+    return;
+  }
+  this._body = factory;
+  return this;
 };
 
 // Get the name of the module, excluding the namespace.
@@ -795,10 +841,12 @@ Module.prototype.run = function () {
 
 // Disable the module. A disabled module CANNOT be re-enabled.
 Module.prototype.disable = function (reason) {
+  var self = this;
   this.is.failed(true);
-  this.wait.reject(function () {
-    throw new Error(reason)
+  this.wait.done(null, function (e) {
+    if (self.options.throwErrors) throw e;
   });
+  this.wait.reject(reason);
 };
 
 // This will be used by the Modus compiler down the road.
@@ -830,17 +878,22 @@ Module.prototype._loadImports = function () {
 };
 
 // Iterate through exports and run them.
-Module.prototype._enableExports = function () {
+Module.prototype._enableExports = function (ranBody) {
   var self = this;
   this.is.working(true);
   each(this._exports, function (item) {
+    if (item.is.enabled()) return;
     try {
       item.run();
     } catch(e) {
-      this.disable(e);
+      self.disable(e);
     }
   });
   if (!this.is.working()) return;
+  if (this._body && !ranBody) {
+    this._body();
+    this._enableExports(true);
+  }
   this.is.enabled(true);
   this.run();
 };

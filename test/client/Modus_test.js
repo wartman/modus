@@ -112,7 +112,7 @@
     });
   });
 
-  test('Export several items from with an exports call', function (test) {
+  test('Export several items with an exports call', function (test) {
     stop();
     Modus.namespace('foo').module('many', function (many) {
       many.exports(function () {
@@ -127,6 +127,27 @@
         test.equal(many.fad, 'fad', 'Exported');
       })
     })
+  });
+
+  test('Modus.Module.body', function (test) {
+    stop();
+    Modus.namespace('foo').module('depOne', function (depOne) {
+      depOne.body(function () {
+        var Foo = 'Foo';
+        var Bar = 'Bar';
+        depOne.exports({
+          Foo: Foo,
+          Bar: Bar
+        });
+      });
+    });
+    Modus.namespace('foo').module('testBody', function (testBody) {
+      testBody.imports(['Foo', 'Bar']).from('.depOne');
+      testBody.body(function () {
+        start();
+        test.equal(testBody.Foo + testBody.Bar, 'FooBar', 'Body exported stuff');
+      });
+    });
   });
 
 })();

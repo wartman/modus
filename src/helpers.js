@@ -120,9 +120,9 @@ Wait.prototype.reject = function(value, ctx){
 
 // Helper to run callbacks.
 Wait.prototype._dispatch = function (fns, value, ctx) {
+  var self = this;
   this._value = (value || this._value);
   ctx = (ctx || this);
-  var self = this;
   each(fns, function(fn){ fn.call(ctx, self._value); });
 }
 
@@ -160,8 +160,8 @@ each(STATES, function (state, key) {
 // example:
 //    foo.bar.baz -> (foo={}), (foo.bar={}), (foo.bar.baz={})
 var createObjectByName = function (namespace, exports, env) {
-  var cur = env || global
-    , parts = namespace.split('.');
+  var cur = env || global;
+  var parts = namespace.split('.');
   for (var part; parts.length && (part = parts.shift()); ) {
     if(!parts.length && exports !== undefined){
       // Last part, so export to this.
@@ -177,8 +177,8 @@ var createObjectByName = function (namespace, exports, env) {
 
 // Convert a string into an object
 var getObjectByName = function (name, env) {
-  var cur = env || global
-    , parts = name.split('.');
+  var cur = env || global;
+  var parts = name.split('.');
   for (var part; part = parts.shift(); ) {
     if(typeof cur[part] !== "undefined"){
       cur = cur[part];

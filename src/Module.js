@@ -15,7 +15,8 @@ var Module = Modus.Module = function (options) {
 
 Module.prototype.options = {
   namespace: 'root',
-  moduleName: null
+  moduleName: null,
+  throwErrors: true
 };
 
 // Import a dependency into this module.
@@ -78,9 +79,10 @@ Module.prototype.exports = function (name, factory) {
 // Synatic sugar for wrapping code that needs to be run
 // after the module has collected all its imports, but 
 // either doesn't export anything, or defines several of the
-// module's exports. Will always be run BEFORE any exports,
-// even if it is written last. Can only be called once per
-// module.
+// module's exports. Will always be run last, after any 
+// export calls.
+//
+// Can only be called once per module.
 //
 // example:
 //    module.imports('foo.bar').as('importedFoo');
@@ -131,10 +133,12 @@ Module.prototype.run = function () {
 
 // Disable the module. A disabled module CANNOT be re-enabled.
 Module.prototype.disable = function (reason) {
+  var self = this;
   this.is.failed(true);
-  this.wait.reject(function () {
-    throw new Error(reason)
+  this.wait.done(null, function (e) {
+    if (self.options.throwErrors) throw e;
   });
+  this.wait.reject(reason);
 };
 
 // This will be used by the Modus compiler down the road.
@@ -166,18 +170,22 @@ Module.prototype._loadImports = function () {
 };
 
 // Iterate through exports and run them.
-Module.prototype._enableExports = function () {
+Module.prototype._enableExports = function (ranBody) {
   var self = this;
-  if (this._body) this._body();
   this.is.working(true);
   each(this._exports, function (item) {
+    if (item.is.enabled()) return;
     try {
       item.run();
     } catch(e) {
-      this.disable(e);
+      self.disable(e);
     }
   });
   if (!this.is.working()) return;
+  if (this._body && !ranBody) {
+    this._body();
+    this._enableExports(true);
+  }
   this.is.enabled(true);
   this.run();
 };
