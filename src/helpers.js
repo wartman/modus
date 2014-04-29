@@ -28,6 +28,17 @@ var each = function (obj, callback, context) {
   return obj;
 }
 
+// Apply defaults to an object.
+var defaults = function(defaults, options){
+  if (!options) return defaults;
+  for(var key in defaults){
+    if(defaults.hasOwnProperty(key) && !options.hasOwnProperty(key)){
+      options[key] = defaults[key];
+    }
+  }
+  return options;
+}
+
 // Enxure things are loaded async.
 var nextTick = ( function () {
   var fns = [];
@@ -145,14 +156,6 @@ each(STATES, function (state, key) {
   } 
 });
 
-// type-checking
-var kind = {};
-each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp'], function(name) {
-  kind['is' + name] = function(obj) {
-    return toString.call(obj) == '[object ' + name + ']';
-  };
-});
-
 // Create an object, ensuring that every level is defined
 // example:
 //    foo.bar.baz -> (foo={}), (foo.bar={}), (foo.bar.baz={})
@@ -208,14 +211,3 @@ var isClient = function () {
   return Modus.config('environment') != 'node'
     && Modus.config('environment') != 'server';
 };
-
-// Apply defaults to an object.
-var defaults = function(defaults, options){
-  if (!options) return defaults;
-  for(var key in defaults){
-    if(defaults.hasOwnProperty(key) && !options.hasOwnProperty(key)){
-      options[key] = defaults[key];
-    }
-  }
-  return options;
-}

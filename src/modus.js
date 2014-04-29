@@ -45,9 +45,10 @@ Modus.config = function (key, val) {
 //    // You can also map a file to a base namespace
 //    Modus.map('lib/foo.js', ['foo.*']);
 //    // The following will now load lib/foo.js:
-//    Modus('myModule').import('foo.bar').export(function(){ });
+//    module.import('foo.bar');
 //
 Modus.map = function (path, provides) {
+  // TODO: This method needs some love.
   if ("object" === typeof path){
     for ( var item in path ) {
       Modus.map(item, path[item]);
@@ -65,9 +66,12 @@ Modus.map = function (path, provides) {
   }
   provides = new RegExp ( 
     provides
-      .replace('**', "([\\s\\S]+?)") // ** matches any number of segments (will only use the first)
-      .replace('*', "([^\\.|^$]+?)") // * matches a single segment (will only use the first)
-      .replace(/\./g, "\\.")         // escape '.'
+      // ** matches any number of segments (will only use the first)
+      .replace('**', "([\\s\\S]+?)")
+      // * matches a single segment (will only use the first)
+      .replace('*', "([^\\.|^$]+?)") 
+      // escapes
+      .replace(/\./g, "\\.")
       .replace(/\$/g, '\\$')
       + '$'
   );
@@ -100,7 +104,8 @@ Modus.namespace = function (name, factory) {
   var namespaceEnv = 'Modus.env.' + name;
 
   if (reservedName(name)) {
-    throw new Error ('Cannot create a namespace with a reserved name: ' + name);
+    throw new Error ('Cannot create a namespace'
+      + 'with a reserved name: ' + name);
     return;
   }
   if (getObjectByName(namespaceEnv)) {

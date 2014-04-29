@@ -31,7 +31,7 @@
         return 'foo';
       });
       one.exports('bar', 'bar');
-      one.wait.done(function () {
+      one.body(function () {
         start();
         test.equal(one.foo, 'foo', 'Exported component');
         test.equal(one.bar, 'bar', 'Exports investgates type');
@@ -48,7 +48,7 @@
     });
     Modus.namespace('foo').module('bin', function (bin) {
       bin.imports(['bar', 'baz']).from('.bar');
-      bin.wait.done(function () {
+      bin.body(function () {
         start();
         test.equal(bin.bar + bin.baz, 'barbaz', 'Imported in namespace context');
       })
@@ -59,7 +59,7 @@
     stop();
     Modus.namespace('foo').module('bin', function (bin) {
       bin.imports('fixtures.test_exports').as('test_exports');
-      bin.wait.done(function() {
+      bin.body(function() {
         start();
         test.equal(bin.test_exports.foo, 'foo', 'Imported script');
       })
@@ -73,7 +73,7 @@
     });
     Modus.namespace('foo').module('testingAgain', function (again) {
       again.imports('.testing');
-      again.wait.done(function () {
+      again.body(function () {
         start();
         test.equal(again.testing.bar, 'bar', 'Can import without from');
       });
@@ -87,7 +87,7 @@
     });
     Modus.namespace('foo').module('shimmed', function (shimmed) {
       shimmed.imports('shim');
-      shimmed.wait.done(function () {
+      shimmed.body(function () {
         start();
         test.equal(shimmed.shim, 'shim', 'Got shim');
       })
@@ -109,8 +109,24 @@
         test.equal(foo.imp.test, 'foobar:got', 'namespace can import');
         test.equal(foo.test_ban.ban, 'ban', 'Can define modules');
       });
-    })
+    });
+  });
 
+  test('Export several items from with an exports call', function (test) {
+    stop();
+    Modus.namespace('foo').module('many', function (many) {
+      many.exports(function () {
+        return {
+          fid: 'fid',
+          fad: 'fad'
+        }
+      });
+      many.body(function () {
+        start();
+        test.equal(many.fid, 'fid', 'Exported');
+        test.equal(many.fad, 'fad', 'Exported');
+      })
+    })
   });
 
 })();
