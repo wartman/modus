@@ -65,7 +65,7 @@ Export.prototype.run = function () {
     });
   } else if (this._value) {
     // Define the root module.
-    this._module.env = this._value;
+    this._module.env = extend(this._value, this._module.env);
   }
   // Always clear out exports.
   this._module.env.exports = {};

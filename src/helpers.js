@@ -54,6 +54,17 @@ var size = function(obj) {
   return (obj.length === +obj.length) ? obj.length : keys(obj).length;
 };
 
+var extend = function(obj){
+  each(Array.prototype.slice.call(arguments, 1), function(source){
+    if(source){
+      for(var prop in source){
+        if (source.hasOwnProperty(prop)) obj[prop] = source[prop];
+      }
+    }
+  });
+  return obj;
+};
+
 // Enxure things are loaded async.
 var nextTick = ( function () {
   var fns = [];

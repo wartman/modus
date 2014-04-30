@@ -97,6 +97,21 @@
     test.equal(mod.env(), 'foo', 'Exported as root');
   });
 
+  test('Export can define the root object, and keeps previous exports', function (test) {
+    var item = new Modus.Export({
+      foo: 'foo',
+      bar: 'bar'
+    }, mod);
+    item.run();
+    var item = new Modus.Export(function (mod) {
+      mod.exports = function () { return 'foo'; };
+    }, mod);
+    item.run();
+    test.equal(mod.env(), 'foo', 'Exported as root');
+    test.equal(mod.env.foo, 'foo', 'Kept previous export');
+    test.equal(mod.env.bar, 'bar', 'Kept previous export');
+  });
+
   test('Error when attempting to export something named \'exports\'', function (test) {
     var item = new Modus.Export(function (mod) {
       mod.exports.exports = 'bad';

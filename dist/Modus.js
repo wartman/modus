@@ -84,6 +84,17 @@ var size = function(obj) {
   return (obj.length === +obj.length) ? obj.length : keys(obj).length;
 };
 
+var extend = function(obj){
+  each(Array.prototype.slice.call(arguments, 1), function(source){
+    if(source){
+      for(var prop in source){
+        if (source.hasOwnProperty(prop)) obj[prop] = source[prop];
+      }
+    }
+  });
+  return obj;
+};
+
 // Enxure things are loaded async.
 var nextTick = ( function () {
   var fns = [];
@@ -598,7 +609,6 @@ Export.prototype.run = function () {
     }
     this._value = this._module.env.exports;
   }
-  console.log(this._value);
   // Apply to module
   if (this._name) {
     this._module.env[this._name] = this._value;
@@ -608,7 +618,7 @@ Export.prototype.run = function () {
     });
   } else if (this._value) {
     // Define the root module.
-    this._module.env = this._value;
+    this._module.env = extend(this._value, this._module.env);
   }
   // Always clear out exports.
   this._module.env.exports = {};

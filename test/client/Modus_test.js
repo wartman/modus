@@ -1,5 +1,7 @@
 (function () {
 
+  // A lot of this is redundant: probably need to refactor tests at some point.
+
   module('Modus test', {
     setup: function () {
       Modus.config({
