@@ -89,4 +89,27 @@
     test.equal(mod.env.barCb, 'bar', 'Exported object directly');
   });
 
+  test('Export can define the root object', function (test) {
+    var item = new Modus.Export(function (mod) {
+      mod.exports = function () { return 'foo'; };
+    }, mod);
+    item.run();
+    test.equal(mod.env(), 'foo', 'Exported as root');
+  });
+
+  test('Error when attempting to export something named \'exports\'', function (test) {
+    var item = new Modus.Export(function (mod) {
+      mod.exports.exports = 'bad';
+    }, mod);
+    QUnit.throws(function () {
+      item.run();
+    });
+    var item = new Modus.Export(function (mod) {
+      return {exports: 'bad'};
+    }, mod);
+    QUnit.throws(function () {
+      item.run();
+    });
+  });
+
 })();
