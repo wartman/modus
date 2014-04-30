@@ -37,7 +37,6 @@ Export.prototype.run = function () {
       throw new Error('Cannot export a component nammed \'exports\' for module: ' + this._module.getFullName());
     }
     this._value = this._module.env.exports;
-    this._module.env.exports = {};
   }
   // Apply to module
   if (this._name) {
@@ -47,6 +46,8 @@ Export.prototype.run = function () {
       createObjectByName(key, value, self._module.env);
     });
   }
+  // Always clear out exports.
+  this._module.env.exports = {};
   self.is.enabled(true);
 };
 
