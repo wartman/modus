@@ -48,7 +48,7 @@ Import.prototype.as = function (alias) {
 };
 
 // Import using the plugin.
-Import.prototype.uses = function (plugin) {
+Import.prototype.using = function (plugin) {
   if (!plugin) return this._uses;
   this._uses = plugin;
   return this;
@@ -108,7 +108,7 @@ Import.prototype._ensureNamespace = function (error) {
 
 // Ensure imported modules are enabled.
 Import.prototype._enableImportedModule = function (next, error) {
-  var module = getObjectByName(this._request, Modus.env);
+  var module = getObjectByName(this._request, Modus.managers);
   var self = this;
   if (Modus.shims.hasOwnProperty(this._request)) {
     if (!getObjectByName(this._request)) {
@@ -134,7 +134,7 @@ Import.prototype._enableImportedModule = function (next, error) {
 // Apply requested components to the parent module.
 Import.prototype._applyDependencies = function () {
   var dep = getObjectByName(this._request, Modus.env);
-  var module = this._module;
+  var module = this._module.env;
   if (Modus.shims.hasOwnProperty(this._request)) {
     dep = getObjectByName(this._request);
   }

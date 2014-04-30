@@ -26,7 +26,7 @@ var each = function (obj, callback, context) {
     }
   }
   return obj;
-}
+};
 
 // Apply defaults to an object.
 var defaults = function(defaults, options){
@@ -37,7 +37,22 @@ var defaults = function(defaults, options){
     }
   }
   return options;
-}
+};
+
+// Get all keys from an object
+var keys = function(obj) {
+  if ("object" !== typeof obj) return [];
+  if (Object.keys) return Object.keys(obj);
+  var keys = [];
+  for (var key in obj) if (_.has(obj, key)) keys.push(key);
+  return keys;
+};
+
+// Get the size of an object
+var size = function(obj) {
+  if (obj == null) return 0;
+  return (obj.length === +obj.length) ? obj.length : keys(obj).length;
+};
 
 // Enxure things are loaded async.
 var nextTick = ( function () {
@@ -84,7 +99,7 @@ var Wait = function(){
   this._onReady = [];
   this._onFailed = [];
   this._value = null;
-}
+};
 
 // Register callbacks to be run when resolved/rejected.
 Wait.prototype.done = function(onReady, onFailed){
@@ -102,21 +117,21 @@ Wait.prototype.done = function(onReady, onFailed){
     }
   });
   return this;
-}
+};
 
 // Resolve the Wait
 Wait.prototype.resolve = function(value, ctx){
   this._state = 1;
   this._dispatch(this._onReady, value, ctx);
   this._onReady = [];
-}
+};
 
 // Reject the Wait.
 Wait.prototype.reject = function(value, ctx){
   this._state = -1;
   this._dispatch(this._onFailed, value, ctx);
   this._onFailed = [];
-}
+};
 
 // Helper to run callbacks.
 Wait.prototype._dispatch = function (fns, value, ctx) {
@@ -124,16 +139,6 @@ Wait.prototype._dispatch = function (fns, value, ctx) {
   this._value = (value || this._value);
   ctx = (ctx || this);
   each(fns, function(fn){ fn.call(ctx, self._value); });
-}
-
-var reservedNames = [
-  'imports',
-  'exports',
-  'module',
-  'namespace'
-];
-var reservedName = function (name) {
-  return reservedNames.indexOf(name) >= 0;
 };
 
 // 'Is' manages states. You'll see it being used in most of 

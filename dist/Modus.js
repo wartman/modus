@@ -56,7 +56,7 @@ var each = function (obj, callback, context) {
     }
   }
   return obj;
-}
+};
 
 // Apply defaults to an object.
 var defaults = function(defaults, options){
@@ -67,7 +67,22 @@ var defaults = function(defaults, options){
     }
   }
   return options;
-}
+};
+
+// Get all keys from an object
+var keys = function(obj) {
+  if ("object" !== typeof obj) return [];
+  if (Object.keys) return Object.keys(obj);
+  var keys = [];
+  for (var key in obj) if (_.has(obj, key)) keys.push(key);
+  return keys;
+};
+
+// Get the size of an object
+var size = function(obj) {
+  if (obj == null) return 0;
+  return (obj.length === +obj.length) ? obj.length : keys(obj).length;
+};
 
 // Enxure things are loaded async.
 var nextTick = ( function () {
@@ -114,7 +129,7 @@ var Wait = function(){
   this._onReady = [];
   this._onFailed = [];
   this._value = null;
-}
+};
 
 // Register callbacks to be run when resolved/rejected.
 Wait.prototype.done = function(onReady, onFailed){
@@ -132,21 +147,21 @@ Wait.prototype.done = function(onReady, onFailed){
     }
   });
   return this;
-}
+};
 
 // Resolve the Wait
 Wait.prototype.resolve = function(value, ctx){
   this._state = 1;
   this._dispatch(this._onReady, value, ctx);
   this._onReady = [];
-}
+};
 
 // Reject the Wait.
 Wait.prototype.reject = function(value, ctx){
   this._state = -1;
   this._dispatch(this._onFailed, value, ctx);
   this._onFailed = [];
-}
+};
 
 // Helper to run callbacks.
 Wait.prototype._dispatch = function (fns, value, ctx) {
@@ -154,16 +169,6 @@ Wait.prototype._dispatch = function (fns, value, ctx) {
   this._value = (value || this._value);
   ctx = (ctx || this);
   each(fns, function(fn){ fn.call(ctx, self._value); });
-}
-
-var reservedNames = [
-  'imports',
-  'exports',
-  'module',
-  'namespace'
-];
-var reservedName = function (name) {
-  return reservedNames.indexOf(name) >= 0;
 };
 
 // 'Is' manages states. You'll see it being used in most of 
@@ -245,8 +250,11 @@ var isClient = function () {
 // --------------------
 // Modus
 
-// 'env' holds all registered modules and namespaces.
+// 'env' holds the actual modules and namespaces.
 Modus.env = {};
+
+// 'managers' holds the classes used to manage namespaces.
+Modus.managers = {};
 
 // 'shims' holds references to shimmed modules.
 Modus.shims = {};
@@ -344,20 +352,13 @@ Modus.isClient = isClient;
 // Namespace factory.
 Modus.namespace = function (name, factory) {
   var namespace;
-  var namespaceEnv = 'Modus.env.' + name;
-
-  if (reservedName(name)) {
-    throw new Error ('Cannot create a namespace'
-      + 'with a reserved name: ' + name);
-    return;
-  }
-  if (getObjectByName(namespaceEnv)) {
-    namespace = getObjectByName(namespaceEnv);
+  if (getObjectByName(name, Modus.managers)) {
+    namespace = getObjectByName(name, Modus.managers);
   } else {
     namespace = new Modus.Namespace({
       namespaceName: name
     });
-    createObjectByName(namespaceEnv, namespace);
+    createObjectByName(name, namespace, Modus.managers);
   }
   if (factory) {
     factory(namespace);
@@ -429,7 +430,7 @@ Import.prototype.as = function (alias) {
 };
 
 // Import using the plugin.
-Import.prototype.uses = function (plugin) {
+Import.prototype.using = function (plugin) {
   if (!plugin) return this._uses;
   this._uses = plugin;
   return this;
@@ -489,7 +490,7 @@ Import.prototype._ensureNamespace = function (error) {
 
 // Ensure imported modules are enabled.
 Import.prototype._enableImportedModule = function (next, error) {
-  var module = getObjectByName(this._request, Modus.env);
+  var module = getObjectByName(this._request, Modus.managers);
   var self = this;
   if (Modus.shims.hasOwnProperty(this._request)) {
     if (!getObjectByName(this._request)) {
@@ -515,7 +516,7 @@ Import.prototype._enableImportedModule = function (next, error) {
 // Apply requested components to the parent module.
 Import.prototype._applyDependencies = function () {
   var dep = getObjectByName(this._request, Modus.env);
-  var module = this._module;
+  var module = this._module.env;
   if (Modus.shims.hasOwnProperty(this._request)) {
     dep = getObjectByName(this._request);
   }
@@ -553,7 +554,7 @@ var Export = Modus.Export = function (name, factory, module) {
   this._name = name;
   this._module = module;
   this._definition = factory;
-  this._value = {};
+  this._value = false;
 };
 
 Export.prototype.getFullName = function () {
@@ -566,20 +567,26 @@ Export.prototype.getFullName = function () {
 Export.prototype.run = function () {
   if (this.is.enabled() || this.is.failed()) return;
   var self = this;
+  // Run export
   if ('function' === typeof this._definition) {
-    this._value = this._definition();
+    this._value = this._definition(this._module.env);
   } else {
     this._value = this._definition;
   }
-  if (this._name) {
-    createObjectByName(this._name, this._value, this._module);
-  } else {
-    if ("object" !== typeof this._value) {
-      throw new Error('Unnamed exports must return an object: ' + typeof this._value);
-      return;
+  // Check for exports.
+  if (size(this._module.env.exports) > 0) {
+    if (this._module.env.exports.hasOwnProperty('exports')) {
+      throw new Error('Cannot export a component nammed \'exports\' for module: ' + this._module.getFullName());
     }
+    this._value = this._module.env.exports;
+    this._module.env.exports = {};
+  }
+  // Apply to module
+  if (this._name) {
+    createObjectByName(this._name, this._value, this._module.env);
+  } else {
     each(this._value, function (value, key) {
-      createObjectByName(key, value, self._module);
+      createObjectByName(key, value, self._module.env);
     });
   }
   self.is.enabled(true);
@@ -599,6 +606,8 @@ var Namespace = Modus.Namespace = function (options) {
   this.options = defaults(this.options, options);
   this.wait = new Wait();
   this.is = new Is();
+  createObjectByName(this.getFullName(), {}, Modus.env);
+  this.env = getObjectByName(this.getFullName(), Modus.env);
   this._modules = [];
   this._imports = [];
 };
@@ -625,14 +634,8 @@ Namespace.prototype.module = function (name, factory) {
     namespace: this.getName(),
     moduleName: name
   });
-  if (reservedName(name)) {
-    throw new Error ('Cannot create a module with'
-      + ' a reserved name: ' + name);
-    return;
-  }
   this._modules.push(module);
-  createObjectByName('Modus.env.' + this.getName() 
-    + '.' + name, module);
+  createObjectByName(this.getName() + '.' + name, module, Modus.managers);
   if (factory) { 
     factory(module);
     module.run();
@@ -678,7 +681,7 @@ Namespace.prototype.getFullName = function () {
 };
 
 // To be used by Modus' compiler.
-Namespace.prototype.compile = function () {
+Namespace.prototype._compile = function () {
   // do compile code.
 };
 
@@ -716,6 +719,10 @@ var Module = Modus.Module = function (options) {
   this.options = defaults(this.options, options);
   this.wait = new Wait();
   this.is = new Is();
+  // Create the actual module.
+  createObjectByName(this.getFullName(), { exports: {} }, Modus.env);
+  this.env = getObjectByName(this.getFullName(), Modus.env);
+  // Internal vars
   this._body = false;
   this._imports = [];
   this._exports = [];
@@ -741,7 +748,7 @@ Module.prototype.options = {
 //    module.body(function () {
 //      module.foo(); // from foo.baz.foo
 //      module.bin(); // frim foo.baz.bin
-//    })
+//    });
 Module.prototype.imports = function (deps) {
   this.is.pending(true);
   var item = new Modus.Import(deps, this);
@@ -755,20 +762,22 @@ Module.prototype.imports = function (deps) {
 // dependencies in an export method. 
 //
 // example:
-//    module.exports('foo', function () {
+//    module.exports('foo', function (module) {
 //      var thing = module.importedThing();
+//      // Set an export by returning a value
 //      return thing;
 //    });
-//    module.exports('fid', function () {
-//      this.foo = "foo";
-//      this.bar = 'bar';
+//    module.exports('fid', function (module) {
+//      // Set a value using CommonJS like syntax.
+//      module.exports.foo = "foo";
+//      module.exports.bar = 'bar';
 //    });
 //
 // You can also export several components in one go
 // by skipping [name] and returning an object from [factory]
 //
 // example:
-//    module.exports(function () {
+//    module.exports(function (module) {
 //      return {
 //        foo: 'foo',
 //        bar: 'bar'
@@ -794,22 +803,22 @@ Module.prototype.exports = function (name, factory) {
 //
 // example:
 //    module.imports('foo.bar').as('importedFoo');
-//    module.body(function () {
+//    module.body(function (module) {
 //      module.importedFoo();
 //    });
 //    // or:
-//    module.body(function () {
-//      plus.exports({
+//    module.body(function (module) {
+//      module.exports = {
 //        foo: module.importedFoo,
 //        bar: 'bar'
-//      });
+//      };
 //    });
 Module.prototype.body = function (factory) {
   if (this._body) {
-    this.disable('Cannot define [body] more then once: ', this.getFullName);
+    this._disable('Cannot define [body] more then once: ', this.getFullName());
     return;
   }
-  this._body = factory;
+  this._body = new Modus.Export(factory, this);
   return this;
 };
 
@@ -840,7 +849,7 @@ Module.prototype.run = function () {
 };
 
 // Disable the module. A disabled module CANNOT be re-enabled.
-Module.prototype.disable = function (reason) {
+Module.prototype._disable = function (reason) {
   var self = this;
   this.is.failed(true);
   this.wait.done(null, function (e) {
@@ -850,7 +859,7 @@ Module.prototype.disable = function (reason) {
 };
 
 // This will be used by the Modus compiler down the road.
-Module.prototype.compile = function () {
+Module.prototype._compile = function () {
   // Run compile code here.
 };
 
@@ -872,13 +881,13 @@ Module.prototype._loadImports = function () {
         self.run();
       }
     }, function (reason) {
-      self.disable(reason);
+      self._disable(reason);
     });
   });
 };
 
 // Iterate through exports and run them.
-Module.prototype._enableExports = function (ranBody) {
+Module.prototype._enableExports = function () {
   var self = this;
   this.is.working(true);
   each(this._exports, function (item) {
@@ -886,14 +895,11 @@ Module.prototype._enableExports = function (ranBody) {
     try {
       item.run();
     } catch(e) {
-      self.disable(e);
+      self._disable(e);
     }
   });
   if (!this.is.working()) return;
-  if (this._body && !ranBody) {
-    this._body();
-    this._enableExports(true);
-  }
+  if (this._body)  this._body.run();
   this.is.enabled(true);
   this.run();
 };

@@ -33,22 +33,22 @@
     var item = mod.exports('foo', 'foo');
     test.ok(item instanceof Modus.Export);
     item.run();
-    test.equal(mod.foo, 'foo', 'Item exported correctly');
+    test.equal(Modus.env.root['test' + modID].foo, 'foo', 'Item exported correctly');
   });
 
   test('Module imports', function (test) {
     stop();
     // Fake up a module.
-    Modus.env.fixture = {
+    Modus.managers.fixture = {
       one: new Modus.Module({moduleName: 'one', namespace:'fixture'})
     };
-    Modus.env.fixture.one.exports('foo', 'foo');
+    Modus.managers.fixture.one.exports('foo', 'foo');
     // Test
     var item = mod.imports('fixture.one');
     test.ok(item instanceof Modus.Import);
     item.load(function () {
       start();
-      test.equal(mod.fixture.one.foo, 'foo', 'imported');
+      test.equal(mod.env.fixture.one.foo, 'foo', 'imported');
     }, function () {
       start();
       ok(false);
@@ -58,12 +58,12 @@
   test('Module body', function (test) {
     stop();
     mod.exports('thing', 'thing');
-    mod.body(function () {
-      mod.exports('otherThing', mod.thing + ':got');
+    mod.body(function (mod) {
+      mod.exports.otherThing = mod.thing + ':got';
     });
     mod.wait.done(function () {
       start();
-      test.equal(mod.otherThing, 'thing:got', 'Ran body after exports, exported internal exports');
+      test.equal(mod.env.otherThing, 'thing:got', 'Ran body after exports, exported internal exports');
     });
     mod.run();
   });
@@ -86,8 +86,9 @@
   test('Module catches export errors (if throwErrors === false)', function (test) {
     stop();
     mod.options.throwErrors = false;
-    // Should fail as you cannot export a string without a name.
-    mod.exports('thing');
+    mod.exports('thing', function () {
+      throw Error();
+    });
     mod.wait.done(function () {
       stop();
       ok(false, 'Should have failed!');
@@ -97,6 +98,5 @@
     });
     mod.run();
   });
-  
 
 })();

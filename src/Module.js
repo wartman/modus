@@ -8,6 +8,10 @@ var Module = Modus.Module = function (options) {
   this.options = defaults(this.options, options);
   this.wait = new Wait();
   this.is = new Is();
+  // Create the actual module.
+  createObjectByName(this.getFullName(), { exports: {} }, Modus.env);
+  this.env = getObjectByName(this.getFullName(), Modus.env);
+  // Internal vars
   this._body = false;
   this._imports = [];
   this._exports = [];
@@ -33,7 +37,7 @@ Module.prototype.options = {
 //    module.body(function () {
 //      module.foo(); // from foo.baz.foo
 //      module.bin(); // frim foo.baz.bin
-//    })
+//    });
 Module.prototype.imports = function (deps) {
   this.is.pending(true);
   var item = new Modus.Import(deps, this);
@@ -47,20 +51,22 @@ Module.prototype.imports = function (deps) {
 // dependencies in an export method. 
 //
 // example:
-//    module.exports('foo', function () {
+//    module.exports('foo', function (module) {
 //      var thing = module.importedThing();
+//      // Set an export by returning a value
 //      return thing;
 //    });
-//    module.exports('fid', function () {
-//      this.foo = "foo";
-//      this.bar = 'bar';
+//    module.exports('fid', function (module) {
+//      // Set a value using CommonJS like syntax.
+//      module.exports.foo = "foo";
+//      module.exports.bar = 'bar';
 //    });
 //
 // You can also export several components in one go
 // by skipping [name] and returning an object from [factory]
 //
 // example:
-//    module.exports(function () {
+//    module.exports(function (module) {
 //      return {
 //        foo: 'foo',
 //        bar: 'bar'
@@ -86,22 +92,22 @@ Module.prototype.exports = function (name, factory) {
 //
 // example:
 //    module.imports('foo.bar').as('importedFoo');
-//    module.body(function () {
+//    module.body(function (module) {
 //      module.importedFoo();
 //    });
 //    // or:
-//    module.body(function () {
-//      plus.exports({
+//    module.body(function (module) {
+//      module.exports = {
 //        foo: module.importedFoo,
 //        bar: 'bar'
-//      });
+//      };
 //    });
 Module.prototype.body = function (factory) {
   if (this._body) {
-    this.disable('Cannot define [body] more then once: ', this.getFullName);
+    this._disable('Cannot define [body] more then once: ', this.getFullName());
     return;
   }
-  this._body = factory;
+  this._body = new Modus.Export(factory, this);
   return this;
 };
 
@@ -132,7 +138,7 @@ Module.prototype.run = function () {
 };
 
 // Disable the module. A disabled module CANNOT be re-enabled.
-Module.prototype.disable = function (reason) {
+Module.prototype._disable = function (reason) {
   var self = this;
   this.is.failed(true);
   this.wait.done(null, function (e) {
@@ -142,7 +148,7 @@ Module.prototype.disable = function (reason) {
 };
 
 // This will be used by the Modus compiler down the road.
-Module.prototype.compile = function () {
+Module.prototype._compile = function () {
   // Run compile code here.
 };
 
@@ -164,13 +170,13 @@ Module.prototype._loadImports = function () {
         self.run();
       }
     }, function (reason) {
-      self.disable(reason);
+      self._disable(reason);
     });
   });
 };
 
 // Iterate through exports and run them.
-Module.prototype._enableExports = function (ranBody) {
+Module.prototype._enableExports = function () {
   var self = this;
   this.is.working(true);
   each(this._exports, function (item) {
@@ -178,14 +184,11 @@ Module.prototype._enableExports = function (ranBody) {
     try {
       item.run();
     } catch(e) {
-      self.disable(e);
+      self._disable(e);
     }
   });
   if (!this.is.working()) return;
-  if (this._body && !ranBody) {
-    this._body();
-    this._enableExports(true);
-  }
+  if (this._body)  this._body.run();
   this.is.enabled(true);
   this.run();
 };

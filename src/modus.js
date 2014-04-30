@@ -2,8 +2,11 @@
 // --------------------
 // Modus
 
-// 'env' holds all registered modules and namespaces.
+// 'env' holds the actual modules and namespaces.
 Modus.env = {};
+
+// 'managers' holds the classes used to manage namespaces.
+Modus.managers = {};
 
 // 'shims' holds references to shimmed modules.
 Modus.shims = {};
@@ -101,20 +104,13 @@ Modus.isClient = isClient;
 // Namespace factory.
 Modus.namespace = function (name, factory) {
   var namespace;
-  var namespaceEnv = 'Modus.env.' + name;
-
-  if (reservedName(name)) {
-    throw new Error ('Cannot create a namespace'
-      + 'with a reserved name: ' + name);
-    return;
-  }
-  if (getObjectByName(namespaceEnv)) {
-    namespace = getObjectByName(namespaceEnv);
+  if (getObjectByName(name, Modus.managers)) {
+    namespace = getObjectByName(name, Modus.managers);
   } else {
     namespace = new Modus.Namespace({
       namespaceName: name
     });
-    createObjectByName(namespaceEnv, namespace);
+    createObjectByName(name, namespace, Modus.managers);
   }
   if (factory) {
     factory(namespace);

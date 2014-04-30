@@ -12,7 +12,7 @@ var Export = Modus.Export = function (name, factory, module) {
   this._name = name;
   this._module = module;
   this._definition = factory;
-  this._value = {};
+  this._value = false;
 };
 
 Export.prototype.getFullName = function () {
@@ -25,20 +25,26 @@ Export.prototype.getFullName = function () {
 Export.prototype.run = function () {
   if (this.is.enabled() || this.is.failed()) return;
   var self = this;
+  // Run export
   if ('function' === typeof this._definition) {
-    this._value = this._definition();
+    this._value = this._definition(this._module.env);
   } else {
     this._value = this._definition;
   }
-  if (this._name) {
-    createObjectByName(this._name, this._value, this._module);
-  } else {
-    if ("object" !== typeof this._value) {
-      throw new Error('Unnamed exports must return an object: ' + typeof this._value);
-      return;
+  // Check for exports.
+  if (size(this._module.env.exports) > 0) {
+    if (this._module.env.exports.hasOwnProperty('exports')) {
+      throw new Error('Cannot export a component nammed \'exports\' for module: ' + this._module.getFullName());
     }
+    this._value = this._module.env.exports;
+    this._module.env.exports = {};
+  }
+  // Apply to module
+  if (this._name) {
+    createObjectByName(this._name, this._value, this._module.env);
+  } else {
     each(this._value, function (value, key) {
-      createObjectByName(key, value, self._module);
+      createObjectByName(key, value, self._module.env);
     });
   }
   self.is.enabled(true);

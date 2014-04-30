@@ -28,7 +28,7 @@
     var item = new Modus.Import('importTest.' + modId, mod);
     item.load(function () {
       start();
-      test.equal(mod.importTest[modId].foo, 'foo', 'Imported using full name');
+      test.equal(mod.env.importTest[modId].foo, 'foo', 'Imported using full name');
     }, failed);
   });
 
@@ -38,7 +38,7 @@
     item.as('bin');
     item.load(function () {
       start();
-      test.equal(mod.bin.foo, 'foo', 'Imported using alias');
+      test.equal(mod.env.bin.foo, 'foo', 'Imported using alias');
     }, failed);
   });
 
@@ -48,7 +48,7 @@
     item.from('importTest.' + modId);
     item.load(function () {
       start();
-      test.equal(mod.foo, 'foo', 'Imported component');
+      test.equal(mod.env.foo, 'foo', 'Imported component');
     }, failed);
   });
 
@@ -58,8 +58,8 @@
     item.from('importTest.' + modId);
     item.load(function () {
       start();
-      test.equal(mod.foo, 'foo', 'Imported component');
-      test.equal(mod.bar, 'bar', 'Imported component');
+      test.equal(mod.env.foo, 'foo', 'Imported component');
+      test.equal(mod.env.bar, 'bar', 'Imported component');
     }, failed);
   });
 
@@ -69,8 +69,8 @@
     item.from('importTest.' + modId);
     item.load(function () {
       start();
-      test.equal(mod.fooAlias, 'foo', 'Imported aliased component');
-      test.equal(mod.barAlias, 'bar', 'Imported aliased component');
+      test.equal(mod.env.fooAlias, 'foo', 'Imported aliased component');
+      test.equal(mod.env.barAlias, 'bar', 'Imported aliased component');
     }, failed);
   });
 
@@ -106,10 +106,10 @@
     });
     stop();
     var item = new Modus.Import('testPlugin.tested', mod);
-    item.uses('test');
+    item.using('test');
     item.load(function () {
       start();
-      test.equal(mod.testPlugin.tested.foo, 'foo', 'Imported with plugin');
+      test.equal(mod.env.testPlugin.tested.foo, 'foo', 'Imported with plugin');
     }, failed);
   });
 
