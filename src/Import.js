@@ -131,7 +131,7 @@ Import.prototype._enableImportedModule = function (next, error) {
   }
 };
 
-// Apply requested components to the parent module.
+// Apply imported components to the parent module.
 Import.prototype._applyDependencies = function () {
   var dep = getObjectByName(this._request, Modus.env);
   var module = this._module.env;

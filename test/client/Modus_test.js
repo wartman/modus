@@ -53,8 +53,8 @@
       bin.body(function (bin) {
         start();
         test.equal(bin.bar + bin.baz, 'barbaz', 'Imported in namespace context');
-      })
-    })
+      });
+    });
   });
 
   test('Modus import from external file', function (test) {
@@ -98,8 +98,9 @@
 
   test('Modus.namespace several modules at once', function (test) {
     stop();
-    Modus.namespace('modusTest', function (foo) {
+    Modus.namespace('namespaceTest', function (foo) {
       foo.imports('fixtures.test_imports').as('imp');
+      foo.imports('fixtures.test_exports').as('exp');
       foo.module('test_bar', function (test_bar) {
         test_bar.exports('foo', 'foo');
       });
@@ -109,6 +110,7 @@
       foo.wait.done(function () {
         start();
         test.equal(foo.env.imp.test, 'foobar:got', 'namespace can import');
+        test.equal(foo.env.exp.foo, 'foo', 'namespace can import');
         test.equal(foo.env.test_ban.ban, 'ban', 'Can define modules');
       });
     });
@@ -135,7 +137,7 @@
     stop();
     Modus.namespace('modusTest').module('many', function (many) {
       many.exports(function (many) {
-        many.exports = {
+        return {
           fid: 'fid',
           fad: 'fad'
         }
@@ -154,6 +156,7 @@
       depOne.body(function (depOne) {
         var Foo = 'Foo';
         var Bar = 'Bar';
+        depOne.bin = 'bin'
         depOne.exports = {
           Foo: Foo,
           Bar: Bar
@@ -161,9 +164,10 @@
       });
     });
     Modus.namespace('modusTest').module('testBody', function (testBody) {
-      testBody.imports(['Foo', 'Bar']).from('.depOne');
+      testBody.imports(['Foo', 'Bar', 'bin']).from('.depOne');
       testBody.body(function (testBody) {
         start();
+        test.equal(testBody.bin, 'bin', 'Body directly defined');
         test.equal(testBody.Foo + testBody.Bar, 'FooBar', 'Body exported stuff');
       });
     });

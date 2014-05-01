@@ -99,4 +99,38 @@
     mod.run();
   });
 
+  test('Nested modules', function (test) {
+    stop();
+    mod.module('one', function (one) {
+      one.module('two', function (two) {
+        two.module('three', function (three) {
+          three.exports('foo', 'foo');
+        });
+      });
+    });
+    mod.wait.done(function () {
+      start();
+      test.equal(mod.env.one.two.three.foo, 'foo', 'Correctly created.');
+    });
+    mod.run();
+  });
+
+  test('Nested namespaces', function (test) {
+    stop();
+    mod.namespace('one', function (one) {
+      one.namespace('two', function (two) {
+        two.namespace('three', function (three) {
+          three.module('four', function (four) {
+            four.exports('foo', 'foo');
+          });
+        });
+      });
+    });
+    mod.wait.done(function () {
+      start();
+      test.equal(mod.env.one.two.three.four.foo, 'foo', 'Correctly created.');
+    });
+    mod.run();
+  })
+
 })();

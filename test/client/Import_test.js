@@ -1,6 +1,6 @@
 (function () {
 
-  var modPrefix = 'imp-';
+  var modPrefix = 'imp';
   var modInt = 0;
   var modId;
   var mod = Modus.module('importTestFixture');

@@ -107,15 +107,16 @@ Modus.namespace = function (name, factory) {
   if (getObjectByName(name, Modus.managers)) {
     namespace = getObjectByName(name, Modus.managers);
   } else {
-    namespace = new Modus.Namespace({
-      namespaceName: name
+    namespace = new Modus.Module({
+      namespace: name,
+      name: false
     });
     createObjectByName(name, namespace, Modus.managers);
   }
   if (factory) {
     factory(namespace);
-    namespace.run();
   }
+  namespace.run();
   return namespace;
 };
 

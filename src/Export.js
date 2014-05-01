@@ -20,17 +20,23 @@
 //      foo.bar; // === 'bin'
 //      return 'bin' // defines 'foo.baz'
 //    });
-var Export = Modus.Export = function (name, factory, module) {
-  if (arguments.length < 3) {
+var Export = Modus.Export = function (name, factory, module, options) {
+  if (!(module instanceof Modus.Module)) {
+    options = module || {};
     module = factory;
     factory = name;
     name = false;
   }
+  this.options = defaults(this.options, options);
   this.is = new Is();
   this._name = name;
   this._module = module;
   this._definition = factory;
   this._value = false;
+};
+
+Export.prototype.options = {
+  isBody: false
 };
 
 Export.prototype.getFullName = function () {
@@ -45,16 +51,20 @@ Export.prototype.run = function () {
   var self = this;
   // Run export
   if ('function' === typeof this._definition) {
+    if (this.options.isBody) this._module.env.exports = {};
     this._value = this._definition(this._module.env);
   } else {
     this._value = this._definition;
   }
-  // Check for exports.
-  if (size(this._module.env.exports) > 0 || ("object" !== typeof this._module.env.exports) ) {
-    if (this._module.env.exports.hasOwnProperty('exports')) {
-      throw new Error('Cannot export a component nammed \'exports\' for module: ' + this._module.getFullName());
+  if (this.options.isBody) {
+    // Check for exports.
+    if (size(this._module.env.exports) > 0 || ("object" !== typeof this._module.env.exports) ) {
+      if (this._module.env.exports.hasOwnProperty('exports')) {
+        throw new Error('Cannot export a component nammed \'exports\' for module: ' + this._module.getFullName());
+      }
+      this._value = this._module.env.exports;
+      delete this._module.env.exports;
     }
-    this._value = this._module.env.exports;
   }
   // Apply to module
   if (this._name) {
@@ -67,8 +77,6 @@ Export.prototype.run = function () {
     // Define the root module.
     this._module.env = extend(this._value, this._module.env);
   }
-  // Always clear out exports.
-  this._module.env.exports = {};
   self.is.enabled(true);
 };
 

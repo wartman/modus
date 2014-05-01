@@ -52,19 +52,6 @@
     test.equal(mod.env.objCallback.bar, 'bar', 'Exported object');
   });
 
-  test('Export object with callback, CommonJs style', function (test) {
-    var item = new Modus.Export('objCallback', function (mod) {
-      mod.exports = {
-        foo: 'foo',
-        bar: 'bar'
-      };
-    }, mod);
-    item.run();
-    test.ok('object' === typeof mod.env.objCallback);
-    test.equal(mod.env.objCallback.foo, 'foo', 'Exported object');
-    test.equal(mod.env.objCallback.bar, 'bar', 'Exported object');
-  });
-
   test('Export object directly (without name) with callback', function (test) {
     var item = new Modus.Export(function () {
       return {
@@ -77,22 +64,22 @@
     test.equal(mod.env.barCb, 'bar', 'Exported object directly');
   });
 
-  test('Export object directly (without name) with callback, CommonJs style', function (test) {
+  test('Export object directly (without name) with callback, as body (commonjs style)', function (test) {
     var item = new Modus.Export(function (mod) {
       mod.exports = {
         fooCb: 'foo',
         barCb: 'bar'
       };
-    }, mod);
+    }, mod, {isBody:true});
     item.run();
     test.equal(mod.env.fooCb, 'foo', 'Exported object directly');
     test.equal(mod.env.barCb, 'bar', 'Exported object directly');
   });
 
-  test('Export can define the root object', function (test) {
+  test('Export can define the root object (if in body mode)', function (test) {
     var item = new Modus.Export(function (mod) {
       mod.exports = function () { return 'foo'; };
-    }, mod);
+    }, mod, {isBody:true});
     item.run();
     test.equal(mod.env(), 'foo', 'Exported as root');
   });
@@ -103,25 +90,20 @@
       bar: 'bar'
     }, mod);
     item.run();
+    // Test inBody mode:
     var item = new Modus.Export(function (mod) {
       mod.exports = function () { return 'foo'; };
-    }, mod);
+    }, mod, {isBody:true});
     item.run();
     test.equal(mod.env(), 'foo', 'Exported as root');
     test.equal(mod.env.foo, 'foo', 'Kept previous export');
     test.equal(mod.env.bar, 'bar', 'Kept previous export');
   });
 
-  test('Error when attempting to export something named \'exports\'', function (test) {
+  test('Error when attempting to export something named \'exports\' (in body mode)', function (test) {
     var item = new Modus.Export(function (mod) {
       mod.exports.exports = 'bad';
-    }, mod);
-    QUnit.throws(function () {
-      item.run();
-    });
-    var item = new Modus.Export(function (mod) {
-      return {exports: 'bad'};
-    }, mod);
+    }, mod, {isBody:true});
     QUnit.throws(function () {
       item.run();
     });

@@ -9,7 +9,6 @@ gulp.task('build', function() {
       './src/Modus.js',
       './src/Import.js',
       './src/Export.js',
-      './src/Namespace.js',
       './src/Module.js',
       './src/Loader.js',
       './src/client/loaders.js',
