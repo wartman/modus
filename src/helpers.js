@@ -230,3 +230,19 @@ var getPathByObject = function (obj) {
   obj = obj.replace(/\./g, '/');
   return obj;
 };
+
+// Get a module path
+var getModulePath = function (name) {
+  if (isPath(name)) name = getObjectByPath(name);
+  if (name.indexOf('.')) {
+    return name.replace(/\./g, '.modules.');
+  }
+  return name;
+};
+
+// Get a namespace.
+var getNamespacePath = function (name) {
+  if (isPath(name)) name = getObjectByPath(name);
+  name = name.substring(0, name.lastIndexOf('.'));
+  return getModulePath(name);
+};

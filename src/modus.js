@@ -158,17 +158,47 @@ var getMappedPath = Modus.getMappedPath = function (module, root) {
 // --------------------
 // Primary API
 
+// (This stuff works, but could use some refactoring)
+
+// Helper to ensure that a module exists for every level
+// of a namespace.
+var ensureNamespaces = function (name) {
+  if (!name.indexOf('.')) return;
+  var cur = Modus.env[name];
+  var parts = name.split('.');
+  if(! (cur instanceof Modus.Module)) {
+    cur = new Modus.Module({
+      namespace: parts[0],
+      name: false
+    });
+  }
+  for (var part; part = parts.shift(); ) {
+    if(cur.modules[part] instanceof Modus.Module){
+      cur = cur.modules[part];
+    } else {
+      cur.module(part);
+      cur = cur.modules[part];
+    }
+  }
+};
+
 // Namespace factory.
 Modus.namespace = function (name, factory) {
   var namespace;
-  if (getObjectByName(name, Modus.env)) {
-    namespace = getObjectByName(name, Modus.env);
-  } else {
+  var modulePath = getModulePath(name);
+  if (name.indexOf('.')) {
+    var namespace = getObjectByName(modulePath, Modus.env);
+    if (!namespace) {
+      ensureNamespaces(name);
+      var namespace = getObjectByName(modulePath, Modus.env);
+    }
+  }
+  if (! (namespace instanceof Modus.Module)) {
     namespace = new Modus.Module({
       namespace: name,
-      moduleName: false
+      name: false
     });
-    createObjectByName(name, namespace, Modus.env);
+    createObjectByName(modulePath, namespace, Modus.env);
   }
   if (factory) {
     factory(namespace);
@@ -179,5 +209,18 @@ Modus.namespace = function (name, factory) {
 
 // Module factory. Will create a new module in the 'root' namespace.
 Modus.module = function (name, factory) {
-  return Modus.namespace('root').module(name, factory);
+  var namespace = 'root';
+  var moduleName = name;
+  if (name.indexOf('.') >= 0) {
+    namespace = name.substring(0, name.lastIndexOf('.'));
+    moduleName = name.substring(name.lastIndexOf('.') + 1);
+  }
+  return Modus.namespace(namespace).module(moduleName, factory);
+};
+
+// Shortcut to export a single value as a module.
+Modus.publish = function (name, value) {
+  return Modus.module(name, function (module) {
+    module.exports(value);
+  });
 };

@@ -35,6 +35,9 @@ Module.prototype.namespace = function (name, factory) {
 // example: 
 //    (to do)
 Module.prototype.module = function (name, factory, options) {
+  if (name.indexOf('.') >= 0) {
+    throw new Error('Cannot create a sub-namespace from a module: ' + name);
+  }
   options = (options || {});
   var self = this;
   var namespace = (options.namespace)

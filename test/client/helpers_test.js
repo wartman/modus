@@ -103,4 +103,12 @@
     test.equal(getPathByObject('foo.bin'), 'foo/bin');
   });
 
+  test('getModulePath/getNamespacePath', function (test) {
+    test.equal(getModulePath('foo.bar.bin'), 'foo.modules.bar.modules.bin');
+    test.equal(getNamespacePath('foo.bar.bin'), 'foo.modules.bar');
+    // Convert paths
+    test.equal(getModulePath('foo/bar/bin.js'), 'foo.modules.bar.modules.bin');
+    test.equal(getNamespacePath('foo/bar/bin.js'), 'foo.modules.bar');
+  });
+
 })();

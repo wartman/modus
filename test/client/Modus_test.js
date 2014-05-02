@@ -192,7 +192,64 @@
         test.equal(three.bin, 'bin', 'Imported');
       })
     });
+  });
 
+  test('Define sub-namespace directly', function (test) {
+    stop();
+    Modus.namespace('sub.test').module('one', function (one) {
+      one.exports('foo', 'foo');
+      one.body(function (one) {
+        start();
+        test.equal(Modus.env.sub.modules.test.modules.one.env, one, 'Created all modules');
+      });
+    });
+  });
+
+  test('Module name must be one component long', function (test) {
+    QUnit.throws(function () {
+      Modus.namespace('modusTest').module('foo.bar');
+    });
+    QUnit.throws(function () {
+      Modus.namespace('modusTest').namespace('foo.bar');
+    });
+  });
+
+  test('Modus.publish', function (test) {
+    stop();
+    Modus.publish('modusTest.published', 'foo');
+    Modus.namespace('modusTest').module('testPublished', function (testPublished) {
+      testPublished.imports('.published');
+      testPublished.body(function (testPublished) {
+        start();
+        test.equal(testPublished.published, 'foo', 'published');
+      });
+    })
+  });
+
+  test('Use a plugin', function (test) {
+    stop();
+    Modus.plugin('test', function (module, next, error) {
+      Modus.publish(module, 'plugin done');
+      next();
+    });
+    Modus.namespace('modusTest').module('testPlugin', function (testPlugin) {
+      testPlugin.imports('mocked.name').as('mocked').using('test');
+      testPlugin.body(function (testPlugin) {
+        start();
+        test.equal(testPlugin.mocked, 'plugin done', 'Used plugin');
+      })
+    });
+  });
+
+  test('Use a plugin from an external file', function (test) {
+    stop();
+    Modus.namespace('modusTest').module('testPluginExternal', function (testPluginExternal) {
+      testPluginExternal.imports('mocked.name').as('mocked').using('fixtures.plugin');
+      testPluginExternal.body(function (testPluginExternal) {
+        start();
+        test.equal(testPluginExternal.mocked, 'plugin done', 'Used plugin, loading from external file');
+      })
+    });
   });
 
 })();

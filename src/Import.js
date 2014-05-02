@@ -46,7 +46,10 @@ Import.prototype.as = function (alias) {
   return this;
 };
 
-// Import using the plugin.
+// Import using a plugin. This can point to an external
+// file: modus will load it like any other module,
+// then use the plugin defined there to resolve this
+// import (see 'Modus.plugin' for some examples).
 Import.prototype.using = function (plugin) {
   this._uses = plugin;
   return this;
@@ -123,7 +126,7 @@ Import.prototype._ensureNamespace = function (error) {
     this._inNamespace = request.substring(1);
     this._request = this._module.options.namespace + request;
   }
-  this._modulePath = this._request.replace(/\./g, '.modules.');
+  this._modulePath = getModulePath(this._request);
 };
 
 // Ensure imported modules are enabled.

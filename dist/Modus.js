@@ -261,6 +261,22 @@ var getPathByObject = function (obj) {
   return obj;
 };
 
+// Get a module path
+var getModulePath = function (name) {
+  if (isPath(name)) name = getObjectByPath(name);
+  if (name.indexOf('.')) {
+    return name.replace(/\./g, '.modules.');
+  }
+  return name;
+};
+
+// Get a namespace.
+var getNamespacePath = function (name) {
+  if (isPath(name)) name = getObjectByPath(name);
+  name = name.substring(0, name.lastIndexOf('.'));
+  return getModulePath(name);
+};
+
 // --------------------
 // Modus
 
@@ -420,17 +436,47 @@ var getMappedPath = Modus.getMappedPath = function (module, root) {
 // --------------------
 // Primary API
 
+// (This stuff works, but could use some refactoring)
+
+// Helper to ensure that a module exists for every level
+// of a namespace.
+var ensureNamespaces = function (name) {
+  if (!name.indexOf('.')) return;
+  var cur = Modus.env[name];
+  var parts = name.split('.');
+  if(! (cur instanceof Modus.Module)) {
+    cur = new Modus.Module({
+      namespace: parts[0],
+      name: false
+    });
+  }
+  for (var part; part = parts.shift(); ) {
+    if(cur.modules[part] instanceof Modus.Module){
+      cur = cur.modules[part];
+    } else {
+      cur.module(part);
+      cur = cur.modules[part];
+    }
+  }
+};
+
 // Namespace factory.
 Modus.namespace = function (name, factory) {
   var namespace;
-  if (getObjectByName(name, Modus.env)) {
-    namespace = getObjectByName(name, Modus.env);
-  } else {
+  var modulePath = getModulePath(name);
+  if (name.indexOf('.')) {
+    var namespace = getObjectByName(modulePath, Modus.env);
+    if (!namespace) {
+      ensureNamespaces(name);
+      var namespace = getObjectByName(modulePath, Modus.env);
+    }
+  }
+  if (! (namespace instanceof Modus.Module)) {
     namespace = new Modus.Module({
       namespace: name,
-      moduleName: false
+      name: false
     });
-    createObjectByName(name, namespace, Modus.env);
+    createObjectByName(modulePath, namespace, Modus.env);
   }
   if (factory) {
     factory(namespace);
@@ -441,22 +487,95 @@ Modus.namespace = function (name, factory) {
 
 // Module factory. Will create a new module in the 'root' namespace.
 Modus.module = function (name, factory) {
-  return Modus.namespace('root').module(name, factory);
+  var namespace = 'root';
+  var moduleName = name;
+  if (name.indexOf('.') >= 0) {
+    namespace = name.substring(0, name.lastIndexOf('.'));
+    moduleName = name.substring(name.lastIndexOf('.') + 1);
+  }
+  return Modus.namespace(namespace).module(moduleName, factory);
+};
+
+// Shortcut to export a single value as a module.
+Modus.publish = function (name, value) {
+  return Modus.module(name, function (module) {
+    module.exports(value);
+  });
 };
 
 // --------------------
 // Modus plugin
 
+// Registered plugins.
 Modus.plugins = {};
 
+// Visted items
+var pluginsVisited = {};
+
+// Define or get a plugin.
+//
+// example:
+//    // Define a plugin
+//    Modus.plugin('foo', function(request, nexy, error) {
+//      // code
+//      // Always call next or error, or Modus will stall.
+//      next();
+//    });
+//    // getting a plugin:
+//    var plugin = Modus.plugin('foo');
+//    plugin('foo.bar', next, error);
+//    // Shortcut to run a plugin:
+//    Modus.plugin('foo', 'foo.bar', next, error);
+//    // Importing using a plugin:
+//    module.imports('foo.bar').using('foo');
+//
+// You can wrap a plugin in a Modus Module and import it
+// simply by passing the plugin name to 'imports([item]).using([plugin])'
+//
+// example:
+//
+//    // In 'plugins/foo.js':
+//    Modus.namespace('plugins').module('foo', function(foo) {
+//      foo.body(function (foo) {
+//        // Note that you don't export anything: just define a
+//        // plugin here.
+//        // IMPORTANT: The plugin name MUST BE the same as the
+//        // wrapping module or it will not work.
+//        Modus('plugins.foo', function(request, next, error) {
+//          // code
+//          next(); 
+//        });
+//    });
+//
+//    // Using the plugin with 'imports':
+//    // ... module code ...
+//    module.imports('foo.bin').using('plugins.foo');
+//
+// Note that Modus wraps your plugins in a Wait for you, meaning
+// your plugins should run only one time for each request.
 Modus.plugin = function (plugin, request, next, error) {
   if ("function" === typeof request) {
     Modus.plugins[plugin] = request;
     return Modus.plugins[plugin];
   }
   if (!Modus.plugins.hasOwnProperty(plugin)) return false;
-  if (request) Modus.plugins[plugin](request, next, error);
-  return Modus.plugins[plugin];
+  var runner = function (request, next, error) {
+    if (pluginsVisited[request]) {
+      pluginsVisited[request].done(next, error);
+      return;
+    }
+    var wait = pluginsVisited[request] = new Wait();
+    wait.done(next, error);
+    Modus.plugins[plugin](request, function (value) {
+      wait.resolve(value);
+    }, function (reason) {
+      wait.reject(reason);
+    });
+  };
+  if (request) {
+    runner(request, next, error);
+  }
+  return runner;
 };
 
 // --------------------
@@ -506,7 +625,10 @@ Import.prototype.as = function (alias) {
   return this;
 };
 
-// Import using the plugin.
+// Import using a plugin. This can point to an external
+// file: modus will load it like any other module,
+// then use the plugin defined there to resolve this
+// import (see 'Modus.plugin' for some examples).
 Import.prototype.using = function (plugin) {
   this._uses = plugin;
   return this;
@@ -583,7 +705,7 @@ Import.prototype._ensureNamespace = function (error) {
     this._inNamespace = request.substring(1);
     this._request = this._module.options.namespace + request;
   }
-  this._modulePath = this._request.replace(/\./g, '.modules.');
+  this._modulePath = getModulePath(this._request);
 };
 
 // Ensure imported modules are enabled.
@@ -762,6 +884,9 @@ Module.prototype.namespace = function (name, factory) {
 // example: 
 //    (to do)
 Module.prototype.module = function (name, factory, options) {
+  if (name.indexOf('.') >= 0) {
+    throw new Error('Cannot create a sub-namespace from a module: ' + name);
+  }
   options = (options || {});
   var self = this;
   var namespace = (options.namespace)
