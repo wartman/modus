@@ -49,12 +49,12 @@ var keys = function(obj) {
 };
 
 // Get the size of an object
-var size = function(obj) {
+var size = function (obj) {
   if (obj == null) return 0;
   return (obj.length === +obj.length) ? obj.length : keys(obj).length;
 };
 
-var extend = function(obj){
+var extend = function (obj){
   each(Array.prototype.slice.call(arguments, 1), function(source){
     if(source){
       for(var prop in source){

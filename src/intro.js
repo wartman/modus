@@ -8,23 +8,21 @@
 
 (function (factory) {
 
-  var global = {};
-
   if (typeof module === "object" && typeof module.exports === "object") {
     // For CommonJS environments.
-    global = module.exports;
+    var root = {};
+    factory(root);
+    module.exports = root.Modus;
   } else if (typeof window !== "undefined") {
-    global = window;
+    factory(window);
   }
-  
-  factory(global);
 
-}(function (global, undefined) {
+}(function (root, undefined) {
 
 "use strict"
 
 // The main modus namespace
-var Modus = global.Modus = {};
+var Modus = root.Modus = {};
 
 // Save the current version.
 Modus.VERSION = '@VERSION';

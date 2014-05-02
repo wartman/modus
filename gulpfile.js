@@ -1,6 +1,10 @@
+var meta = require('./package.json');
+
 var gulp = require('gulp');
 var concat = require('gulp-concat');
 var qunit = require('gulp-qunit');
+var mocha = require('gulp-mocha');
+var replace = require('gulp-replace');
 
 gulp.task('build', function() {
   gulp.src([
@@ -16,12 +20,19 @@ gulp.task('build', function() {
       './src/outro.js',
     ])
     .pipe(concat('Modus.js'))
+    .pipe(replace(/@VERSION/g, meta.version))
+    .pipe(replace(/@DATE/g, ( new Date() ).toISOString().replace( /:\d+\.\d+Z$/, "Z" )) )
     .pipe(gulp.dest('./dist/'))
 });
 
-gulp.task('test', function () {
+gulp.task('qunit', function () {
   gulp.src('./test/test_runner.html')
     .pipe(qunit());
 });
 
-gulp.task('default', ['build', 'test']);
+gulp.task('mocha', function () {
+  gulp.src('./test/server/Modus_test.js')
+    .pipe(mocha({reporter: 'spec'}));
+});
+
+gulp.task('default', ['build', 'qunit', 'mocha']);

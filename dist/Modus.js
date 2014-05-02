@@ -1,33 +1,31 @@
 //!
-// Modus @VERSION
+// Modus 0.1.3
 //
 // Copyright 2014
 // Released under the MIT license
 //
-// Date: @DATE
+// Date: 2014-05-02T21:20Z
 
 (function (factory) {
 
-  var global = {};
-
   if (typeof module === "object" && typeof module.exports === "object") {
     // For CommonJS environments.
-    global = module.exports;
+    var root = {};
+    factory(root);
+    module.exports = root.Modus;
   } else if (typeof window !== "undefined") {
-    global = window;
+    factory(window);
   }
-  
-  factory(global);
 
-}(function (global, undefined) {
+}(function (root, undefined) {
 
 "use strict"
 
 // The main modus namespace
-var Modus = global.Modus = {};
+var Modus = root.Modus = {};
 
 // Save the current version.
-Modus.VERSION = '@VERSION';
+Modus.VERSION = '0.1.3';
 
 // --------------------
 // Modus helpers
@@ -79,12 +77,12 @@ var keys = function(obj) {
 };
 
 // Get the size of an object
-var size = function(obj) {
+var size = function (obj) {
   if (obj == null) return 0;
   return (obj.length === +obj.length) ? obj.length : keys(obj).length;
 };
 
-var extend = function(obj){
+var extend = function (obj){
   each(Array.prototype.slice.call(arguments, 1), function(source){
     if(source){
       for(var prop in source){

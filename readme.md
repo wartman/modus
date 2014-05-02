@@ -31,7 +31,7 @@ How about some code?
 
 *More details are coming, once I nail down the API*
 
-v0.1.1
+v0.1.3
 ------
 Client-side module loading works and has some tests. Server-side
 module loading and compiling is being planned.
