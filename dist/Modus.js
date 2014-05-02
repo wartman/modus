@@ -235,43 +235,43 @@ var getObjectByName = function (name, env) {
   return cur;  
 };
 
-// Figure out what we're running Modus in.
-var checkEnv = function () {
-  if (typeof module === "object" && module.exports) {
-    Modus.config('environment', 'node');
-  } else {
-    Modus.config('environment', 'client');
+// Check if this is a path or an object name
+var isPath = function (obj) {
+  return obj.indexOf('/') >= 0;
+};
+
+// Convert a path into an object nam
+var getObjectByPath = function (path) {
+  if (path.indexOf('.') >= 0) {
+    // First, strip any extensions from the
+    // end of the path.
+    path = path.substring(0, path.lastIndexOf('.'));
   }
+  path = path.replace(/\//g, '.');
+  return path;
 };
 
-// Are we running Modus on a server?
-var isServer = function () {
-  if (!Modus.config('environment')) checkEnv();
-  return Modus.config('environment') === 'node'
-    || Modus.config('environment') === 'server';
-};
-
-// Are we running Modus on a client?
-var isClient = function () {
-  if (!Modus.config('environment')) checkEnv();
-  return Modus.config('environment') != 'node'
-    && Modus.config('environment') != 'server';
+// Convert an object name to a path
+var getPathByObject = function (obj) {
+  if (isPath(obj)) {
+    // This is probably already a path.
+    return obj;
+  }
+  obj = obj.replace(/\./g, '/');
+  return obj;
 };
 
 // --------------------
 // Modus
 
-// 'env' holds the actual modules and namespaces.
-Modus.env = {};
+// --------------------
+// Environment helpers
 
-// 'managers' holds the classes used to manage namespaces.
-Modus.managers = {};
+// 'env' holds modules and namespaces.
+Modus.env = {};
 
 // 'shims' holds references to shimmed modules.
 Modus.shims = {};
-
-// Holds various loader plugins.
-Modus.plugins = {};
 
 // Config options for Modus.
 Modus.options = {
@@ -298,6 +298,29 @@ Modus.config = function (key, val) {
   }
   Modus.options[key] = val;
   return Modus.options[key];
+};
+
+// Figure out what we're running Modus in.
+var checkEnv = function () {
+  if (typeof module === "object" && module.exports) {
+    Modus.config('environment', 'node');
+  } else {
+    Modus.config('environment', 'client');
+  }
+};
+
+// Are we running Modus on a server?
+var isServer = Modus.isServer = function () {
+  if (!Modus.config('environment')) checkEnv();
+  return Modus.config('environment') === 'node'
+    || Modus.config('environment') === 'server';
+};
+
+// Are we running Modus on a client?
+var isClient = Modus.isClient =  function () {
+  if (!Modus.config('environment')) checkEnv();
+  return Modus.config('environment') != 'node'
+    && Modus.config('environment') != 'server';
 };
 
 // Map modules to a given path.
@@ -356,26 +379,63 @@ Modus.shim = function (name, options) {
   Modus.shims[name] = options;
 };
 
-// Aliases to environment helpers.
-Modus.isServer = isServer;
-Modus.isClient = isClient;
+// Get a mapped path
+var getMappedPath = Modus.getMappedPath = function (module, root) {
+  root = root || Modus.config('root');
+  var path = {};
+  if (isPath(module)) {
+    path.obj = getObjectByPath(module);
+    path.src = module;
+  } else {
+    path.obj = module;
+    path.src = getPathByObject(module) + '.js';
+  }
+  each(Modus.config('map'), function (maps, pathPattern) {
+    each(maps, function (map) {
+      if (map.test(path.obj)){
+        path.src = pathPattern;
+        var matches = map.exec(path.obj);
+        // NOTE: The following doesn't take ordering into account.
+        // Could pose an issue for paths like: 'foo/*/**.js'
+        // Think more on this. Could be fine as is! Not sure what the use cases are like.
+        if (matches.length > 2) {
+          path.src = path.src
+            .replace('**', matches[1].replace(/\./g, '/'))
+            .replace('*', matches[2]);
+        } else if (matches.length === 2) {
+          path.src = path.src.replace('*', matches[1]);
+        }
+      }
+    });
+  });
+  if (isServer()) {
+    // strip '.js' from the path.
+    path.src = path.src.replace('.js', '');
+  }
+  // Add root.
+  path.src = root + path.src;
+  return path;
+}
+
+// --------------------
+// Primary API
 
 // Namespace factory.
 Modus.namespace = function (name, factory) {
   var namespace;
-  if (getObjectByName(name, Modus.managers)) {
-    namespace = getObjectByName(name, Modus.managers);
+  if (getObjectByName(name, Modus.env)) {
+    namespace = getObjectByName(name, Modus.env);
   } else {
     namespace = new Modus.Module({
       namespace: name,
-      name: false
+      moduleName: false
     });
-    createObjectByName(name, namespace, Modus.managers);
+    createObjectByName(name, namespace, Modus.env);
   }
   if (factory) {
     factory(namespace);
+    namespace.run();
   }
-  namespace.run();
   return namespace;
 };
 
@@ -384,13 +444,19 @@ Modus.module = function (name, factory) {
   return Modus.namespace('root').module(name, factory);
 };
 
-// Load a request.
-Modus.load = function (plugin, module, next) {
-  if (!Modus.plugins.hasOwnProperty(plugin)) {
-    next(Error('Plugin does not exist: ' + plugin));
-    return;
+// --------------------
+// Modus plugin
+
+Modus.plugins = {};
+
+Modus.plugin = function (plugin, request, next, error) {
+  if ("function" === typeof request) {
+    Modus.plugins[plugin] = request;
+    return Modus.plugins[plugin];
   }
-  Modus.plugins[plugin].run(module, next);
+  if (!Modus.plugins.hasOwnProperty(plugin)) return false;
+  if (request) Modus.plugins[plugin](request, next, error);
+  return Modus.plugins[plugin];
 };
 
 // --------------------
@@ -423,11 +489,11 @@ var Import = Modus.Import = function (request, module) {
   this._as = false;
   this._uses = false;
   this._inNamespace = false;
+  this._modulePath = '';
 };
 
 // Import components from the request.
 Import.prototype.from = function (request) {
-  if (!request) return this._request;
   if (!this._components) this._components = this._request;
   this._request = request;
   return this;
@@ -436,20 +502,18 @@ Import.prototype.from = function (request) {
 // Use an alias for this import. This will only work if
 // you're importing a single item.
 Import.prototype.as = function (alias) {
-  if (!alias) return this._as;
   this._as = alias;
   return this;
 };
 
 // Import using the plugin.
 Import.prototype.using = function (plugin) {
-  if (!plugin) return this._uses;
   this._uses = plugin;
   return this;
 };
 
-// Import the module, passing the request on to the
-// appropriate Modus.Loader if needed. 
+// Import the module, passing the request on to 
+// Modus.load if needed.
 Import.prototype.load = function (next, error) {
   if (this.is.failed()) return error();
   try {
@@ -458,32 +522,53 @@ Import.prototype.load = function (next, error) {
     error(e);
     return;
   }
-  var fromName = 'Modus.env.' + this._request;
   var self = this;
   var importError = function (reason) {
     self.is.failed(true);
     error(reason);
   }
-  if (this.is.loaded() || getObjectByName(fromName)) {
+  if (this.is.loaded() || getObjectByName(this._modulePath, Modus.env)) {
     this._enableImportedModule(next, importError);
     return;
   }
-  if (!this._uses) this._uses = 'script';
+  if (this._uses) {
+    this._loadWithPlugin(next, importError);
+    return;
+  }
   // Pass to the modus loader.
-  Modus.load(this._uses, this._request, function (err) {
+  Modus.load(this._request, function () {
     self.is.loaded(true);
-    if (err) return importError();
     self._enableImportedModule(next, importError);
-  });
+  }, importError);
 };
+
 
 Import.prototype.compile = function () {
   // do compile code.
 };
 
+// Load using a plugin
+Import.prototype._loadWithPlugin = function (next, error) {
+  var self = this;
+  if (!Modus.plugin(this._uses)) {
+    Modus.load(this._uses, function () {
+      if (!Modus.plugin (self._uses)) {
+        error('No plugin of that name found: ' + self._uses);
+        return;
+      }
+      self._loadWithPlugin(next, error);
+    }, error);
+    return;
+  }
+  Modus.plugin(this._uses, this._request, function () {
+    self.is.loaded(true);
+    self._enableImportedModule(next, error);
+  }, error);
+};
+
 // Ensure that the request is a full namespace.
 Import.prototype._ensureNamespace = function (error) {
-  var request = this._request
+  var request = this._request;
   if ('string' !== typeof request) {
     throw new TypeError('Request must be a string: ' 
       + typeof request);
@@ -498,11 +583,12 @@ Import.prototype._ensureNamespace = function (error) {
     this._inNamespace = request.substring(1);
     this._request = this._module.options.namespace + request;
   }
+  this._modulePath = this._request.replace(/\./g, '.modules.');
 };
 
 // Ensure imported modules are enabled.
 Import.prototype._enableImportedModule = function (next, error) {
-  var module = getObjectByName(this._request, Modus.managers);
+  var module = getObjectByName(this._modulePath, Modus.env);
   var self = this;
   if (Modus.shims.hasOwnProperty(this._request)) {
     if (!getObjectByName(this._request)) {
@@ -527,10 +613,12 @@ Import.prototype._enableImportedModule = function (next, error) {
 
 // Apply imported components to the parent module.
 Import.prototype._applyDependencies = function () {
-  var dep = getObjectByName(this._request, Modus.env);
   var module = this._module.env;
+  var dep = getObjectByName(this._modulePath, Modus.env);
   if (Modus.shims.hasOwnProperty(this._request)) {
     dep = getObjectByName(this._request);
+  } else {
+    dep = dep.env;
   }
   if (this._components instanceof Array) {
     each(this._components, function (component) {
@@ -647,14 +735,11 @@ var Module = Modus.Module = function (options) {
   this.options = defaults(this.options, options);
   this.wait = new Wait();
   this.is = new Is();
-  // Create the actual module.
-  createObjectByName(this.getFullName(), {}, Modus.env);
-  this.env = getObjectByName(this.getFullName(), Modus.env);
-  // Internal vars
+  this.env = {};
+  this.modules = {};
   this._body = false;
   this._imports = [];
   this._exports = [];
-  this._modules = [];
 };
 
 Module.prototype.options = {
@@ -682,18 +767,14 @@ Module.prototype.module = function (name, factory, options) {
   var namespace = (options.namespace)
     ? this.getFullName() + '.' + name 
     : this.getFullName();
-  var name = (options.namespace)
+  var moduleName = (options.namespace)
     ? null
     : name;
-  var fullName = (options.namespace)
-    ? namespace
-    : namespace + '.' + name;
   var module = new Modus.Module({
     namespace: namespace,
-    moduleName: name
+    moduleName: moduleName
   });
-  this._modules.push(module);
-  createObjectByName(fullName, module, Modus.managers);
+  createObjectByName(name, module, this.modules);
   if (factory) factory(module);
   nextTick(function () {
     self.is.pending(true);
@@ -829,7 +910,9 @@ Module.prototype._disable = function (reason) {
   var self = this;
   this.is.failed(true);
   this.wait.done(null, function (e) {
-    if (self.options.throwErrors) throw e;
+    if (self.options.throwErrors && e instanceof Error) {
+      throw e
+    }
   });
   this.wait.reject(reason);
 };
@@ -871,7 +954,7 @@ Module.prototype._loadImports = function () {
 
 Module.prototype._enable = function () {
   var self = this;
-  if (this._modules.length) {
+  if (size(this.modules)) {
     this._enableModules(function () {
       self._enableExports(function () {
         self.is.enabled(true);
@@ -905,11 +988,11 @@ Module.prototype._enableExports = function (next) {
 
 // Enable all modules.
 Module.prototype._enableModules = function (next) {
-  var remaining = this._modules.length;
+  var remaining = size(this.modules);
   var self = this;
   if (!remaining) return;
   this.is.working(true);
-  each(this._modules, function (module) {
+  each(this.modules, function (module, id) {
     module.run();
     module.wait.done(function () {
       remaining -= 1;
@@ -917,56 +1000,12 @@ Module.prototype._enableModules = function (next) {
         next();
       }
     }, function () {
-      self.disable('A module failed');
+      self._disable('The module [' + id + '] failed for: ' + self.getFullName());
     });
   });
 };
 
-
-// --------------------
-// Modus.Loader
-
-var Loader = Modus.Loader = function (handler) {
-  this.wait = new Wait();
-  this.is = new Is();
-  this._handler = null;
-  if (handler) this.handler(handler);
-};
-
-Loader.prototype.handler = function (handler) {
-  this._handler = function () {
-    handler.apply(this, arguments);
-  };
-};
-
-Loader.prototype.run = function (module, next) {
-  this._handler(module, next);
-};
-
-Loader.prototype._getMappedPath = function (module) {
-  var mappedPath = false;
-  each(Modus.config('map'), function (maps, path) {
-    each(maps, function (map) {
-      if (map.test(module)){
-        mappedPath = path;
-        var matches = map.exec(module);
-        // NOTE: The following doesn't take ordering into account.
-        // Could pose an issue for paths like: 'foo/*/**.js'
-        // Think more on this. Could be fine as is! Not sure what the use cases are like.
-        if (matches.length > 2) {
-          mappedPath = mappedPath
-            .replace('**', matches[1].replace(/\./g, '/'))
-            .replace('*', matches[2]);
-        } else if (matches.length === 2) {
-          mappedPath = mappedPath
-            .replace('*', matches[1]);
-        }
-      }
-    });
-  });
-  return mappedPath;
-};
-if (Modus.isClient()) {
+if (isClient()) {
 
   var visited = {};
 
@@ -994,18 +1033,18 @@ if (Modus.isClient()) {
     }
   })();
 
-  Modus.plugins.script = new Modus.Loader(function (module, cb) {
-    var src = Modus.config('root') + ( this._getMappedPath(module)
-      || module.replace(/\./g, '/') + '.js' );
-    var error = function (e) { cb(e); };
+  Modus.load = function (module, next, error) {
+
+    var path = getMappedPath(module, Modus.config('root'));
+    var src = path.src;
 
     if (visited.hasOwnProperty(src)) {
-      visited[src].done(cb, error);
+      visited[src].done(next, error);
       return;
     }
 
-    var node = document.createElement('script')
-      , head = document.getElementsByTagName('head')[0];
+    var node = document.createElement('script');
+    var head = document.getElementsByTagName('head')[0];
 
     node.type = 'text/javascript';
     node.charset = 'utf-8';
@@ -1013,58 +1052,16 @@ if (Modus.isClient()) {
     node.setAttribute('data-module', module);
 
     visited[src] = new Wait();
-    visited[src].done(cb, error);
+    visited[src].done(next, error);
 
     onLoadEvent(node, visited[src]);
 
     node.src = src;
     head.appendChild(node);
-  });
-
-  Modus.plugins.file = new Modus.Loader(function(file, cb) {
-
-    var src = Modus.config('root') + ( this._getMappedPath(module)
-      || module.replace(/\./g, '/') + '.' + this.options.type );
-    var error = function (e) { cb(e); };
-    var next = function (data) {
-      Modus.module(file, function (file) {
-        file.exports('contents', function (contents) {
-          contents = data;
-        });
-        file.wait.done(next, error);
-      });
-    };
-
-    if(visited.hasOwnProperty(src)){
-      visited[src].done(next, error);
-      return;
-    }
-
-    visited[src] = new Wait();
-    visited[src].done(next, error);
-
-    if (global.XMLHttpRequest) {
-      var request = new XMLHttpRequest();
-    } else { // code for IE6, IE5
-      var request = new ActiveXObject("Microsoft.XMLHTTP");
-    }
-
-    request.onreadystatechange = function(){
-      if(4 === this.readyState){
-        if(200 === this.status){
-          visited[src].resolve(this.responseText);
-        } else {
-          visited[src].reject(this.status);
-        }
-      }
-    }
-
-    request.open('GET', src, true);
-    request.send();
-  });
+  };
 
 }
-if (Modus.isServer()) {
+if (isServer()) {
 
   // Make Modus GLOBAL so it can run in each context.
   // This basically makes Modus a wrapper for 'require'.
@@ -1073,31 +1070,16 @@ if (Modus.isServer()) {
   // 'module.exports' is out.
   GLOBAL.Modus = Modus;
 
-  Modus.plugins.script = new Modus.Loader(function (module, cb) {
-    var src = Modus.config('root') + ( this._getMappedPath(module)
-      || module.replace(/\./g, '/') + '.js' );
+  Modus.load = function (module, next, error) {
+    var path = getMappedPath(module, Modus.config('root'));
+    var src = path.src;
     try {
       require(src);
-      cb();
+      next();
     } catch(e) {
-      cb(e);
+      error(e);
     }
-  });
-
-  Modus.plugins.file = new Modus.Loader(function (file, cb) {
-    var src = Modus.config('root') + ( this._getMappedPath(module)
-      || module.replace(/\./g, '/') + '.' + this.options.type );
-    var fs = require('fs');
-    fs.readFile(src, function (err, data) {
-      if (err) return cb(err);
-      Modus.module(file, function (file) {
-        file.exports('contents', function (contents) {
-          contents = data;
-        });
-        file.wait.done(cb);
-      });
-    })
-  });
+  };
 
 }
 }));

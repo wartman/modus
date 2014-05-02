@@ -90,7 +90,7 @@
       bar: 'bar'
     }, mod);
     item.run();
-    // Test inBody mode:
+    // Test isBody mode:
     var item = new Modus.Export(function (mod) {
       mod.exports = function () { return 'foo'; };
     }, mod, {isBody:true});

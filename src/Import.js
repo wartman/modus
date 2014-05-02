@@ -29,11 +29,11 @@ var Import = Modus.Import = function (request, module) {
   this._as = false;
   this._uses = false;
   this._inNamespace = false;
+  this._modulePath = '';
 };
 
 // Import components from the request.
 Import.prototype.from = function (request) {
-  if (!request) return this._request;
   if (!this._components) this._components = this._request;
   this._request = request;
   return this;
@@ -42,20 +42,18 @@ Import.prototype.from = function (request) {
 // Use an alias for this import. This will only work if
 // you're importing a single item.
 Import.prototype.as = function (alias) {
-  if (!alias) return this._as;
   this._as = alias;
   return this;
 };
 
 // Import using the plugin.
 Import.prototype.using = function (plugin) {
-  if (!plugin) return this._uses;
   this._uses = plugin;
   return this;
 };
 
-// Import the module, passing the request on to the
-// appropriate Modus.Loader if needed. 
+// Import the module, passing the request on to 
+// Modus.load if needed.
 Import.prototype.load = function (next, error) {
   if (this.is.failed()) return error();
   try {
@@ -64,32 +62,53 @@ Import.prototype.load = function (next, error) {
     error(e);
     return;
   }
-  var fromName = 'Modus.env.' + this._request;
   var self = this;
   var importError = function (reason) {
     self.is.failed(true);
     error(reason);
   }
-  if (this.is.loaded() || getObjectByName(fromName)) {
+  if (this.is.loaded() || getObjectByName(this._modulePath, Modus.env)) {
     this._enableImportedModule(next, importError);
     return;
   }
-  if (!this._uses) this._uses = 'script';
+  if (this._uses) {
+    this._loadWithPlugin(next, importError);
+    return;
+  }
   // Pass to the modus loader.
-  Modus.load(this._uses, this._request, function (err) {
+  Modus.load(this._request, function () {
     self.is.loaded(true);
-    if (err) return importError();
     self._enableImportedModule(next, importError);
-  });
+  }, importError);
 };
+
 
 Import.prototype.compile = function () {
   // do compile code.
 };
 
+// Load using a plugin
+Import.prototype._loadWithPlugin = function (next, error) {
+  var self = this;
+  if (!Modus.plugin(this._uses)) {
+    Modus.load(this._uses, function () {
+      if (!Modus.plugin (self._uses)) {
+        error('No plugin of that name found: ' + self._uses);
+        return;
+      }
+      self._loadWithPlugin(next, error);
+    }, error);
+    return;
+  }
+  Modus.plugin(this._uses, this._request, function () {
+    self.is.loaded(true);
+    self._enableImportedModule(next, error);
+  }, error);
+};
+
 // Ensure that the request is a full namespace.
 Import.prototype._ensureNamespace = function (error) {
-  var request = this._request
+  var request = this._request;
   if ('string' !== typeof request) {
     throw new TypeError('Request must be a string: ' 
       + typeof request);
@@ -104,11 +123,12 @@ Import.prototype._ensureNamespace = function (error) {
     this._inNamespace = request.substring(1);
     this._request = this._module.options.namespace + request;
   }
+  this._modulePath = this._request.replace(/\./g, '.modules.');
 };
 
 // Ensure imported modules are enabled.
 Import.prototype._enableImportedModule = function (next, error) {
-  var module = getObjectByName(this._request, Modus.managers);
+  var module = getObjectByName(this._modulePath, Modus.env);
   var self = this;
   if (Modus.shims.hasOwnProperty(this._request)) {
     if (!getObjectByName(this._request)) {
@@ -133,10 +153,12 @@ Import.prototype._enableImportedModule = function (next, error) {
 
 // Apply imported components to the parent module.
 Import.prototype._applyDependencies = function () {
-  var dep = getObjectByName(this._request, Modus.env);
   var module = this._module.env;
+  var dep = getObjectByName(this._modulePath, Modus.env);
   if (Modus.shims.hasOwnProperty(this._request)) {
     dep = getObjectByName(this._request);
+  } else {
+    dep = dep.env;
   }
   if (this._components instanceof Array) {
     each(this._components, function (component) {

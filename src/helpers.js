@@ -205,25 +205,28 @@ var getObjectByName = function (name, env) {
   return cur;  
 };
 
-// Figure out what we're running Modus in.
-var checkEnv = function () {
-  if (typeof module === "object" && module.exports) {
-    Modus.config('environment', 'node');
-  } else {
-    Modus.config('environment', 'client');
+// Check if this is a path or an object name
+var isPath = function (obj) {
+  return obj.indexOf('/') >= 0;
+};
+
+// Convert a path into an object nam
+var getObjectByPath = function (path) {
+  if (path.indexOf('.') >= 0) {
+    // First, strip any extensions from the
+    // end of the path.
+    path = path.substring(0, path.lastIndexOf('.'));
   }
+  path = path.replace(/\//g, '.');
+  return path;
 };
 
-// Are we running Modus on a server?
-var isServer = function () {
-  if (!Modus.config('environment')) checkEnv();
-  return Modus.config('environment') === 'node'
-    || Modus.config('environment') === 'server';
-};
-
-// Are we running Modus on a client?
-var isClient = function () {
-  if (!Modus.config('environment')) checkEnv();
-  return Modus.config('environment') != 'node'
-    && Modus.config('environment') != 'server';
+// Convert an object name to a path
+var getPathByObject = function (obj) {
+  if (isPath(obj)) {
+    // This is probably already a path.
+    return obj;
+  }
+  obj = obj.replace(/\./g, '/');
+  return obj;
 };

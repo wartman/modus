@@ -100,9 +100,9 @@
   });
 
   test('Import using plugin', function (test) {
-    Modus.plugins.test = new Modus.Loader(function (module, cb) {
+    Modus.plugin('test', function (module, next, error) {
       Modus.namespace('testPlugin').module('tested').exports('foo', 'foo');
-      cb();
+      next();
     });
     stop();
     var item = new Modus.Import('testPlugin.tested', mod);

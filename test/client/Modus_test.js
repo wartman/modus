@@ -2,7 +2,7 @@
 
   // A lot of this is redundant: probably need to refactor tests at some point.
 
-  module('Modus test', {
+  module('Modus Test', {
     setup: function () {
       Modus.config({
         root: 'client/',
@@ -15,14 +15,14 @@
 
   test('Modus.namespace', function (test) {
     var ns = Modus.namespace('modusTest');
-    test.deepEqual(Modus.env.modusTest, ns.env, 'Saved correctly');
+    test.deepEqual(Modus.env.modusTest, ns, 'Saved correctly');
   });
 
   test('Modus.namespace factory', function (test) {
     stop();
     Modus.namespace('modusTest', function(modusTest) {
       start();
-      test.deepEqual(Modus.env.modusTest, modusTest.env, 'Passed correctly');
+      test.deepEqual(Modus.env.modusTest.env, modusTest.env, 'Passed correctly');
     });
   });
 
@@ -37,7 +37,7 @@
         start();
         test.equal(one.foo, 'foo', 'Exported component');
         test.equal(one.bar, 'bar', 'Exports investgates type');
-        test.deepEqual(Modus.env.root.one, one, 'Saved to root namespace by default');
+        test.deepEqual(Modus.env.root.modules.one.env, one, 'Saved to root namespace by default');
       });
     });
   });
@@ -96,7 +96,7 @@
     });
   });
 
-  test('Modus.namespace several modules at once', function (test) {
+  test('Modus.namespace create several modules at once', function (test) {
     stop();
     Modus.namespace('namespaceTest', function (foo) {
       foo.imports('fixtures.test_imports').as('imp');
@@ -111,7 +111,7 @@
         start();
         test.equal(foo.env.imp.test, 'foobar:got', 'namespace can import');
         test.equal(foo.env.exp.foo, 'foo', 'namespace can import');
-        test.equal(foo.env.test_ban.ban, 'ban', 'Can define modules');
+        test.equal(foo.modules.test_ban.env.ban, 'ban', 'Can define modules');
       });
     });
   });

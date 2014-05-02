@@ -33,16 +33,18 @@
     var item = mod.exports('foo', 'foo');
     test.ok(item instanceof Modus.Export);
     item.run();
-    test.equal(Modus.env.root['test' + modID].foo, 'foo', 'Item exported correctly');
+    test.equal(mod.env.foo, 'foo', 'Item exported correctly');
   });
 
   test('Module imports', function (test) {
     stop();
     // Fake up a module.
-    Modus.managers.fixture = {
-      one: new Modus.Module({moduleName: 'one', namespace:'fixture'})
+    Modus.env.fixture = {
+      modules: {
+        one: new Modus.Module({moduleName: 'one', namespace:'fixture'})
+      }
     };
-    Modus.managers.fixture.one.exports('foo', 'foo');
+    Modus.env.fixture.modules.one.exports('foo', 'foo');
     // Test
     var item = mod.imports('fixture.one');
     test.ok(item instanceof Modus.Import);
@@ -110,7 +112,7 @@
     });
     mod.wait.done(function () {
       start();
-      test.equal(mod.env.one.two.three.foo, 'foo', 'Correctly created.');
+      test.equal(mod.modules.one.modules.two.modules.three.env.foo, 'foo', 'Correctly created.');
     });
     mod.run();
   });
@@ -128,7 +130,7 @@
     });
     mod.wait.done(function () {
       start();
-      test.equal(mod.env.one.two.three.four.foo, 'foo', 'Correctly created.');
+      test.equal(mod.modules.one.modules.two.modules.three.modules.four.env.foo, 'foo', 'Correctly created.');
     });
     mod.run();
   })

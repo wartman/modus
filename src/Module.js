@@ -8,14 +8,11 @@ var Module = Modus.Module = function (options) {
   this.options = defaults(this.options, options);
   this.wait = new Wait();
   this.is = new Is();
-  // Create the actual module.
-  createObjectByName(this.getFullName(), {}, Modus.env);
-  this.env = getObjectByName(this.getFullName(), Modus.env);
-  // Internal vars
+  this.env = {};
+  this.modules = {};
   this._body = false;
   this._imports = [];
   this._exports = [];
-  this._modules = [];
 };
 
 Module.prototype.options = {
@@ -43,18 +40,14 @@ Module.prototype.module = function (name, factory, options) {
   var namespace = (options.namespace)
     ? this.getFullName() + '.' + name 
     : this.getFullName();
-  var name = (options.namespace)
+  var moduleName = (options.namespace)
     ? null
     : name;
-  var fullName = (options.namespace)
-    ? namespace
-    : namespace + '.' + name;
   var module = new Modus.Module({
     namespace: namespace,
-    moduleName: name
+    moduleName: moduleName
   });
-  this._modules.push(module);
-  createObjectByName(fullName, module, Modus.managers);
+  createObjectByName(name, module, this.modules);
   if (factory) factory(module);
   nextTick(function () {
     self.is.pending(true);
@@ -190,7 +183,9 @@ Module.prototype._disable = function (reason) {
   var self = this;
   this.is.failed(true);
   this.wait.done(null, function (e) {
-    if (self.options.throwErrors) throw e;
+    if (self.options.throwErrors && e instanceof Error) {
+      throw e
+    }
   });
   this.wait.reject(reason);
 };
@@ -232,7 +227,7 @@ Module.prototype._loadImports = function () {
 
 Module.prototype._enable = function () {
   var self = this;
-  if (this._modules.length) {
+  if (size(this.modules)) {
     this._enableModules(function () {
       self._enableExports(function () {
         self.is.enabled(true);
@@ -266,11 +261,11 @@ Module.prototype._enableExports = function (next) {
 
 // Enable all modules.
 Module.prototype._enableModules = function (next) {
-  var remaining = this._modules.length;
+  var remaining = size(this.modules);
   var self = this;
   if (!remaining) return;
   this.is.working(true);
-  each(this._modules, function (module) {
+  each(this.modules, function (module, id) {
     module.run();
     module.wait.done(function () {
       remaining -= 1;
@@ -278,7 +273,7 @@ Module.prototype._enableModules = function (next) {
         next();
       }
     }, function () {
-      self.disable('A module failed');
+      self._disable('The module [' + id + '] failed for: ' + self.getFullName());
     });
   });
 };

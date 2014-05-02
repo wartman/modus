@@ -2,17 +2,14 @@
 // --------------------
 // Modus
 
-// 'env' holds the actual modules and namespaces.
-Modus.env = {};
+// --------------------
+// Environment helpers
 
-// 'managers' holds the classes used to manage namespaces.
-Modus.managers = {};
+// 'env' holds modules and namespaces.
+Modus.env = {};
 
 // 'shims' holds references to shimmed modules.
 Modus.shims = {};
-
-// Holds various loader plugins.
-Modus.plugins = {};
 
 // Config options for Modus.
 Modus.options = {
@@ -39,6 +36,29 @@ Modus.config = function (key, val) {
   }
   Modus.options[key] = val;
   return Modus.options[key];
+};
+
+// Figure out what we're running Modus in.
+var checkEnv = function () {
+  if (typeof module === "object" && module.exports) {
+    Modus.config('environment', 'node');
+  } else {
+    Modus.config('environment', 'client');
+  }
+};
+
+// Are we running Modus on a server?
+var isServer = Modus.isServer = function () {
+  if (!Modus.config('environment')) checkEnv();
+  return Modus.config('environment') === 'node'
+    || Modus.config('environment') === 'server';
+};
+
+// Are we running Modus on a client?
+var isClient = Modus.isClient =  function () {
+  if (!Modus.config('environment')) checkEnv();
+  return Modus.config('environment') != 'node'
+    && Modus.config('environment') != 'server';
 };
 
 // Map modules to a given path.
@@ -97,39 +117,67 @@ Modus.shim = function (name, options) {
   Modus.shims[name] = options;
 };
 
-// Aliases to environment helpers.
-Modus.isServer = isServer;
-Modus.isClient = isClient;
+// Get a mapped path
+var getMappedPath = Modus.getMappedPath = function (module, root) {
+  root = root || Modus.config('root');
+  var path = {};
+  if (isPath(module)) {
+    path.obj = getObjectByPath(module);
+    path.src = module;
+  } else {
+    path.obj = module;
+    path.src = getPathByObject(module) + '.js';
+  }
+  each(Modus.config('map'), function (maps, pathPattern) {
+    each(maps, function (map) {
+      if (map.test(path.obj)){
+        path.src = pathPattern;
+        var matches = map.exec(path.obj);
+        // NOTE: The following doesn't take ordering into account.
+        // Could pose an issue for paths like: 'foo/*/**.js'
+        // Think more on this. Could be fine as is! Not sure what the use cases are like.
+        if (matches.length > 2) {
+          path.src = path.src
+            .replace('**', matches[1].replace(/\./g, '/'))
+            .replace('*', matches[2]);
+        } else if (matches.length === 2) {
+          path.src = path.src.replace('*', matches[1]);
+        }
+      }
+    });
+  });
+  if (isServer()) {
+    // strip '.js' from the path.
+    path.src = path.src.replace('.js', '');
+  }
+  // Add root.
+  path.src = root + path.src;
+  return path;
+}
+
+// --------------------
+// Primary API
 
 // Namespace factory.
 Modus.namespace = function (name, factory) {
   var namespace;
-  if (getObjectByName(name, Modus.managers)) {
-    namespace = getObjectByName(name, Modus.managers);
+  if (getObjectByName(name, Modus.env)) {
+    namespace = getObjectByName(name, Modus.env);
   } else {
     namespace = new Modus.Module({
       namespace: name,
-      name: false
+      moduleName: false
     });
-    createObjectByName(name, namespace, Modus.managers);
+    createObjectByName(name, namespace, Modus.env);
   }
   if (factory) {
     factory(namespace);
+    namespace.run();
   }
-  namespace.run();
   return namespace;
 };
 
 // Module factory. Will create a new module in the 'root' namespace.
 Modus.module = function (name, factory) {
   return Modus.namespace('root').module(name, factory);
-};
-
-// Load a request.
-Modus.load = function (plugin, module, next) {
-  if (!Modus.plugins.hasOwnProperty(plugin)) {
-    next(Error('Plugin does not exist: ' + plugin));
-    return;
-  }
-  Modus.plugins[plugin].run(module, next);
 };

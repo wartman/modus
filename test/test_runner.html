@@ -35,10 +35,18 @@
     }
   </script>
   <script src="../node_modules/qunitjs/qunit/qunit.js"></script>
+  <script type="text/javascript">
+    // Needed by helpers.js
+    global = window;
+  </script>
+  <script src="../src/helpers.js"></script>
+  <script src="client/helpers_test.js"></script>
   <script src="../dist/modus.js"></script>
   <script src="client/Module_test.js"></script>
   <script src="client/Import_test.js"></script>
   <script src="client/Export_test.js"></script>
+  <script src="client/load_test.js"></script>
+  <script src="client/Modus_statics_test.js"></script>
   <script src="client/Modus_test.js"></script>
 </body>
 </html>

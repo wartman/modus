@@ -7,12 +7,12 @@ gulp.task('build', function() {
       './src/intro.js',
       './src/helpers.js',
       './src/Modus.js',
+      './src/plugin.js',
       './src/Import.js',
       './src/Export.js',
       './src/Module.js',
-      './src/Loader.js',
-      './src/client/loaders.js',
-      './src/server/loaders.js',
+      './src/client/loader.js',
+      './src/server/loader.js',
       './src/outro.js',
     ])
     .pipe(concat('Modus.js'))
