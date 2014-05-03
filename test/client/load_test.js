@@ -8,7 +8,7 @@
   module('Modus.load test', {
     setup: function () {
       Modus.config({
-        root: 'client/'
+        root: ''
       });
     }
   });

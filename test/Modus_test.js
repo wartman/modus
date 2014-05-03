@@ -1,5 +1,4 @@
 var assert = require('assert');
-var Modus = require('../../');
 
 describe('Modus', function () {
 
@@ -97,6 +96,38 @@ describe('Modus', function () {
         });
       });
 
+      describe('#using', function () {
+
+        it('uses a plugin from an external file (using node)', function (done) {
+          Modus.namespace('modusTest').module('testPluginExternal', function (testPluginExternal) {
+            testPluginExternal.imports('mocked.name').as('mocked').using('fixtures.plugin');
+            testPluginExternal.body(function (testPluginExternal) {
+              assert.equal(testPluginExternal.mocked, 'plugin done', 'Used plugin, loading from external file');
+              done();
+            }, function (e) {
+              throw Error(e);
+              done();
+            });
+          });
+        });
+
+      });
+
+    });
+
+  });
+
+  describe('#publish', function () {
+
+    it('creates a simple module using a single value', function (done) {
+      Modus.publish('modusTest.published', 'foo');
+      Modus.namespace('modusTest').module('testPublished', function (testPublished) {
+        testPublished.imports('.published');
+        testPublished.body(function (testPublished) {
+          assert.equal(testPublished.published, 'foo', 'published');
+          done();
+        });
+      });
     });
 
   });

@@ -1,5 +1,4 @@
 var assert = require('assert');
-var Modus = require('../../');
 
 describe('Modus.Module', function () {
   var mod;

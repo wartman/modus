@@ -5,7 +5,7 @@
   module('Modus Test', {
     setup: function () {
       Modus.config({
-        root: 'client/',
+        root: '',
         map: {
           'fixtures/*.js': 'fixtures.*'
         }

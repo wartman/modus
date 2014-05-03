@@ -93,9 +93,9 @@ Import.prototype.compile = function () {
 // Load using a plugin
 Import.prototype._loadWithPlugin = function (next, error) {
   var self = this;
-  if (!Modus.plugin(this._uses)) {
+  if (false === Modus.plugin(this._uses)) {
     Modus.load(this._uses, function () {
-      if (!Modus.plugin (self._uses)) {
+      if (false === Modus.plugin(self._uses)) {
         error('No plugin of that name found: ' + self._uses);
         return;
       }

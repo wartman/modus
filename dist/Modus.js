@@ -4,7 +4,7 @@
 // Copyright 2014
 // Released under the MIT license
 //
-// Date: 2014-05-03T14:30Z
+// Date: 2014-05-03T20:42Z
 
 (function (factory) {
 
@@ -670,9 +670,9 @@ Import.prototype.compile = function () {
 // Load using a plugin
 Import.prototype._loadWithPlugin = function (next, error) {
   var self = this;
-  if (!Modus.plugin(this._uses)) {
+  if (false === Modus.plugin(this._uses)) {
     Modus.load(this._uses, function () {
-      if (!Modus.plugin (self._uses)) {
+      if (false === Modus.plugin(self._uses)) {
         error('No plugin of that name found: ' + self._uses);
         return;
       }
@@ -1198,9 +1198,13 @@ if (isServer()) {
     var src = path.src;
     try {
       require(src);
-      next();
+      nextTick(function () {
+        next();
+      });
     } catch(e) {
-      error(e);
+      nextTick(function () {
+        error(e);
+      });
     }
   };
 

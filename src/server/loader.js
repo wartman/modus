@@ -12,9 +12,13 @@ if (isServer()) {
     var src = path.src;
     try {
       require(src);
-      next();
+      nextTick(function () {
+        next();
+      });
     } catch(e) {
-      error(e);
+      nextTick(function () {
+        error(e);
+      });
     }
   };
 

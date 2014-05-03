@@ -1,3 +1,4 @@
+var Modus = require('./'); // Is GLOBAL
 var gulp = require('gulp');
 var concat = require('gulp-concat');
 var qunit = require('gulp-qunit');
@@ -25,12 +26,12 @@ gulp.task('build', function() {
 });
 
 gulp.task('qunit', function () {
-  gulp.src('./test/test_runner.html')
+  gulp.src('./test/client/test_runner.html')
     .pipe(qunit());
 });
 
 gulp.task('mocha', function () {
-  gulp.src('./test/server/*.js')
+  gulp.src('./test/*_test.js')
     .pipe(mocha({reporter: 'spec'}));
 });
 

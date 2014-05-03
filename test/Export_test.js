@@ -1,5 +1,4 @@
 var assert = require('assert');
-var Modus = require('../../');
 
 var mod = Modus.module('exportTestFixture');
 
