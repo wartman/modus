@@ -30,10 +30,8 @@ gulp.task('qunit', function () {
 });
 
 gulp.task('mocha', function () {
-  gulp.src([
-    './test/server/Module_test.js',
-    './test/server/Modus_test.js'
-  ]).pipe(mocha({reporter: 'spec'}));
+  gulp.src('./test/server/*.js')
+    .pipe(mocha({reporter: 'spec'}));
 });
 
 gulp.task('default', ['build', 'qunit', 'mocha']);

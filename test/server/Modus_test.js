@@ -1,5 +1,5 @@
 var assert = require('assert');
-var Modus = require('../../dist/Modus');
+var Modus = require('../../');
 
 describe('Modus', function () {
 
@@ -86,7 +86,7 @@ describe('Modus', function () {
         });
       });
 
-      it('imports from external file', function (done) {
+      it('imports from external file (using node)', function (done) {
         Modus.namespace('test').module('external', function (external) {
           external.imports('fixtures.one').as('one');
           external.body(function (external) {
@@ -97,6 +97,74 @@ describe('Modus', function () {
         });
       });
 
+    });
+
+  });
+
+
+  describe('#shim', function () {
+
+    it('saves correctly', function () {
+      Modus.shim('fid', {
+        map: 'fid',
+        imports: ['foo', 'bin']
+      });
+      assert.deepEqual(Modus.shims.fid, {
+        map: 'fid',
+        imports: ['foo', 'bin']
+      });
+    });
+
+  });
+
+  describe('#map / #getMappedPath', function () {
+
+    it('maps a module to a path', function () {
+      Modus.map('fixtures/map/mapped', 'foo.mapped');
+      assert.equal(Modus.getMappedPath('foo.mapped').src, Modus.config('root') + 'fixtures/map/mapped', 'Path was found');
+    });
+
+    it('maps several modules to a path', function () {
+      Modus.map('fixtures/map/mapped', [
+        'foo.mapped.one',
+        'foo.mapped.two'
+      ]);
+      assert.equal(Modus.getMappedPath('foo.mapped.one').src, Modus.config('root') + 'fixtures/map/mapped', 'Path was found');
+      assert.equal(Modus.getMappedPath('foo.mapped.two').src, Modus.config('root') + 'fixtures/map/mapped', 'Path was found');
+    });
+
+    it('maps patterns to a path', function () {
+      Modus.map('fixtures/fake/module', [
+        'foo.fake',
+        'foo.fake.*',
+        'foo.**.many',
+        'foo.*.one'
+      ]);
+      assert.equal(Modus.getMappedPath('foo.fake').src, Modus.config('root') +'fixtures/fake/module', 'Path was found');
+      assert.equal(Modus.getMappedPath('foo.fake.Bar').src, Modus.config('root') +'fixtures/fake/module', 'Path was found');
+      assert.equal(Modus.getMappedPath('foo.fake.Baz').src, Modus.config('root') +'fixtures/fake/module', 'Path was found');
+      assert.equal(Modus.getMappedPath('foo.fake.Foo').src, Modus.config('root') +'fixtures/fake/module', 'Path was found automatically');
+      assert.equal(Modus.getMappedPath('foo.things.many').src, Modus.config('root') +'fixtures/fake/module', '** matches many segments');
+      assert.equal(Modus.getMappedPath('foo.things.etc.many').src, Modus.config('root') +'fixtures/fake/module', '** matches many segments');
+      assert.notEqual(Modus.getMappedPath('foo.things.etc.fud').src, Modus.config('root') +'fixtures/fake/module', '** does not match when last segment is incorrect');
+      assert.equal(Modus.getMappedPath('foo.things.one').src, Modus.config('root') +'fixtures/fake/module', '* matches one segment');
+      assert.notEqual(Modus.getMappedPath('foo.things.etc.one').src, Modus.config('root') +'fixtures/fake/module', '* does not match many segments');
+    });
+
+    it('replaces wildcards in urls', function () {
+      Modus.map('fixtures/fake/*', 'fid.*');
+      assert.equal(Modus.getMappedPath('fid.bin').src, Modus.config('root') +'fixtures/fake/bin', 'Mapped');
+      assert.notEqual(Modus.getMappedPath('fid.bin.bar').src, Modus.config('root') +'fixtures/fake/bin/bar', '* matches only one');
+      Modus.map('fixtures/fake/many/**/*', 'fid.**.*');
+      assert.equal(Modus.getMappedPath('fid.bin.bar').src, Modus.config('root') + 'fixtures/fake/many/bin/bar', '** matches many');
+      assert.equal(Modus.getMappedPath('fid.bin.baz.bar').src, Modus.config('root') + 'fixtures/fake/many/bin/baz/bar', '** matches many');
+    });
+
+    it('gets mapped paths from shims', function () {
+      Modus.shim('foo', {
+        map: 'fixtures/shimmed/foo'
+      });
+      assert.equal(Modus.getMappedPath('foo').src, Modus.config('root') + 'fixtures/shimmed/foo', 'Shimmed path mapped');
     });
 
   });

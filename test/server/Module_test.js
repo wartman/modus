@@ -1,5 +1,5 @@
-var Modus = require('../../dist/Modus');
 var assert = require('assert');
+var Modus = require('../../');
 
 describe('Modus.Module', function () {
   var mod;
