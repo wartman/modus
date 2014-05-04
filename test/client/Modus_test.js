@@ -82,13 +82,10 @@
     });
   });
 
-  test('Modus imports shims', function (test) {
+  test('Modus imports globals', function (test) {
     stop();
-    Modus.shim('shim', {
-      map: 'fixtures/shim.js'
-    });
     Modus.namespace('modusTest').module('shimmed', function (shimmed) {
-      shimmed.imports('shim');
+      shimmed.imports('shim').global('fixtures/shim.js');
       shimmed.body(function (shimmed) {
         start();
         test.equal(shimmed.shim, 'shim', 'Got shim');

@@ -88,6 +88,22 @@
     test.equal(size(obj), 3, 'Got size');
   });
 
+  test('eachThen', function (test) {
+    stop();
+    var result = '';
+    eachThen([
+      'one',
+      'two',
+      'three'
+    ], function (item, next, error) {
+      result += item;
+      next();
+    }, function () {
+      start();
+      test.equal(result, 'onetwothree');
+    });
+  });
+
   test('create/getObjectByName', function (test) {
     createObjectByName('helper.one', 'foo');
     test.equal(getObjectByName('helper.one'), helper.one, 'Created and got');

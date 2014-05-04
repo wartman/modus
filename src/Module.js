@@ -200,83 +200,69 @@ Module.prototype._compile = function () {
 
 // Iterate through imports and run them all.
 Module.prototype._loadImports = function () {
-  var remaining = this._imports.length;
   var self = this;
-  var onUpdate = function () {
-    remaining -= 1;
-    if (remaining <= 0) {
-      self.is.loaded(true);
-      self.run();
-    }
-  }
   this.is.working(true);
-  if (!remaining) {
+  if (!this._imports.length) {
     this.is.loaded(true);
-    this.run();
+    this._enable();
     return;
   }
-  each(this._imports, function (item) {
-    if(item.is.loaded()) {
-      onUpdate();
-      return;
-    }
-    item.load(function () {
-      onUpdate();
-    }, function (reason) {
-      self._disable(reason);
-    });
+  eachThen(this._imports, function (item, next, error) {
+    if (item.is.loaded()) return next();
+    item.load(next, error);
+  }, function () {
+    self.is.loaded(true);
+    self._enable();
+  }, function (reason) {
+    self._disable(reason);
   });
 };
 
 Module.prototype._enable = function () {
   var self = this;
-  if (size(this.modules)) {
-    this._enableModules(function () {
-      self._enableExports(function () {
-        self.is.enabled(true);
-        self.run();
-      });
-    });
-  } else {
+  this.is.working(true);
+  this._enableModules(function () {
     self._enableExports(function () {
       self.is.enabled(true);
       self.run();
     });
-  }
+  });
 };
 
 // Iterate through exports and run them.
 Module.prototype._enableExports = function (next) {
+  if (!this._exports.length) {
+    if (this._body) this._body.run();
+    return next();
+  }
   var self = this;
-  this.is.working(true);
-  each(this._exports, function (item) {
-    if (item.is.enabled()) return;
+  eachThen(this._exports, function (item, next, error) {
+    if (item.is.enabled()) return next();
     try {
       item.run();
+      next();
     } catch(e) {
-      self._disable(e);
+      error(e);
     }
+  }, function () {
+    if (self._body) self._body.run();
+    next();
+  }, function (e) {
+    self._disable(e);
   });
-  if (!this.is.working()) return;
-  if (this._body) this._body.run();
-  next();
 };
 
 // Enable all modules.
 Module.prototype._enableModules = function (next) {
-  var remaining = size(this.modules);
+  if (!size(this.modules)) return next();
   var self = this;
-  if (!remaining) return;
-  this.is.working(true);
-  each(this.modules, function (module, id) {
+  eachThen(keys(this.modules), function (key, next, error) {
+    var module = self.modules[key];
     module.run();
-    module.wait.done(function () {
-      remaining -= 1;
-      if (remaining <= 0) {
-        next();
-      }
-    }, function () {
-      self._disable('The module [' + id + '] failed for: ' + self.getFullName());
+    module.wait.done(next, function () {
+      error(key);
     });
+  }, next, function (id) {
+    self._disable('The module [' + id + '] failed for: ' + self.getFullName());
   });
 };

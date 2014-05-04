@@ -113,4 +113,17 @@
     }, failed);
   });
 
+  test('Import using passed function', function (test) {
+    stop();
+    var item = new Modus.Import('testPluginFunc.tested', mod);
+    item.using(function (next, error) {
+      Modus.module('testPluginFunc.tested').exports('foo', 'foo');
+      next();
+    });
+    item.load(function () {
+      test.equal(mod.env.testPluginFunc.tested.foo, 'foo', 'Imported with func');
+      start();
+    }, failed);
+  })
+
 })();

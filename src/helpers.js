@@ -28,6 +28,21 @@ var each = function (obj, callback, context) {
   return obj;
 };
 
+// Run through all items in an array, then trigger
+// a callback on the last item.
+var eachThen = function (obj, callback, next, error, context) {
+  var remaining = obj.length;
+  context = context || obj;
+  each(obj, function (item) {
+    callback(item, function () {
+      remaining -= 1;
+      if (remaining <= 0) {
+        next();
+      }
+    }, error);
+  });
+};
+
 // Apply defaults to an object.
 var defaults = function(defaults, options){
   if (!options) return defaults;

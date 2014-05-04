@@ -1,12 +1,6 @@
-// You shouldn't actually shim things inside a module like this!
-// This is only an example for how you might use jQuery
-Modus.shim('$', {
-  map: 'bower_components/jquery/dist/jquery.min.js'
-});
-
 Modus.namespace('plugins').module('ajax', function (ajax) {
 
-  ajax.imports('$');
+  ajax.imports('$').global('bower_components/jquery/dist/jquery.min.js')
 
   ajax.body(function (ajax) {
     Modus.plugin('plugins.ajax', function (request, next, error) {

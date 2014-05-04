@@ -4,7 +4,7 @@
 // Copyright 2014
 // Released under the MIT license
 //
-// Date: 2014-05-03T20:42Z
+// Date: 2014-05-04T17:08Z
 
 (function (factory) {
 
@@ -54,6 +54,21 @@ var each = function (obj, callback, context) {
     }
   }
   return obj;
+};
+
+// Run through all items in an array, then trigger
+// a callback on the last item.
+var eachThen = function (obj, callback, next, error, context) {
+  var remaining = obj.length;
+  context = context || obj;
+  each(obj, function (item) {
+    callback(item, function () {
+      remaining -= 1;
+      if (remaining <= 0) {
+        next();
+      }
+    }, error);
+  });
 };
 
 // Apply defaults to an object.
@@ -284,14 +299,10 @@ var getNamespacePath = function (name) {
 // 'env' holds modules and namespaces.
 Modus.env = {};
 
-// 'shims' holds references to shimmed modules.
-Modus.shims = {};
-
 // Config options for Modus.
 Modus.options = {
   root: '',
-  map: {},
-  shim: {}
+  map: {}
 };
 
 // Set or get a Modus config option.
@@ -307,8 +318,6 @@ Modus.config = function (key, val) {
   }
   if ( 'map' === key ) {
     return Modus.map(val);
-  } else if ( 'shim' === key ) {
-    return Modus.shim(val);
   }
   Modus.options[key] = val;
   return Modus.options[key];
@@ -375,22 +384,6 @@ Modus.map = function (path, provides) {
       + '$'
   );
   Modus.options.map[path].push(provides);
-};
-
-// Shim a module. This will work with any module that returns
-// something in the global scope.
-Modus.shim = function (name, options) {
-  if ("object" === typeof name){
-    for ( var item in name ) {
-      Modus.shim(item, name[item]);
-    }
-    return;
-  }
-  options = options || {}; 
-  if (options.map) {
-    Modus.map(options.map, name);
-  }
-  Modus.shims[name] = options;
 };
 
 // Get a mapped path
@@ -604,6 +597,7 @@ var Import = Modus.Import = function (request, module) {
   this._components = false;
   this._request = request;
   this._as = false;
+  this._global = false;
   this._uses = false;
   this._inNamespace = false;
   this._modulePath = '';
@@ -627,8 +621,19 @@ Import.prototype.as = function (alias) {
 // file: modus will load it like any other module,
 // then use the plugin defined there to resolve this
 // import (see 'Modus.plugin' for some examples).
+// Yoy can also pass a function here.
 Import.prototype.using = function (plugin) {
   this._uses = plugin;
+  return this;
+};
+
+// Load a script and import a global var. This method
+// lets you import files that are not wrapped in Modus.Modules:
+// think of it as a shim.
+Import.prototype.global = function (path) {
+  this._global = this._request;
+  if (!this._as) this._as = this._request;
+  this._request = path;
   return this;
 };
 
@@ -647,7 +652,9 @@ Import.prototype.load = function (next, error) {
     self.is.failed(true);
     error(reason);
   }
-  if (this.is.loaded() || getObjectByName(this._modulePath, Modus.env)) {
+  if (this.is.loaded() 
+    || getObjectByName(this._modulePath, Modus.env)
+    || (this._global && getObjectByName(this._global)) ) {
     this._enableImportedModule(next, importError);
     return;
   }
@@ -670,6 +677,13 @@ Import.prototype.compile = function () {
 // Load using a plugin
 Import.prototype._loadWithPlugin = function (next, error) {
   var self = this;
+  if ('function' === typeof this._uses) {
+    this._uses(function () {
+      self.is.loaded(true);
+      self._enableImportedModule(next, error);
+    }, error);
+    return;
+  }
   if (false === Modus.plugin(this._uses)) {
     Modus.load(this._uses, function () {
       if (false === Modus.plugin(self._uses)) {
@@ -710,9 +724,9 @@ Import.prototype._ensureNamespace = function (error) {
 Import.prototype._enableImportedModule = function (next, error) {
   var module = getObjectByName(this._modulePath, Modus.env);
   var self = this;
-  if (Modus.shims.hasOwnProperty(this._request)) {
-    if (!getObjectByName(this._request)) {
-      error('A shimmed import [' + this._request + '] failed for: ' 
+  if (this._global) {
+    if (!getObjectByName(this._global)) {
+      error('A global import [' + this._global + '] failed for: ' 
         + this._module.getFullName() );
       return;
     }
@@ -735,8 +749,8 @@ Import.prototype._enableImportedModule = function (next, error) {
 Import.prototype._applyDependencies = function () {
   var module = this._module.env;
   var dep = getObjectByName(this._modulePath, Modus.env);
-  if (Modus.shims.hasOwnProperty(this._request)) {
-    dep = getObjectByName(this._request);
+  if (this._global) {
+    dep = getObjectByName(this._global);
   } else {
     dep = dep.env;
   }
@@ -1047,84 +1061,70 @@ Module.prototype._compile = function () {
 
 // Iterate through imports and run them all.
 Module.prototype._loadImports = function () {
-  var remaining = this._imports.length;
   var self = this;
-  var onUpdate = function () {
-    remaining -= 1;
-    if (remaining <= 0) {
-      self.is.loaded(true);
-      self.run();
-    }
-  }
   this.is.working(true);
-  if (!remaining) {
+  if (!this._imports.length) {
     this.is.loaded(true);
-    this.run();
+    this._enable();
     return;
   }
-  each(this._imports, function (item) {
-    if(item.is.loaded()) {
-      onUpdate();
-      return;
-    }
-    item.load(function () {
-      onUpdate();
-    }, function (reason) {
-      self._disable(reason);
-    });
+  eachThen(this._imports, function (item, next, error) {
+    if (item.is.loaded()) return next();
+    item.load(next, error);
+  }, function () {
+    self.is.loaded(true);
+    self._enable();
+  }, function (reason) {
+    self._disable(reason);
   });
 };
 
 Module.prototype._enable = function () {
   var self = this;
-  if (size(this.modules)) {
-    this._enableModules(function () {
-      self._enableExports(function () {
-        self.is.enabled(true);
-        self.run();
-      });
-    });
-  } else {
+  this.is.working(true);
+  this._enableModules(function () {
     self._enableExports(function () {
       self.is.enabled(true);
       self.run();
     });
-  }
+  });
 };
 
 // Iterate through exports and run them.
 Module.prototype._enableExports = function (next) {
+  if (!this._exports.length) {
+    if (this._body) this._body.run();
+    return next();
+  }
   var self = this;
-  this.is.working(true);
-  each(this._exports, function (item) {
-    if (item.is.enabled()) return;
+  eachThen(this._exports, function (item, next, error) {
+    if (item.is.enabled()) return next();
     try {
       item.run();
+      next();
     } catch(e) {
-      self._disable(e);
+      error(e);
     }
+  }, function () {
+    if (self._body) self._body.run();
+    next();
+  }, function (e) {
+    self._disable(e);
   });
-  if (!this.is.working()) return;
-  if (this._body) this._body.run();
-  next();
 };
 
 // Enable all modules.
 Module.prototype._enableModules = function (next) {
-  var remaining = size(this.modules);
+  if (!size(this.modules)) return next();
   var self = this;
-  if (!remaining) return;
-  this.is.working(true);
-  each(this.modules, function (module, id) {
+  eachThen(keys(this.modules), function (key, next, error) {
+    var module = self.modules[key];
     module.run();
-    module.wait.done(function () {
-      remaining -= 1;
-      if (remaining <= 0) {
-        next();
-      }
-    }, function () {
-      self._disable('The module [' + id + '] failed for: ' + self.getFullName());
+    module.wait.done(next, function () {
+      error(key);
     });
+  }, next, function (id) {
+    self._disable('The module [' + id + '] failed for: ' + self.getFullName());
   });
 };
 
@@ -1157,6 +1157,13 @@ if (isClient()) {
   })();
 
   Modus.load = function (module, next, error) {
+
+    if (module instanceof Array) {
+      eachThen(module, function (item, next, error) {
+        Modus.load(item, next, error);
+      }, next, error);
+      return;
+    }
 
     var path = getMappedPath(module, Modus.config('root'));
     var src = path.src;
@@ -1194,6 +1201,14 @@ if (isServer()) {
   GLOBAL.Modus = Modus;
 
   Modus.load = function (module, next, error) {
+
+    if (module instanceof Array) {
+      eachThen(module, function (item, next, error) {
+        Modus.load(item, next, error);
+      }, next, error);
+      return;
+    }
+    
     var path = getMappedPath(module, Modus.config('root'));
     var src = path.src;
     try {

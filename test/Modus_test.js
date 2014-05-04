@@ -132,22 +132,6 @@ describe('Modus', function () {
 
   });
 
-
-  describe('#shim', function () {
-
-    it('saves correctly', function () {
-      Modus.shim('fid', {
-        map: 'fid',
-        imports: ['foo', 'bin']
-      });
-      assert.deepEqual(Modus.shims.fid, {
-        map: 'fid',
-        imports: ['foo', 'bin']
-      });
-    });
-
-  });
-
   describe('#map / #getMappedPath', function () {
 
     it('maps a module to a path', function () {
@@ -189,13 +173,6 @@ describe('Modus', function () {
       Modus.map('fixtures/fake/many/**/*', 'fid.**.*');
       assert.equal(Modus.getMappedPath('fid.bin.bar').src, Modus.config('root') + 'fixtures/fake/many/bin/bar', '** matches many');
       assert.equal(Modus.getMappedPath('fid.bin.baz.bar').src, Modus.config('root') + 'fixtures/fake/many/bin/baz/bar', '** matches many');
-    });
-
-    it('gets mapped paths from shims', function () {
-      Modus.shim('foo', {
-        map: 'fixtures/shimmed/foo'
-      });
-      assert.equal(Modus.getMappedPath('foo').src, Modus.config('root') + 'fixtures/shimmed/foo', 'Shimmed path mapped');
     });
 
   });

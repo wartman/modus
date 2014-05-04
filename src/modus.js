@@ -8,14 +8,10 @@
 // 'env' holds modules and namespaces.
 Modus.env = {};
 
-// 'shims' holds references to shimmed modules.
-Modus.shims = {};
-
 // Config options for Modus.
 Modus.options = {
   root: '',
-  map: {},
-  shim: {}
+  map: {}
 };
 
 // Set or get a Modus config option.
@@ -31,8 +27,6 @@ Modus.config = function (key, val) {
   }
   if ( 'map' === key ) {
     return Modus.map(val);
-  } else if ( 'shim' === key ) {
-    return Modus.shim(val);
   }
   Modus.options[key] = val;
   return Modus.options[key];
@@ -99,22 +93,6 @@ Modus.map = function (path, provides) {
       + '$'
   );
   Modus.options.map[path].push(provides);
-};
-
-// Shim a module. This will work with any module that returns
-// something in the global scope.
-Modus.shim = function (name, options) {
-  if ("object" === typeof name){
-    for ( var item in name ) {
-      Modus.shim(item, name[item]);
-    }
-    return;
-  }
-  options = options || {}; 
-  if (options.map) {
-    Modus.map(options.map, name);
-  }
-  Modus.shims[name] = options;
 };
 
 // Get a mapped path

@@ -6,17 +6,6 @@
     }
   });
 
-  test('Saves shim', function (test) {
-    Modus.shim('fid', {
-      map: 'fid',
-      imports: ['foo', 'bin']
-    });
-    test.deepEqual(Modus.shims.fid, {
-      map: 'fid',
-      imports: ['foo', 'bin']
-    });
-  });
-
   test('map/getMappedPath', function (test) {
     Modus.map('fixtures/map/mapped.js', 'foo.mapped');
     test.equal(Modus.getMappedPath('foo.mapped').src, 'fixtures/map/mapped.js', 'Path was found');
@@ -44,13 +33,6 @@
     Modus.map('fixtures/fake/many/**/*.js', 'fid.**.*');
     test.equal(Modus.getMappedPath('fid.bin.bar').src, 'fixtures/fake/many/bin/bar.js', '** matches many');
     test.equal(Modus.getMappedPath('fid.bin.baz.bar').src, 'fixtures/fake/many/bin/baz/bar.js', '** matches many');
-  });
-
-  test('Get shimmed path with getMappedPath', function (test) {
-    Modus.shim('foo', {
-      map: 'fixtures/shimmed/foo.js'
-    });
-    test.equal(Modus.getMappedPath('foo').src, 'fixtures/shimmed/foo.js', 'Shimmed path mapped');
   });
 
 })();

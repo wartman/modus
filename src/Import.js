@@ -27,6 +27,7 @@ var Import = Modus.Import = function (request, module) {
   this._components = false;
   this._request = request;
   this._as = false;
+  this._global = false;
   this._uses = false;
   this._inNamespace = false;
   this._modulePath = '';
@@ -50,8 +51,19 @@ Import.prototype.as = function (alias) {
 // file: modus will load it like any other module,
 // then use the plugin defined there to resolve this
 // import (see 'Modus.plugin' for some examples).
+// Yoy can also pass a function here.
 Import.prototype.using = function (plugin) {
   this._uses = plugin;
+  return this;
+};
+
+// Load a script and import a global var. This method
+// lets you import files that are not wrapped in Modus.Modules:
+// think of it as a shim.
+Import.prototype.global = function (path) {
+  this._global = this._request;
+  if (!this._as) this._as = this._request;
+  this._request = path;
   return this;
 };
 
@@ -70,7 +82,9 @@ Import.prototype.load = function (next, error) {
     self.is.failed(true);
     error(reason);
   }
-  if (this.is.loaded() || getObjectByName(this._modulePath, Modus.env)) {
+  if (this.is.loaded() 
+    || getObjectByName(this._modulePath, Modus.env)
+    || (this._global && getObjectByName(this._global)) ) {
     this._enableImportedModule(next, importError);
     return;
   }
@@ -93,6 +107,13 @@ Import.prototype.compile = function () {
 // Load using a plugin
 Import.prototype._loadWithPlugin = function (next, error) {
   var self = this;
+  if ('function' === typeof this._uses) {
+    this._uses(function () {
+      self.is.loaded(true);
+      self._enableImportedModule(next, error);
+    }, error);
+    return;
+  }
   if (false === Modus.plugin(this._uses)) {
     Modus.load(this._uses, function () {
       if (false === Modus.plugin(self._uses)) {
@@ -133,9 +154,9 @@ Import.prototype._ensureNamespace = function (error) {
 Import.prototype._enableImportedModule = function (next, error) {
   var module = getObjectByName(this._modulePath, Modus.env);
   var self = this;
-  if (Modus.shims.hasOwnProperty(this._request)) {
-    if (!getObjectByName(this._request)) {
-      error('A shimmed import [' + this._request + '] failed for: ' 
+  if (this._global) {
+    if (!getObjectByName(this._global)) {
+      error('A global import [' + this._global + '] failed for: ' 
         + this._module.getFullName() );
       return;
     }
@@ -158,8 +179,8 @@ Import.prototype._enableImportedModule = function (next, error) {
 Import.prototype._applyDependencies = function () {
   var module = this._module.env;
   var dep = getObjectByName(this._modulePath, Modus.env);
-  if (Modus.shims.hasOwnProperty(this._request)) {
-    dep = getObjectByName(this._request);
+  if (this._global) {
+    dep = getObjectByName(this._global);
   } else {
     dep = dep.env;
   }

@@ -118,6 +118,18 @@ describe('Modus.Import', function () {
 
   });
 
+  describe('#global', function () {
+    it('imports a global var', function (done) {
+      GLOBAL.globalTest = 'test';
+      var item = new Modus.Import('globalTest', mod);
+      item.global('fake/path.js');
+      item.load(function () {
+        assert.equal(mod.env.globalTest, 'test', 'Got global var.');
+        done();
+      }, failed);
+    });
+  });
+
   describe('#using', function () {
 
     it('imports using a plugin', function (done) {
@@ -129,6 +141,18 @@ describe('Modus.Import', function () {
       item.using('test');
       item.load(function () {
         assert.equal(mod.env.testPlugin.tested.foo, 'foo', 'Imported with plugin');
+        done();
+      }, failed);
+    });
+
+    it('imports using a passed function', function (done) {
+      var item = new Modus.Import('testPluginFunc.tested', mod);
+      item.using(function (next, error) {
+        Modus.module('testPluginFunc.tested').exports('foo', 'foo');
+        next();
+      });
+      item.load(function () {
+        assert.equal(mod.env.testPluginFunc.tested.foo, 'foo', 'Imported with func');
         done();
       }, failed);
     });

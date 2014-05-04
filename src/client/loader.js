@@ -28,6 +28,13 @@ if (isClient()) {
 
   Modus.load = function (module, next, error) {
 
+    if (module instanceof Array) {
+      eachThen(module, function (item, next, error) {
+        Modus.load(item, next, error);
+      }, next, error);
+      return;
+    }
+
     var path = getMappedPath(module, Modus.config('root'));
     var src = path.src;
 
