@@ -1,10 +1,10 @@
 Modus.namespace('plugins').module('ajax', function (ajax) {
 
-  ajax.imports('$').global('bower_components/jquery/dist/jquery.min.js')
+  ajax.imports('bower_components/jquery/dist/jquery.min.js').global('$');
 
   ajax.body(function (ajax) {
     Modus.plugin('plugins.ajax', function (request, next, error) {
-      ajax.$.ajax({
+      $.ajax({
         // When importing this module, you'll pass a path, not
         // an object name.
         url: Modus.config('root') + request

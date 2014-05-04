@@ -4,8 +4,8 @@ Modus.namespace('examples.shims').module('shims', function (shims) {
   // global scope. In this example, we're trying to set up
   // a Backbone project. We're using bower, so lets get jQuery
   // and underscore first:
-  shims.imports('$').global('bower_components/jquery/dist/jquery.min.js');
-  shims.imports('_').global('bower_components/underscore/underscore.js');
+  shims.imports('bower_components/jquery/dist/jquery.min.js').global('$');
+  shims.imports('bower_components/underscore/underscore.js').global('_');
 
   // Backbone is a bit more tricky, as we need to be sure it has
   // all its deps ready first. We can use the 'using' method

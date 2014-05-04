@@ -85,7 +85,7 @@
   test('Modus imports globals', function (test) {
     stop();
     Modus.namespace('modusTest').module('shimmed', function (shimmed) {
-      shimmed.imports('shim').global('fixtures/shim.js');
+      shimmed.imports('fixtures/shim.js').global('shim');
       shimmed.body(function (shimmed) {
         start();
         test.equal(shimmed.shim, 'shim', 'Got shim');

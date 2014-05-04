@@ -60,10 +60,9 @@ Import.prototype.using = function (plugin) {
 // Load a script and import a global var. This method
 // lets you import files that are not wrapped in Modus.Modules:
 // think of it as a shim.
-Import.prototype.global = function (path) {
-  this._global = this._request;
-  if (!this._as) this._as = this._request;
-  this._request = path;
+Import.prototype.global = function (item) {
+  this._global = item;
+  if (!this._as) this._as = item;
   return this;
 };
 

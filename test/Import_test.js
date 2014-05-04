@@ -121,8 +121,8 @@ describe('Modus.Import', function () {
   describe('#global', function () {
     it('imports a global var', function (done) {
       GLOBAL.globalTest = 'test';
-      var item = new Modus.Import('globalTest', mod);
-      item.global('fake/path.js');
+      var item = new Modus.Import('fake/path.js', mod);
+      item.global('globalTest');
       item.load(function () {
         assert.equal(mod.env.globalTest, 'test', 'Got global var.');
         done();
