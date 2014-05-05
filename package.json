@@ -25,11 +25,12 @@
     "lodash": "~2.4.1"
   },
   "devDependencies": {
+    "chai": "~1.9.1",
     "gulp": "^3.6.2",
     "gulp-concat": "^2.2.0",
     "gulp-mocha": "^0.4.1",
-    "gulp-replace": "^0.2.0",
     "gulp-mocha-phantomjs": "~0.1.5",
-    "chai": "~1.9.1"
+    "gulp-replace": "^0.2.0",
+    "mocha": "^1.18.2"
   }
 }

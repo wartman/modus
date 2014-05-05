@@ -66,6 +66,17 @@ Import.prototype.global = function (item) {
   return this;
 };
 
+// Get the mapped path and object name from the current request.
+// Will return an object with 'src' and 'obj' keys.
+Import.prototype.getRequest = function () {
+  return getMappedPath(this._request, Modus.config('root'));
+};
+
+// Get the parent module.
+Import.prototype.getModule = function () {
+  return this._module;
+};
+
 // Import the module, passing the request on to 
 // Modus.load if needed.
 Import.prototype.load = function (next, error) {
@@ -107,24 +118,28 @@ Import.prototype.compile = function () {
 Import.prototype._loadWithPlugin = function (next, error) {
   var self = this;
   if ('function' === typeof this._uses) {
-    this._uses(function () {
+    this._uses(this, function () {
       self.is.loaded(true);
       self._enableImportedModule(next, error);
     }, error);
     return;
   }
   if (false === Modus.plugin(this._uses)) {
-    console.log(this._uses);
+    // Try to load the plugin from an external file
     Modus.load(this._uses, function () {
-      if (false === Modus.plugin(self._uses)) {
-        error('No plugin of that name found: ' + self._uses);
-        return;
-      }
-      self._loadWithPlugin(next, error);
+      // Ensure this is run after plugin has a chance
+      // to define itself.
+      nextTick(function () {
+        if (false === Modus.plugin(self._uses)) {
+          error('No plugin of that name found: ' + self._uses);
+          return;
+        }
+        self._loadWithPlugin(next, error);
+      });
     }, error);
     return;
   }
-  Modus.plugin(this._uses, this._request, function () {
+  Modus.plugin(this._uses, this, function () {
     self.is.loaded(true);
     self._enableImportedModule(next, error);
   }, error);

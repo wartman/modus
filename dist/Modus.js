@@ -4,7 +4,7 @@
 // Copyright 2014
 // Released under the MIT license
 //
-// Date: 2014-05-04T21:14Z
+// Date: 2014-05-05T18:53Z
 
 (function (factory) {
 
@@ -29,6 +29,21 @@ Modus.VERSION = '0.1.3';
 
 // --------------------
 // Modus helpers
+
+// Get all keys from an object
+var keys = function(obj) {
+  if ("object" !== typeof obj) return [];
+  if (Object.keys) return Object.keys(obj);
+  var keys = [];
+  for (var key in obj) if (_.has(obj, key)) keys.push(key);
+  return keys;
+};
+
+// Get the size of an object
+var size = function (obj) {
+  if (obj == null) return 0;
+  return (obj.length === +obj.length) ? obj.length : keys(obj).length;
+};
 
 // Iterator for arrays or objects. Uses native forEach if available.
 var each = function (obj, callback, context) {
@@ -56,19 +71,19 @@ var each = function (obj, callback, context) {
   return obj;
 };
 
-// Run through all items in an array, then trigger
+// Run through all items in an object, then trigger
 // a callback on the last item.
-var eachThen = function (obj, callback, next, error, context) {
-  var remaining = obj.length;
+var eachThen = function (obj, callback, last, error, context) {
+  var remaining = size(obj);
   context = context || obj;
   each(obj, function (item) {
     callback(item, function () {
       remaining -= 1;
       if (remaining <= 0) {
-        next();
+        last.call(context);
       }
     }, error);
-  });
+  }, context);
 };
 
 // Apply defaults to an object.
@@ -80,21 +95,6 @@ var defaults = function(defaults, options){
     }
   }
   return options;
-};
-
-// Get all keys from an object
-var keys = function(obj) {
-  if ("object" !== typeof obj) return [];
-  if (Object.keys) return Object.keys(obj);
-  var keys = [];
-  for (var key in obj) if (_.has(obj, key)) keys.push(key);
-  return keys;
-};
-
-// Get the size of an object
-var size = function (obj) {
-  if (obj == null) return 0;
-  return (obj.length === +obj.length) ? obj.length : keys(obj).length;
 };
 
 var extend = function (obj){
@@ -254,10 +254,12 @@ var isPath = function (obj) {
 };
 
 // Convert a path into an object nam
-var getObjectByPath = function (path) {
-  if (path.indexOf('.') >= 0) {
-    // First, strip any extensions from the
-    // end of the path.
+var getObjectByPath = function (path, options) {
+  options = options || {};
+  if (isPath(path)
+    && (path.indexOf('.') >= 0) 
+    && options.stripExt) {
+    // Strip extensions.
     path = path.substring(0, path.lastIndexOf('.'));
   }
   path = path.replace(/\//g, '.');
@@ -391,7 +393,7 @@ var getMappedPath = Modus.getMappedPath = function (module, root) {
   root = root || Modus.config('root');
   var path = {};
   if (isPath(module)) {
-    path.obj = getObjectByPath(module);
+    path.obj = getObjectByPath(module, {stripExt:true});
     path.src = module;
   } else {
     path.obj = module;
@@ -541,32 +543,16 @@ var pluginsVisited = {};
 //    // Using the plugin with 'imports':
 //    // ... module code ...
 //    module.imports('foo.bin').using('plugins.foo');
-//
-// Note that Modus wraps your plugins in a Wait for you, meaning
-// your plugins should run only one time for each request.
 Modus.plugin = function (plugin, request, next, error) {
-  if ("function" === typeof request) {
+  if ("function" === typeof request && !(request instanceof Modus.Import)) {
     Modus.plugins[plugin] = request;
     return Modus.plugins[plugin];
   }
   if (!Modus.plugins.hasOwnProperty(plugin)) return false;
-  var runner = function (request, next, error) {
-    if (pluginsVisited[request]) {
-      pluginsVisited[request].done(next, error);
-      return;
-    }
-    var wait = pluginsVisited[request] = new Wait();
-    wait.done(next, error);
-    Modus.plugins[plugin](request, function (value) {
-      wait.resolve(value);
-    }, function (reason) {
-      wait.reject(reason);
-    });
-  };
   if (request) {
-    runner(request, next, error);
+    Modus.plugins[plugin](request, next, error);
   }
-  return runner;
+  return Modus.plugins[plugin];
 };
 
 // --------------------
@@ -636,6 +622,17 @@ Import.prototype.global = function (item) {
   return this;
 };
 
+// Get the mapped path and object name from the current request.
+// Will return an object with 'src' and 'obj' keys.
+Import.prototype.getRequest = function () {
+  return getMappedPath(this._request, Modus.config('root'));
+};
+
+// Get the parent module.
+Import.prototype.getModule = function () {
+  return this._module;
+};
+
 // Import the module, passing the request on to 
 // Modus.load if needed.
 Import.prototype.load = function (next, error) {
@@ -677,24 +674,28 @@ Import.prototype.compile = function () {
 Import.prototype._loadWithPlugin = function (next, error) {
   var self = this;
   if ('function' === typeof this._uses) {
-    this._uses(function () {
+    this._uses(this, function () {
       self.is.loaded(true);
       self._enableImportedModule(next, error);
     }, error);
     return;
   }
   if (false === Modus.plugin(this._uses)) {
-    console.log(this._uses);
+    // Try to load the plugin from an external file
     Modus.load(this._uses, function () {
-      if (false === Modus.plugin(self._uses)) {
-        error('No plugin of that name found: ' + self._uses);
-        return;
-      }
-      self._loadWithPlugin(next, error);
+      // Ensure this is run after plugin has a chance
+      // to define itself.
+      nextTick(function () {
+        if (false === Modus.plugin(self._uses)) {
+          error('No plugin of that name found: ' + self._uses);
+          return;
+        }
+        self._loadWithPlugin(next, error);
+      });
     }, error);
     return;
   }
-  Modus.plugin(this._uses, this._request, function () {
+  Modus.plugin(this._uses, this, function () {
     self.is.loaded(true);
     self._enableImportedModule(next, error);
   }, error);

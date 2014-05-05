@@ -2,6 +2,21 @@
 // --------------------
 // Modus helpers
 
+// Get all keys from an object
+var keys = function(obj) {
+  if ("object" !== typeof obj) return [];
+  if (Object.keys) return Object.keys(obj);
+  var keys = [];
+  for (var key in obj) if (_.has(obj, key)) keys.push(key);
+  return keys;
+};
+
+// Get the size of an object
+var size = function (obj) {
+  if (obj == null) return 0;
+  return (obj.length === +obj.length) ? obj.length : keys(obj).length;
+};
+
 // Iterator for arrays or objects. Uses native forEach if available.
 var each = function (obj, callback, context) {
   if(!obj){
@@ -28,19 +43,19 @@ var each = function (obj, callback, context) {
   return obj;
 };
 
-// Run through all items in an array, then trigger
+// Run through all items in an object, then trigger
 // a callback on the last item.
-var eachThen = function (obj, callback, next, error, context) {
-  var remaining = obj.length;
+var eachThen = function (obj, callback, last, error, context) {
+  var remaining = size(obj);
   context = context || obj;
   each(obj, function (item) {
     callback(item, function () {
       remaining -= 1;
       if (remaining <= 0) {
-        next();
+        last.call(context);
       }
     }, error);
-  });
+  }, context);
 };
 
 // Apply defaults to an object.
@@ -52,21 +67,6 @@ var defaults = function(defaults, options){
     }
   }
   return options;
-};
-
-// Get all keys from an object
-var keys = function(obj) {
-  if ("object" !== typeof obj) return [];
-  if (Object.keys) return Object.keys(obj);
-  var keys = [];
-  for (var key in obj) if (_.has(obj, key)) keys.push(key);
-  return keys;
-};
-
-// Get the size of an object
-var size = function (obj) {
-  if (obj == null) return 0;
-  return (obj.length === +obj.length) ? obj.length : keys(obj).length;
 };
 
 var extend = function (obj){
@@ -226,10 +226,12 @@ var isPath = function (obj) {
 };
 
 // Convert a path into an object nam
-var getObjectByPath = function (path) {
-  if (path.indexOf('.') >= 0) {
-    // First, strip any extensions from the
-    // end of the path.
+var getObjectByPath = function (path, options) {
+  options = options || {};
+  if (isPath(path)
+    && (path.indexOf('.') >= 0) 
+    && options.stripExt) {
+    // Strip extensions.
     path = path.substring(0, path.lastIndexOf('.'));
   }
   path = path.replace(/\//g, '.');

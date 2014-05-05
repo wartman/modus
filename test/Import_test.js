@@ -148,8 +148,8 @@ describe('Modus.Import', function () {
 
     it('imports using a passed function', function (done) {
       var item = new Modus.Import('testPluginFunc.tested', mod);
-      item.using(function (next, error) {
-        Modus.module('testPluginFunc.tested').exports('foo', 'foo');
+      item.using(function (req, next, error) {
+        Modus.module(req.getRequest().obj).exports('foo', 'foo');
         next();
       });
       item.load(function () {

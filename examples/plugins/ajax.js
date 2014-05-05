@@ -3,26 +3,40 @@ Modus.namespace('plugins').module('ajax', function (ajax) {
   ajax.imports('bower_components/jquery/dist/jquery.min.js').global('$');
 
   ajax.body(function (ajax) {
-    Modus.plugin('plugins.ajax', function (request, next, error) {
+    Modus.plugin('plugins.ajax', function (req, next, error) {
+      // 'req' is an instance of 'Modus.Import'. We can use it 
+      // to get the current request:
+      var request = req.getRequest();
+      // This returns an object with the properties 'obj' and 'src'.
+      // 'src' is a path we can use to with http, while 'obj' is
+      // useable as a Modus Module name.
       $.ajax({
-        // When importing this module, you'll pass a path, not
-        // an object name.
-        url: Modus.config('root') + request
+        url: request.src
         // Likely you'll want to include more configuration then this!
       }).done(function (data) {
-        // Get rid of the extension and turn this into an object name.
-        // If Modus.Import gets a path, it'll convert it into a module name
-        // and attempt to find a module first, so naming the module
-        // this way will prevent the plugin from running more then
-        // once per file.
-        var module = request.substring(0, request.lastIndexOf('.')).replace(/\//g, '.');
-        // Use 'Modus.publish' to export the data to a Modus.module
-        // You'll need to do this for the plugin to work.
-        Modus.publish(module, data);
+        // Make the imported data available in Modus by 'publishing' it.
+        // We use the 'obj' property here to name it.
+        Modus.publish(request.obj, data);
         // Run the next item.
         next();
       }, error);
     });
+  });
+
+});
+
+
+Modus.namespace('app').module('foo', function (foo) {
+
+  // Load a file using the new plugin with the 'using' method.
+  // You can alias this import like you would with any other.
+  // If you don't alias this import, you could access it
+  // as 'foo.some.data.file'.
+  foo.imports('some/data/file.json').using('plugins.ajax').as('file');
+
+  foo.exports(function (foo) {
+    // do something with 'foo.file'
+    return foo.file;
   });
 
 });

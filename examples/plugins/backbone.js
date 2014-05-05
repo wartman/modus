@@ -3,8 +3,7 @@ Modus.namespace('examples.plugins').module('backbone', function (backbone) {
   // This is an example of how to shim backbone as a plugin.
   backbone.body(function (backbone) {
     Modus.plugin('backbone', function (request, next, error) {
-      // Ensure each requirement is loaded before moving on to the next one.
-      // Think of this as using Modus.load as something like RequireJs.
+      // Load Backbone's depencencies before loading Backbone.
       Modus.load([
         'bower_components/jquery/dist/jquery.min.js',
         'bower_components/underscore/underscore.js'

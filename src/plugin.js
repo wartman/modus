@@ -46,30 +46,14 @@ var pluginsVisited = {};
 //    // Using the plugin with 'imports':
 //    // ... module code ...
 //    module.imports('foo.bin').using('plugins.foo');
-//
-// Note that Modus wraps your plugins in a Wait for you, meaning
-// your plugins should run only one time for each request.
 Modus.plugin = function (plugin, request, next, error) {
-  if ("function" === typeof request) {
+  if ("function" === typeof request && !(request instanceof Modus.Import)) {
     Modus.plugins[plugin] = request;
     return Modus.plugins[plugin];
   }
   if (!Modus.plugins.hasOwnProperty(plugin)) return false;
-  var runner = function (request, next, error) {
-    if (pluginsVisited[request]) {
-      pluginsVisited[request].done(next, error);
-      return;
-    }
-    var wait = pluginsVisited[request] = new Wait();
-    wait.done(next, error);
-    Modus.plugins[plugin](request, function (value) {
-      wait.resolve(value);
-    }, function (reason) {
-      wait.reject(reason);
-    });
-  };
   if (request) {
-    runner(request, next, error);
+    Modus.plugins[plugin](request, next, error);
   }
-  return runner;
+  return Modus.plugins[plugin];
 };

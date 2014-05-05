@@ -100,7 +100,7 @@ var getMappedPath = Modus.getMappedPath = function (module, root) {
   root = root || Modus.config('root');
   var path = {};
   if (isPath(module)) {
-    path.obj = getObjectByPath(module);
+    path.obj = getObjectByPath(module, {stripExt:true});
     path.src = module;
   } else {
     path.obj = module;
