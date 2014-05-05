@@ -1,8 +1,8 @@
 var Modus = require('./'); // Is GLOBAL
 var gulp = require('gulp');
 var concat = require('gulp-concat');
-var qunit = require('gulp-qunit');
 var mocha = require('gulp-mocha');
+var mochaPhantomJs = require('gulp-mocha-phantomjs');
 var replace = require('gulp-replace');
 
 gulp.task('build', function() {
@@ -25,9 +25,9 @@ gulp.task('build', function() {
     .pipe(gulp.dest('./dist/'));
 });
 
-gulp.task('qunit', function () {
-  gulp.src('./test/client/test_runner.html')
-    .pipe(qunit());
+gulp.task('mochaPhantomJs', function () {
+  gulp.src('./test/runner.html')
+    .pipe(mochaPhantomJs({reporter: 'spec'}));
 });
 
 gulp.task('mocha', function () {
@@ -35,4 +35,4 @@ gulp.task('mocha', function () {
     .pipe(mocha({reporter: 'spec'}));
 });
 
-gulp.task('default', ['build', 'qunit', 'mocha']);
+gulp.task('default', ['build', 'mocha', 'mochaPhantomJs']);

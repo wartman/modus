@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modus Tests</title>
+    <link rel="stylesheet" href="../node_modules/mocha/mocha.css">
+  </head>
+  <body>
+    <div id="mocha"></div>
+    <script src="util/bind_polyfill.js"></script>
+    <script src="../node_modules/mocha/mocha.js"></script>
+    <script src="../node_modules/chai/chai.js"></script>
+    <script src="../dist/Modus.js"></script>
+    <script>
+      assert = chai.assert;
+      mocha.setup('bdd');
+    </script>
+    <script src="Export_test.js"></script>
+    <script src="Import_test.js"></script>
+    <script src="Module_test.js"></script>
+    <script src="Modus_test.js"></script>
+    <script>
+      if (window.mochaPhantomJS) {
+        mochaPhantomJS.run();
+      } else {
+        mocha.run();
+      }
+    </script>
+  </body>
+</html>

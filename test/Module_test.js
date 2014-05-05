@@ -1,4 +1,4 @@
-var assert = require('assert');
+if (Modus.isServer()) var assert = require('assert');
 
 describe('Modus.Module', function () {
   var mod;

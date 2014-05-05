@@ -28,8 +28,8 @@
     "gulp": "^3.6.2",
     "gulp-concat": "^2.2.0",
     "gulp-mocha": "^0.4.1",
-    "gulp-qunit": "^0.3.3",
     "gulp-replace": "^0.2.0",
-    "qunitjs": "^1.14.0"
+    "gulp-mocha-phantomjs": "~0.1.5",
+    "chai": "~1.9.1"
   }
 }

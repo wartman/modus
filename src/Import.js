@@ -114,6 +114,7 @@ Import.prototype._loadWithPlugin = function (next, error) {
     return;
   }
   if (false === Modus.plugin(this._uses)) {
+    console.log(this._uses);
     Modus.load(this._uses, function () {
       if (false === Modus.plugin(self._uses)) {
         error('No plugin of that name found: ' + self._uses);

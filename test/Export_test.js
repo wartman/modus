@@ -1,4 +1,4 @@
-var assert = require('assert');
+if (Modus.isServer()) var assert = require('assert');
 
 var mod = Modus.module('exportTestFixture');
 
@@ -106,7 +106,7 @@ describe('Modus.Export', function () {
       var item = new Modus.Export(function (mod) {
         mod.exports.exports = 'bad';
       }, mod, {isBody:true});
-      assert.throws(item.run, Error, 'throws error');
+      assert.throws(item.run, Error);
     });
 
   });

@@ -1,4 +1,4 @@
-var assert = require('assert');
+if (Modus.isServer()) var assert = require('assert');
 
 var modPrefix = 'imp';
 var modInt = 0;
@@ -119,8 +119,9 @@ describe('Modus.Import', function () {
   });
 
   describe('#global', function () {
+    var root = (Modus.isClient())? window : GLOBAL;
     it('imports a global var', function (done) {
-      GLOBAL.globalTest = 'test';
+      root.globalTest = 'test';
       var item = new Modus.Import('fake/path.js', mod);
       item.global('globalTest');
       item.load(function () {

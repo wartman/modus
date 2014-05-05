@@ -4,7 +4,7 @@
 // Copyright 2014
 // Released under the MIT license
 //
-// Date: 2014-05-04T17:19Z
+// Date: 2014-05-04T21:14Z
 
 (function (factory) {
 
@@ -684,6 +684,7 @@ Import.prototype._loadWithPlugin = function (next, error) {
     return;
   }
   if (false === Modus.plugin(this._uses)) {
+    console.log(this._uses);
     Modus.load(this._uses, function () {
       if (false === Modus.plugin(self._uses)) {
         error('No plugin of that name found: ' + self._uses);

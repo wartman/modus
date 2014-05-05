@@ -1,9 +1,13 @@
-var assert = require('assert');
+if (Modus.isServer()) var assert = require('assert');
 
 describe('Modus', function () {
 
   beforeEach(function (done) {
-    Modus.config('root', __dirname + '/');
+    if (Modus.isServer()) {
+      Modus.config('root', __dirname + '/');
+    } else {
+      Modus.config('root', '');
+    }
     done();
   });
 
@@ -31,6 +35,28 @@ describe('Modus', function () {
           assert.equal(one.foo, 'foo', 'Exported component');
           assert.equal(one.bar, 'bar', 'Exports investgates type');
           assert.deepEqual(Modus.env.test.modules.one.env, one, 'Saved to test namespace');
+          done();
+        });
+      });
+    });
+
+    it('can define several modules at once', function (done) {
+      Modus.namespace('namespaceTest', function (foo) {
+        foo.imports('fixtures.test_imports').as('imp');
+        foo.imports('fixtures.test_exports').as('exp');
+        foo.module('test_bar', function (test_bar) {
+          test_bar.exports('foo', 'foo');
+        });
+        foo.module('test_ban', function (test_ban) {
+          test_ban.exports('ban', 'ban');
+        });
+        foo.wait.done(function () {
+          assert.equal(foo.env.imp.test, 'foobar:got', 'namespace can import');
+          assert.equal(foo.env.exp.foo, 'foo', 'namespace can import');
+          assert.equal(foo.modules.test_ban.env.ban, 'ban', 'Can define modules');
+          done();
+        }, function (reason) {
+          throw new Error(reason);
           done();
         });
       });
@@ -85,7 +111,20 @@ describe('Modus', function () {
         });
       });
 
-      it('imports from external file (using node)', function (done) {
+      it('imports full names by default', function (done) {
+        Modus.namespace('modusTest').module('testing', function (testing) {
+          testing.exports('bar', 'bar');
+        });
+        Modus.namespace('modusTest').module('testingAgain', function (again) {
+          again.imports('.testing');
+          again.body(function (again) {
+            assert.equal(again.testing.bar, 'bar', 'Can import without from');
+            done();
+          });
+        });
+      });
+
+      it('imports from external file', function (done) {
         Modus.namespace('test').module('external', function (external) {
           external.imports('fixtures.one').as('one');
           external.body(function (external) {
@@ -98,19 +137,31 @@ describe('Modus', function () {
 
       describe('#using', function () {
 
-        it('uses a plugin from an external file (using node)', function (done) {
+        it('uses a plugin from an external file', function (done) {
           Modus.namespace('modusTest').module('testPluginExternal', function (testPluginExternal) {
             testPluginExternal.imports('mocked.name').as('mocked').using('fixtures.plugin');
             testPluginExternal.body(function (testPluginExternal) {
               assert.equal(testPluginExternal.mocked, 'plugin done', 'Used plugin, loading from external file');
               done();
-            }, function (e) {
-              throw Error(e);
-              done();
             });
           });
         });
 
+      });
+
+      describe('#global', function () {
+      
+        if(Modus.isClient()) {
+          it('imports globals', function (done) {
+            Modus.namespace('modusTest').module('shimmed', function (shimmed) {
+              shimmed.imports('fixtures/shim.js').global('shim');
+              shimmed.body(function (shimmed) {
+                assert.equal(shimmed.shim, 'shim', 'Got shim');
+                done();
+              })
+            });
+          });
+        }
       });
 
     });
