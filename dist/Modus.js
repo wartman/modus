@@ -4,7 +4,7 @@
 // Copyright 2014
 // Released under the MIT license
 //
-// Date: 2014-05-05T18:53Z
+// Date: 2014-05-13T16:21Z
 
 (function (factory) {
 
@@ -97,6 +97,7 @@ var defaults = function(defaults, options){
   return options;
 };
 
+// Extend an object
 var extend = function (obj){
   each(Array.prototype.slice.call(arguments, 1), function(source){
     if(source){
@@ -106,6 +107,12 @@ var extend = function (obj){
     }
   });
   return obj;
+};
+
+// A simple shim for `Function#bind`
+var bind = function (func, ctx) {
+  if (Function.prototype.bind && func.bind) return func.bind(ctx);
+  return function () { func.apply(ctx, arguments); };
 };
 
 // Enxure things are loaded async.
@@ -437,7 +444,7 @@ var ensureNamespaces = function (name) {
   if (!name.indexOf('.')) return;
   var cur = Modus.env[name];
   var parts = name.split('.');
-  if(! (cur instanceof Modus.Module)) {
+  if (!(cur instanceof Modus.Module)) {
     cur = new Modus.Module({
       namespace: parts[0],
       name: false
@@ -464,7 +471,7 @@ Modus.namespace = function (name, factory) {
       var namespace = getObjectByName(modulePath, Modus.env);
     }
   }
-  if (! (namespace instanceof Modus.Module)) {
+  if (!(namespace instanceof Modus.Module)) {
     namespace = new Modus.Module({
       namespace: name,
       name: false
@@ -561,25 +568,28 @@ Modus.plugin = function (plugin, request, next, error) {
 // Import does what you expect: it handles all imports for 
 // Modus namespaces and Modus modules.
 
-// Create a new import. [request] can be several things,
-// depening on how you modify the import later. To explain
-// this, here are some examples:
+// Create a new import. [request] can be a path to a resource,
+// a module name, or an array of components to import, depending
+// on how you modify the import.
 //
 // example:
-//    // finds the 'app.foo' module. Avilable as 'module.app.foo'
+//    // Import the 'app.foo' module.
 //    module.imports('app.foo'); 
-//    // Imports 'app.foo' and aliases it as 'bin'.
-//    // Available as 'module.bin'.
+//
+//    // Import 'app.foo' and alias it as 'bin'.
 //    module.imports('app.foo').as('bin');
-//    // Finds 'foo' and 'bar' from 'app.foo'
-//    // Available as 'module.foo' and 'module.bar'
+//
+//    // Import 'foo' and 'bar' from 'app.foo'
 //    module.imports(['foo', 'bar']).from('app.foo');
-//    // Imports 'foo' and 'bar' for 'app.foo' and aliases them.
-//    // Available as 'module.fooAlias' and 'module.barAlias'
+//
+//    // Import 'foo' and 'bar' for 'app.foo' and alias them.
 //    module.imports({fooAlias:'foo', barAlias:'bar'}).from('app.foo');
-var Import = Modus.Import = function (request, module) {
+//
+//    // Import a script and use the global it defines
+//    module.imports('scripts/foo.js').global('foo');
+var Import = Modus.Import = function (request, parent) {
   this.is = new Is();
-  this._module = module;
+  this._parent = parent;
   this._components = false;
   this._request = request;
   this._as = false;
@@ -614,8 +624,10 @@ Import.prototype.using = function (plugin) {
 };
 
 // Load a script and import a global var. This method
-// lets you import files that are not wrapped in Modus.Modules:
-// think of it as a shim.
+// lets you import files that are not wrapped in a Modus.Module.
+//
+// example:
+//    module.imports('bower_components/jquery/dist/jquery.min.js').global('$');
 Import.prototype.global = function (item) {
   this._global = item;
   if (!this._as) this._as = item;
@@ -630,44 +642,65 @@ Import.prototype.getRequest = function () {
 
 // Get the parent module.
 Import.prototype.getModule = function () {
-  return this._module;
+  return this._parent;
 };
 
-// Import the module, passing the request on to 
-// Modus.load if needed.
+// Retrieve the requested resource.
 Import.prototype.load = function (next, error) {
-  if (this.is.failed()) return error();
-  try {
-    this._ensureNamespace();
-  } catch(e) {
-    error(e);
-    return;
-  }
+  if (this.is.failed()) return error('Import failed');
   var self = this;
   var importError = function (reason) {
     self.is.failed(true);
     error(reason);
   }
+  if (!this._parseRequest(importError)) return false;
   if (this.is.loaded() 
     || getObjectByName(this._modulePath, Modus.env)
     || (this._global && getObjectByName(this._global)) ) {
     this._enableImportedModule(next, importError);
     return;
   }
+  // Handle the request with a plugin if defined.
   if (this._uses) {
     this._loadWithPlugin(next, importError);
     return;
   }
-  // Pass to the modus loader.
+  // Otherwise, use the modus loader.
   Modus.load(this._request, function () {
     self.is.loaded(true);
     self._enableImportedModule(next, importError);
   }, importError);
 };
 
-
+// Compile the import
+// (to do)
 Import.prototype.compile = function () {
   // do compile code.
+};
+
+// Ensure that the request is understandable by Modus
+Import.prototype._parseRequest = function (error) {
+  var request = this._request;
+  if ('string' !== typeof request) {
+    error('Request must be a string: ' 
+      + typeof request);
+    return false;
+  }
+  if (this._as && this._components) {
+    error('Cannot use an alias when importing'
+      + 'more then one component: ' + this._request);
+    return false;
+  }
+  if (!request) this._request = '';
+  // Handle namespace shortcuts (e.g. "module.imports('.foo')" )
+  if (request.indexOf('.') === 0 && this._parent) {
+    // Drop the starting '.'
+    this._inNamespace = request.substring(1);
+    // Apply the parent's namespace to the request
+    this._request = this._parent.options.namespace + request;
+  }
+  this._modulePath = getModulePath(this._request);
+  return true;
 };
 
 // Load using a plugin
@@ -701,26 +734,6 @@ Import.prototype._loadWithPlugin = function (next, error) {
   }, error);
 };
 
-// Ensure that the request is a full namespace.
-Import.prototype._ensureNamespace = function (error) {
-  var request = this._request;
-  if ('string' !== typeof request) {
-    throw new TypeError('Request must be a string: ' 
-      + typeof request);
-  }
-  if (this._as && this._components) {
-    throw new Error('Cannot use an alias when importing'
-      + 'more then one component: ' + this._request);
-  }
-  if (!request) this._request = '';
-  if (request.indexOf('.') === 0 && this._module) {
-    // Drop the starting '.'
-    this._inNamespace = request.substring(1);
-    this._request = this._module.options.namespace + request;
-  }
-  this._modulePath = getModulePath(this._request);
-};
-
 // Ensure imported modules are enabled.
 Import.prototype._enableImportedModule = function (next, error) {
   var module = getObjectByName(this._modulePath, Modus.env);
@@ -728,14 +741,14 @@ Import.prototype._enableImportedModule = function (next, error) {
   if (this._global) {
     if (!getObjectByName(this._global)) {
       error('A global import [' + this._global + '] failed for: ' 
-        + this._module.getFullName() );
+        + this._parent.getFullName() );
       return;
     }
     this._applyDependencies();
     next();
   } else if (!module || module.is.failed()) {
     error('An import [' + this._request + '] failed for: ' 
-      + this._module.getFullName() );
+      + this._parent.getFullName() );
   } else {
     module.wait.done(function () {
       self.is.ready();
@@ -748,7 +761,7 @@ Import.prototype._enableImportedModule = function (next, error) {
 
 // Apply imported components to the parent module.
 Import.prototype._applyDependencies = function () {
-  var module = this._module.env;
+  var module = this._parent.env;
   var dep = getObjectByName(this._modulePath, Modus.env);
   if (this._global) {
     dep = getObjectByName(this._global);
@@ -1062,6 +1075,7 @@ Module.prototype._compile = function () {
 
 // Iterate through imports and run them all.
 Module.prototype._loadImports = function () {
+  if (this.is.failed()) return;
   var self = this;
   this.is.working(true);
   if (!this._imports.length) {
@@ -1080,7 +1094,9 @@ Module.prototype._loadImports = function () {
   });
 };
 
+// Enable this module, defining all exports.
 Module.prototype._enable = function () {
+  if (this.is.failed()) return;
   var self = this;
   this.is.working(true);
   this._enableModules(function () {

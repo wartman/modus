@@ -144,7 +144,7 @@ var ensureNamespaces = function (name) {
   if (!name.indexOf('.')) return;
   var cur = Modus.env[name];
   var parts = name.split('.');
-  if(! (cur instanceof Modus.Module)) {
+  if (!(cur instanceof Modus.Module)) {
     cur = new Modus.Module({
       namespace: parts[0],
       name: false
@@ -171,7 +171,7 @@ Modus.namespace = function (name, factory) {
       var namespace = getObjectByName(modulePath, Modus.env);
     }
   }
-  if (! (namespace instanceof Modus.Module)) {
+  if (!(namespace instanceof Modus.Module)) {
     namespace = new Modus.Module({
       namespace: name,
       name: false

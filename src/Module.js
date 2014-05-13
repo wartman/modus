@@ -200,6 +200,7 @@ Module.prototype._compile = function () {
 
 // Iterate through imports and run them all.
 Module.prototype._loadImports = function () {
+  if (this.is.failed()) return;
   var self = this;
   this.is.working(true);
   if (!this._imports.length) {
@@ -218,7 +219,9 @@ Module.prototype._loadImports = function () {
   });
 };
 
+// Enable this module, defining all exports.
 Module.prototype._enable = function () {
+  if (this.is.failed()) return;
   var self = this;
   this.is.working(true);
   this._enableModules(function () {

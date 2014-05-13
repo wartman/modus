@@ -32,7 +32,7 @@ describe('Modus.Import', function () {
 
     it('sets the second argument as the parent module', function () {
       var item = new Modus.Import('importTest.' + modId, mod);
-      assert.equal(item._module, mod);
+      assert.equal(item._parent, mod);
     });
 
   });

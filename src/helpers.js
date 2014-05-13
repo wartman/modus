@@ -69,6 +69,7 @@ var defaults = function(defaults, options){
   return options;
 };
 
+// Extend an object
 var extend = function (obj){
   each(Array.prototype.slice.call(arguments, 1), function(source){
     if(source){
@@ -78,6 +79,12 @@ var extend = function (obj){
     }
   });
   return obj;
+};
+
+// A simple shim for `Function#bind`
+var bind = function (func, ctx) {
+  if (Function.prototype.bind && func.bind) return func.bind(ctx);
+  return function () { func.apply(ctx, arguments); };
 };
 
 // Enxure things are loaded async.
