@@ -1,6 +1,6 @@
 if (Modus.isServer()) var assert = require('assert');
 
-var mod = Modus.module('exportTestFixture');
+var mod = Modus.module('exportTest/test');
 
 describe('Modus.Export', function () {
 

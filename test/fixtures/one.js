@@ -1,4 +1,4 @@
-Modus.namespace('fixtures').module('one', function (one) {
+Modus.module('fixtures/one', function (one) {
   one.exports('foo', 'foo');
   one.exports('bar', 'bar');
 })

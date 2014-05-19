@@ -10,17 +10,17 @@
 // on how you modify the import.
 //
 // example:
-//    // Import the 'app.foo' module.
-//    module.imports('app.foo'); 
+//    // Import the 'App/Foo' module.
+//    module.imports('App/Foo'); 
 //
-//    // Import 'app.foo' and alias it as 'bin'.
-//    module.imports('app.foo').as('bin');
+//    // Import 'App/Foo' and alias it as 'bin'.
+//    module.imports('App/Foo').as('bin');
 //
-//    // Import 'foo' and 'bar' from 'app.foo'
-//    module.imports(['foo', 'bar']).from('app.foo');
+//    // Import 'foo' and 'bar' from 'App/Foo'
+//    module.imports(['foo', 'bar']).from('App/Foo');
 //
-//    // Import 'foo' and 'bar' for 'app.foo' and alias them.
-//    module.imports({fooAlias:'foo', barAlias:'bar'}).from('app.foo');
+//    // Import 'foo' and 'bar' fr 'App/Foo' and alias them.
+//    module.imports({fooAlias:'foo', barAlias:'bar'}).from('App/Foo');
 //
 //    // Import a script and use the global it defines
 //    module.imports('scripts/foo.js').global('foo');
@@ -33,7 +33,6 @@ var Import = Modus.Import = function (request, parent) {
   this._global = false;
   this._uses = false;
   this._inNamespace = false;
-  this._modulePath = '';
 };
 
 // Import components from the request.
@@ -77,6 +76,10 @@ Import.prototype.getRequest = function () {
   return getMappedPath(this._request, Modus.config('root'));
 };
 
+Import.prototype.getNormalizedRequest = function () {
+  return normalizeModuleName(this._request);
+}
+
 // Get the parent module.
 Import.prototype.getModule = function () {
   return this._parent;
@@ -92,7 +95,7 @@ Import.prototype.load = function (next, error) {
   }
   if (!this._parseRequest(importError)) return false;
   if (this.is.loaded() 
-    || getObjectByName(this._modulePath, Modus.env)
+    || moduleExists(this._request)
     || (this._global && getObjectByName(this._global)) ) {
     this._enableImportedModule(next, importError);
     return;
@@ -129,14 +132,14 @@ Import.prototype._parseRequest = function (error) {
     return false;
   }
   if (!request) this._request = '';
-  // Handle namespace shortcuts (e.g. "module.imports('.foo')" )
+  // Handle namespace shortcuts (e.g. "module.imports('./foo')" )
   if (request.indexOf('.') === 0 && this._parent) {
-    // Drop the starting '.'
-    this._inNamespace = request.substring(1);
-    // Apply the parent's namespace to the request
-    this._request = this._parent.options.namespace + request;
+    // Drop the starting './'
+    this._inNamespace = request.substring(2);
+    // Apply the parent's namespace to the request, droping the '.'
+    // but keeping the '/'.
+    this._request = this._parent.options.namespace + request.substring(1);
   }
-  this._modulePath = getModulePath(this._request);
   return true;
 };
 
@@ -173,7 +176,8 @@ Import.prototype._loadWithPlugin = function (next, error) {
 
 // Ensure imported modules are enabled.
 Import.prototype._enableImportedModule = function (next, error) {
-  var module = getObjectByName(this._modulePath, Modus.env);
+  var moduleName = normalizeModuleName(this._request);
+  var module = (moduleExists(moduleName))? Modus.env[moduleName] : false;
   var self = this;
   if (this._global) {
     if (!getObjectByName(this._global)) {
@@ -199,7 +203,8 @@ Import.prototype._enableImportedModule = function (next, error) {
 // Apply imported components to the parent module.
 Import.prototype._applyDependencies = function () {
   var module = this._parent.env;
-  var dep = getObjectByName(this._modulePath, Modus.env);
+  var moduleName = normalizeModuleName(this._request);
+  var dep = (moduleExists(moduleName))? Modus.env[moduleName] : false;
   if (this._global) {
     dep = getObjectByName(this._global);
   } else {
@@ -218,10 +223,12 @@ Import.prototype._applyDependencies = function () {
   } else if (this._as) {
     module[this._as] = dep;
   } else {
+    var obj;
     if (this._inNamespace) {
-      createObjectByName(this._inNamespace, dep, module);
-      return;
+      obj = normalizeModuleName(this._inNamespace).replace(/\//g, '.');
+    } else {
+      obj = normalizeModuleName(this._request).replace(/\//g, '.');
     }
-    createObjectByName(this._request, dep, module);
+    createObjectByName(obj, dep, module);
   }
 }

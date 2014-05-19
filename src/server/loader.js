@@ -8,16 +8,13 @@ if (isServer()) {
   GLOBAL.Modus = Modus;
 
   Modus.load = function (module, next, error) {
-
     if (module instanceof Array) {
       eachThen(module, function (item, next, error) {
         Modus.load(item, next, error);
       }, next, error);
       return;
     }
-    
-    var path = getMappedPath(module, Modus.config('root'));
-    var src = path.src;
+    var src = getMappedPath(module, Modus.config('root'));
     try {
       require(src);
       nextTick(function () {

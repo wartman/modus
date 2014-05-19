@@ -5,7 +5,7 @@
 // --------------------
 // Environment helpers
 
-// 'env' holds modules and namespaces.
+// 'env' holds modules.
 Modus.env = {};
 
 // Config options for Modus.
@@ -98,102 +98,59 @@ Modus.map = function (path, provides) {
 // Get a mapped path
 var getMappedPath = Modus.getMappedPath = function (module, root) {
   root = root || Modus.config('root');
-  var path = {};
-  if (isPath(module)) {
-    path.obj = getObjectByPath(module, {stripExt:true});
-    path.src = module;
-  } else {
-    path.obj = module;
-    path.src = getPathByObject(module) + '.js';
-  }
+  var src = module;
   each(Modus.config('map'), function (maps, pathPattern) {
     each(maps, function (map) {
-      if (map.test(path.obj)){
-        path.src = pathPattern;
-        var matches = map.exec(path.obj);
-        // NOTE: The following doesn't take ordering into account.
-        // Could pose an issue for paths like: 'foo/*/**.js'
-        // Think more on this. Could be fine as is! Not sure what the use cases are like.
+      if (map.test(module)){
+        src = pathPattern;
+        var matches = map.exec(module);
         if (matches.length > 2) {
-          path.src = path.src
-            .replace('**', matches[1].replace(/\./g, '/'))
+          src = src
+            .replace('**', matches[1])
             .replace('*', matches[2]);
         } else if (matches.length === 2) {
-          path.src = path.src.replace('*', matches[1]);
+          src = src.replace('*', matches[1]);
         }
       }
     });
   });
-  if (isServer()) {
-    // strip '.js' from the path.
-    path.src = path.src.replace('.js', '');
+  if (src.indexOf('.js') < 0 && !isServer()) {
+    src += '.js';
   }
   // Add root.
-  path.src = root + path.src;
-  return path;
-}
+  src = root + src;
+  return src;
+};
+
+// Make sure all names are correct.
+var normalizeModuleName = Modus.normalizeModuleName = function (name) {
+  // Strip extensions
+  if (name.indexOf('.') > 0) {
+    name = name.substring(0, name.indexOf('.'));
+  }
+  // More???
+  return name;
+};
+
+// Check if a module has been loaded.
+var moduleExists = Modus.moduleExists = function (name) {
+  console.log(name);
+  name = normalizeModuleName(name);
+  if (Modus.env.hasOwnProperty(name)) return true;
+  return false;
+};
 
 // --------------------
 // Primary API
 
-// (This stuff works, but could use some refactoring)
-
-// Helper to ensure that a module exists for every level
-// of a namespace.
-var ensureNamespaces = function (name) {
-  if (!name.indexOf('.')) return;
-  var cur = Modus.env[name];
-  var parts = name.split('.');
-  if (!(cur instanceof Modus.Module)) {
-    cur = new Modus.Module({
-      namespace: parts[0],
-      name: false
-    });
-  }
-  for (var part; part = parts.shift(); ) {
-    if(cur.modules[part] instanceof Modus.Module){
-      cur = cur.modules[part];
-    } else {
-      cur.module(part);
-      cur = cur.modules[part];
-    }
-  }
-};
-
-// Namespace factory.
-Modus.namespace = function (name, factory) {
-  var namespace;
-  var modulePath = getModulePath(name);
-  if (name.indexOf('.')) {
-    var namespace = getObjectByName(modulePath, Modus.env);
-    if (!namespace) {
-      ensureNamespaces(name);
-      var namespace = getObjectByName(modulePath, Modus.env);
-    }
-  }
-  if (!(namespace instanceof Modus.Module)) {
-    namespace = new Modus.Module({
-      namespace: name,
-      name: false
-    });
-    createObjectByName(modulePath, namespace, Modus.env);
-  }
-  if (factory) {
-    factory(namespace);
-    namespace.run();
-  }
-  return namespace;
-};
-
-// Module factory. Will create a new module in the 'root' namespace.
+// Module factory.
 Modus.module = function (name, factory) {
-  var namespace = 'root';
-  var moduleName = name;
-  if (name.indexOf('.') >= 0) {
-    namespace = name.substring(0, name.lastIndexOf('.'));
-    moduleName = name.substring(name.lastIndexOf('.') + 1);
+  var module = new Modus.Module(name, {});
+  if (factory) {
+    factory(module);
+    module.run();
   }
-  return Modus.namespace(namespace).module(moduleName, factory);
+  return module;
 };
 
 // Shortcut to export a single value as a module.

@@ -4,21 +4,24 @@
 //
 // The core of Modus.
 
-var Module = Modus.Module = function (options) {
-  this.options = defaults(this.options, options);
+var Module = Modus.Module = function (name, options) {
+  this.options = defaults({
+    namespace: false,
+    moduleName: null,
+    throwErrors: true
+  }, options);
   this.wait = new Wait();
   this.is = new Is();
   this.env = {};
-  this.modules = {};
   this._body = false;
   this._imports = [];
   this._exports = [];
-};
-
-Module.prototype.options = {
-  namespace: 'root',
-  moduleName: null,
-  throwErrors: true
+  this._modules = [];
+  // Parse the name.
+  this._parseName(name);
+  // Register self with Modus
+  console.log(this.getFullName(), this.options);
+  Modus.env[this.getFullName()] = this;
 };
 
 // Define a sub-namespace
@@ -35,22 +38,12 @@ Module.prototype.namespace = function (name, factory) {
 // example: 
 //    (to do)
 Module.prototype.module = function (name, factory, options) {
-  if (name.indexOf('.') >= 0) {
-    throw new Error('Cannot create a sub-namespace from a module: ' + name);
-  }
   options = (options || {});
   var self = this;
-  var namespace = (options.namespace)
-    ? this.getFullName() + '.' + name 
-    : this.getFullName();
-  var moduleName = (options.namespace)
-    ? null
-    : name;
-  var module = new Modus.Module({
-    namespace: namespace,
-    moduleName: moduleName
+  var module = new Modus.Module(name, {
+    namespace: self.getFullName(),
   });
-  createObjectByName(name, module, this.modules);
+  this._modules.push(module);
   if (factory) factory(module);
   nextTick(function () {
     self.is.pending(true);
@@ -161,8 +154,9 @@ Module.prototype.getName = function () {
 
 // Get the full name of the module, including the namespace.
 Module.prototype.getFullName = function () {
-  if(!this.options.moduleName) return this.options.namespace;
-  return this.options.namespace + '.' + this.options.moduleName;
+  if(!this.options.namespace || !this.options.namespace.length)
+    return this.options.moduleName;
+  return this.options.namespace + '/' + this.options.moduleName;
 };
 
 // Run the module. The action taken will differ depending
@@ -179,6 +173,21 @@ Module.prototype.run = function () {
     this.wait.reject();
   }
   return this;
+};
+
+// Get the namespace from the passed name.
+Module.prototype._parseName = function (name) {
+  console.log(name, this.options);
+  var namespace = this.options.namespace || '';
+  name = normalizeModuleName(name);
+  if (name.indexOf('/') > 0) {
+    if (namespace.length) namespace += '/';
+    namespace += name.substring(0, name.lastIndexOf('/'));
+    name = name.substring(name.lastIndexOf('/') + 1);
+  }
+  console.log(namespace, name);
+  this.options.moduleName = name;
+  this.options.namespace = namespace;
 };
 
 // Disable the module. A disabled module CANNOT be re-enabled.
@@ -257,10 +266,9 @@ Module.prototype._enableExports = function (next) {
 
 // Enable all modules.
 Module.prototype._enableModules = function (next) {
-  if (!size(this.modules)) return next();
+  if (!size(this._modules)) return next();
   var self = this;
-  eachThen(keys(this.modules), function (key, next, error) {
-    var module = self.modules[key];
+  eachThen(this._modules, function (module, next, error) {
     module.run();
     module.wait.done(next, function () {
       error(key);

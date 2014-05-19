@@ -6,29 +6,29 @@ describe('Modus.Module', function () {
 
   beforeEach(function() {
     modID++;
-    mod = new Modus.Module({
-      namespace: 'root',
-      moduleName: 'test' + modID
-    });
+    mod = new Modus.Module('moduleTest/test' + modID);
   });
 
   describe('#init', function () {
+
     it('sets up correctly', function () {
-      var opts = {
-        namespace: 'namespaceTest',
-        moduleName: 'moduleName'
-      };
-      var modTest = new Modus.Module(opts);
+      var opts = {namespace: 'moduleTest'};
+      var modTest = new Modus.Module('moduleName', opts);
+      opts.moduleName = 'moduleName';
       assert.deepEqual(modTest.options, opts, 'Options were defined');
-      var modTest = new Modus.Module({moduleName: 'foo'});
-      assert.deepEqual(modTest.options.namespace, Modus.Module.prototype.options.namespace, 'Applied defaults');
     });
+
+    it('registers itself with Modus.env', function () {
+      var module = new Modus.Module('moduleTest/isRegistered');
+      assert.deepEqual(module, Modus.env['moduleTest/isRegistered'], 'Saved');
+    });
+
   });
 
   describe('#getName / #getFullName', function () {
     it('returns the name', function () {
       assert.equal(mod.getName(), 'test' + modID);
-      assert.equal(mod.getFullName(), 'root.test' + modID);
+      assert.equal(mod.getFullName(), 'moduleTest/test' + modID);
     });
   });
 
@@ -63,12 +63,12 @@ describe('Modus.Module', function () {
       // Fake up a module.
       Modus.env.fixture = {
         modules: {
-          one: new Modus.Module({moduleName: 'one', namespace:'fixture'})
+          one: new Modus.Module('fixture/one')
         }
       };
-      Modus.env.fixture.modules.one.exports('foo', 'foo');
+      Modus.env['fixture/one'].exports('foo', 'foo');
       // Test
-      var item = mod.imports('fixture.one');
+      var item = mod.imports('fixture/one');
       assert.ok(item instanceof Modus.Import);
       item.load(function () {
         assert.equal(mod.env.fixture.one.foo, 'foo', 'imported');
@@ -122,28 +122,10 @@ describe('Modus.Module', function () {
         });
       });
       mod.wait.done(function () {
-        assert.equal(mod.modules.one.modules.two.modules.three.env.foo, 'foo', 'Correctly created.');
-        done();
-      });
-      mod.run();
-    });
-
-  });
-
-  describe('#namespace', function () {
-
-    it('nests namespaces', function (done) {
-      mod.namespace('one', function (one) {
-        one.namespace('two', function (two) {
-          two.namespace('three', function (three) {
-            three.module('four', function (four) {
-              four.exports('foo', 'foo');
-            });
-          });
-        });
-      });
-      mod.wait.done(function () {
-        assert.equal(mod.modules.one.modules.two.modules.three.modules.four.env.foo, 'foo', 'Correctly created.');
+        assert(Modus.env.hasOwnProperty('moduleTest/test' + modID + '/one'), 'Correctly created.');
+        assert(Modus.env.hasOwnProperty('moduleTest/test' + modID + '/one/two'), 'Correctly created.');
+        assert(Modus.env.hasOwnProperty('moduleTest/test' + modID + '/one/two/three'), 'Correctly created.');
+        assert.equal(Modus.env['moduleTest/test' + modID + '/one/two/three'].env.foo, 'foo', 'Correctly created.');
         done();
       });
       mod.run();
