@@ -1,4 +1,4 @@
-Modus.namespace('examples.plugins').module('backbone', function (backbone) {
+Modus.namespace('examples/plugins').module('backbone', function (backbone) {
 
   // This is an example of how to shim backbone as a plugin.
   backbone.body(function (backbone) {
@@ -22,7 +22,7 @@ Modus.namespace('examples.plugins').module('backbone', function (backbone) {
 });
 
 // Example of use:
-Modus.namespace('examples.plugins').module('view', function (view) {
+Modus.namespace('examples/plugins').module('view', function (view) {
 
   view.imports('Backbone').using('.backbone');
 

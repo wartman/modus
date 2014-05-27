@@ -20,7 +20,6 @@ var Module = Modus.Module = function (name, options) {
   // Parse the name.
   this._parseName(name);
   // Register self with Modus
-  console.log(this.getFullName(), this.options);
   Modus.env[this.getFullName()] = this;
 };
 
@@ -118,8 +117,7 @@ Module.prototype.exports = function (name, factory) {
 // Register a function to run after all imports and exports
 // are complete. Unlike `Module#exports`, the value returned
 // from the callback will NOT be applied to the module. Instead,
-// you can define things diretly, by adding a property
-// to the passed variable, or by using the special 'exports'
+// you can define properties directly, or by using the special 'exports'
 // property, which works similarly to Node's module system.
 //
 // Can only be called once per module.
@@ -130,7 +128,7 @@ Module.prototype.exports = function (name, factory) {
 //    foo.body(function (foo) {
 //      foo.bin; // === 'bin'
 //      foo.bar = 'bar'; // Set items directly.
-//      // Use exports to set the root of this module.
+//      // Use 'exports' to set the root of this module.
 //      // This WILL NOT overwrite previously exported properties.
 //      foo.exports = function() { return 'foo'; };
 //    });
@@ -177,7 +175,6 @@ Module.prototype.run = function () {
 
 // Get the namespace from the passed name.
 Module.prototype._parseName = function (name) {
-  console.log(name, this.options);
   var namespace = this.options.namespace || '';
   name = normalizeModuleName(name);
   if (name.indexOf('/') > 0) {
@@ -185,7 +182,6 @@ Module.prototype._parseName = function (name) {
     namespace += name.substring(0, name.lastIndexOf('/'));
     name = name.substring(name.lastIndexOf('/') + 1);
   }
-  console.log(namespace, name);
   this.options.moduleName = name;
   this.options.namespace = namespace;
 };

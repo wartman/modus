@@ -29,10 +29,10 @@ var Import = Modus.Import = function (request, parent) {
   this._parent = parent;
   this._components = false;
   this._request = request;
+  this._namespacedRequest = false;
   this._as = false;
   this._global = false;
   this._uses = false;
-  this._inNamespace = false;
 };
 
 // Import components from the request.
@@ -135,7 +135,7 @@ Import.prototype._parseRequest = function (error) {
   // Handle namespace shortcuts (e.g. "module.imports('./foo')" )
   if (request.indexOf('.') === 0 && this._parent) {
     // Drop the starting './'
-    this._inNamespace = request.substring(2);
+    this._namespacedRequest = request.substring(2);
     // Apply the parent's namespace to the request, droping the '.'
     // but keeping the '/'.
     this._request = this._parent.options.namespace + request.substring(1);
@@ -153,7 +153,7 @@ Import.prototype._loadWithPlugin = function (next, error) {
     }, error);
     return;
   }
-  if (false === Modus.plugin(this._uses)) {
+  if (!Modus.plugin(this._uses)) {
     // Try to load the plugin from an external file
     Modus.load(this._uses, function () {
       // Ensure this is run after plugin has a chance
@@ -176,8 +176,8 @@ Import.prototype._loadWithPlugin = function (next, error) {
 
 // Ensure imported modules are enabled.
 Import.prototype._enableImportedModule = function (next, error) {
-  var moduleName = normalizeModuleName(this._request);
-  var module = (moduleExists(moduleName))? Modus.env[moduleName] : false;
+  var requestName = normalizeModuleName(this._request);
+  var module = (moduleExists(requestName))? Modus.env[requestName] : false;
   var self = this;
   if (this._global) {
     if (!getObjectByName(this._global)) {
@@ -203,13 +203,12 @@ Import.prototype._enableImportedModule = function (next, error) {
 // Apply imported components to the parent module.
 Import.prototype._applyDependencies = function () {
   var module = this._parent.env;
-  var moduleName = normalizeModuleName(this._request);
-  var dep = (moduleExists(moduleName))? Modus.env[moduleName] : false;
-  if (this._global) {
-    dep = getObjectByName(this._global);
-  } else {
-    dep = dep.env;
-  }
+  var requestName = normalizeModuleName(this._request);
+  var dep = (this._global)
+    ? getObjectByName(this._global)
+    : (moduleExists(requestName))
+      ? Modus.env[requestName].env 
+      : false;
   if (this._components instanceof Array) {
     each(this._components, function (component) {
       module[component] = dep[component];
@@ -223,11 +222,12 @@ Import.prototype._applyDependencies = function () {
   } else if (this._as) {
     module[this._as] = dep;
   } else {
+    // Apply the import using the full name.
     var obj;
-    if (this._inNamespace) {
-      obj = normalizeModuleName(this._inNamespace).replace(/\//g, '.');
+    if (this._namespacedRequest) {
+      obj = normalizeModuleName(this._namespacedRequest).replace(/\//g, '.');
     } else {
-      obj = normalizeModuleName(this._request).replace(/\//g, '.');
+      obj = requestName.replace(/\//g, '.');
     }
     createObjectByName(obj, dep, module);
   }

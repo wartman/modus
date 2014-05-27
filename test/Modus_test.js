@@ -29,34 +29,30 @@ describe('Modus', function () {
     });
 
     it('creates a module in a namespace', function (done) {
-      Modus.module('test/one', function (one) {
-        one.exports('foo', function () {
-          return 'foo';
-        });
-        one.exports('bar', 'bar');
-        one.body(function (one) {
-          assert.equal(one.foo, 'foo', 'Exported component');
-          assert.equal(one.bar, 'bar', 'Exports investgates type');
-          assert.deepEqual(Modus.env['test/one'].env, one, 'Saved to Modus.env');
+      Modus.module('Test/NsTestInline', function (NsTestInline) {
+        NsTestInline.exports('bar', 'bar');
+        NsTestInline.body(function (NsTestInline) {
+          assert.deepEqual(Modus.env['Test/NsTestInline'].env, NsTestInline, 'Saved to Modus.env');
           done();
         });
       });
     });
 
     it('can define sub-modules', function (done) {
-      Modus.module('namespaceTest', function (foo) {
-        foo.imports('fixtures/test_imports').as('imp');
-        foo.imports('fixtures/test_exports').as('exp');
-        foo.module('test_bar', function (test_bar) {
+      Modus.module('Test/SubModules', function (SubModules) {
+        SubModules.imports('fixtures/test_imports').as('imp');
+        SubModules.imports('fixtures/test_exports').as('exp');
+        SubModules.module('test_bar', function (test_bar) {
           test_bar.exports('foo', 'foo');
         });
-        foo.module('test_ban', function (test_ban) {
+        SubModules.module('test_ban', function (test_ban) {
           test_ban.exports('ban', 'ban');
         });
-        foo.wait.done(function () {
-          assert.equal(foo.env.imp.test, 'foobar:got', 'namespace can import');
-          assert.equal(foo.env.exp.foo, 'foo', 'namespace can import');
-          assert.equal(Modus.env['namespaceTest/test_ban'].env.ban, 'ban', 'Can define modules');
+        SubModules.wait.done(function () {
+          assert.equal(SubModules.env.imp.test, 'foobar:got', 'namespace can import');
+          assert.equal(SubModules.env.exp.foo, 'foo', 'namespace can import');
+          assert.equal(Modus.env['Test/SubModules/test_ban'].env.ban, 'ban', 'Can define modules');
+          assert.equal(Modus.env['Test/SubModules/test_bar'].env.foo, 'foo', 'Can define modules');
           done();
         }, function (reason) {
           throw new Error(reason);
@@ -148,6 +144,35 @@ describe('Modus', function () {
         }
       });
 
+    });
+
+  });
+
+  describe('#namespace', function () {
+
+    describe('#module', function () {
+      it('Creates a module in a namespace', function (done) {
+        Modus.namespace('Test/Ns').module('NsTest', function (NsTest) {
+          NsTest.exports('foo', 'foo');
+          NsTest.body(function (NsTest) {
+            assert.deepEqual(Modus.env['Test/Ns/NsTest'].env, NsTest, 'Saved to env');
+            done();
+          })
+        });
+      });
+    });
+
+    describe('#publish', function () {
+      it('publishes in a namespace', function (done) {
+        Modus.namespace('Test/Ns').publish('Published', 'foo');
+        Modus.namespace('Test/Ns').module('TestPublished', function (TestPublished) {
+          TestPublished.imports('./Published');
+          TestPublished.body(function (TestPublished) {
+            assert.equal(TestPublished.Published, 'foo', 'published');
+            done();
+          });
+        });
+      });
     });
 
   });

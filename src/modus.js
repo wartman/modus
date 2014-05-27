@@ -86,8 +86,9 @@ Modus.map = function (path, provides) {
       // ** matches any number of segments (will only use the first)
       .replace('**', "([\\s\\S]+?)")
       // * matches a single segment (will only use the first)
-      .replace('*', "([^\\.|^$]+?)") 
+      .replace('*', "([^\\/|^$]+?)") 
       // escapes
+      .replace(/\//g, '\\/')
       .replace(/\./g, "\\.")
       .replace(/\$/g, '\\$')
       + '$'
@@ -101,24 +102,20 @@ var getMappedPath = Modus.getMappedPath = function (module, root) {
   var src = module;
   each(Modus.config('map'), function (maps, pathPattern) {
     each(maps, function (map) {
-      if (map.test(module)){
+      module.replace(map, function (matches, many, single) {
         src = pathPattern;
-        var matches = map.exec(module);
-        if (matches.length > 2) {
-          src = src
-            .replace('**', matches[1])
-            .replace('*', matches[2]);
-        } else if (matches.length === 2) {
-          src = src.replace('*', matches[1]);
+        if (!single) {
+          single = many;
+          many = false;
         }
-      }
+        if (many) src = src.replace('**', many);
+        if (single) src = src.replace('*', single)
+      });
     });
   });
-  if (src.indexOf('.js') < 0 && !isServer()) {
-    src += '.js';
-  }
-  // Add root.
-  src = root + src;
+  src = (src.indexOf('.js') < 0 && !isServer())
+    ? root + src + '.js'
+    : root + src;
   return src;
 };
 
@@ -134,7 +131,6 @@ var normalizeModuleName = Modus.normalizeModuleName = function (name) {
 
 // Check if a module has been loaded.
 var moduleExists = Modus.moduleExists = function (name) {
-  console.log(name);
   name = normalizeModuleName(name);
   if (Modus.env.hasOwnProperty(name)) return true;
   return false;
@@ -144,8 +140,14 @@ var moduleExists = Modus.moduleExists = function (name) {
 // Primary API
 
 // Module factory.
-Modus.module = function (name, factory) {
-  var module = new Modus.Module(name, {});
+//
+// example:
+//    Modus.module('Foo/Bar', function (Bar) {
+//      Bar.exports('bin', function (Bar) {...});
+//    })
+Modus.module = function (name, factory, options) {
+  options = options || {};
+  var module = new Modus.Module(name, options);
   if (factory) {
     factory(module);
     module.run();
@@ -153,9 +155,30 @@ Modus.module = function (name, factory) {
   return module;
 };
 
+// Syntactic sugar for namespaces.
+//
+// example:
+//    Modus.namespace('Foo', function (Foo) {
+//      Foo.module('Bar', function (Bar) {...}); // Defines 'Foo/Bar'
+//    });
+//    // Or:
+//    Modus.namespace('Foo/Bar').module('Bin', function (Bin) { ... });
+Modus.namespace = function (namespace, factory) {
+  if (factory) return Modus.module(namespace, factory);
+  var options = {namespace: namespace};
+  return {
+    module: function (name, factory) {
+      return Modus.module(name, factory, options);
+    },
+    publish: function (name, value) {
+      return Modus.publish(name, value, options);
+    }
+  };
+};
+
 // Shortcut to export a single value as a module.
-Modus.publish = function (name, value) {
+Modus.publish = function (name, value, options) {
   return Modus.module(name, function (module) {
     module.exports(value);
-  });
+  }, options);
 };

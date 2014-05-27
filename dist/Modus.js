@@ -4,7 +4,7 @@
 // Copyright 2014
 // Released under the MIT license
 //
-// Date: 2014-05-19T17:12Z
+// Date: 2014-05-27T14:57Z
 
 (function (factory) {
 
@@ -347,8 +347,9 @@ Modus.map = function (path, provides) {
       // ** matches any number of segments (will only use the first)
       .replace('**', "([\\s\\S]+?)")
       // * matches a single segment (will only use the first)
-      .replace('*', "([^\\.|^$]+?)") 
+      .replace('*', "([^\\/|^$]+?)") 
       // escapes
+      .replace(/\//g, '\\/')
       .replace(/\./g, "\\.")
       .replace(/\$/g, '\\$')
       + '$'
@@ -362,24 +363,20 @@ var getMappedPath = Modus.getMappedPath = function (module, root) {
   var src = module;
   each(Modus.config('map'), function (maps, pathPattern) {
     each(maps, function (map) {
-      if (map.test(module)){
+      module.replace(map, function (matches, many, single) {
         src = pathPattern;
-        var matches = map.exec(module);
-        if (matches.length > 2) {
-          src = src
-            .replace('**', matches[1])
-            .replace('*', matches[2]);
-        } else if (matches.length === 2) {
-          src = src.replace('*', matches[1]);
+        if (!single) {
+          single = many;
+          many = false;
         }
-      }
+        if (many) src = src.replace('**', many);
+        if (single) src = src.replace('*', single)
+      });
     });
   });
-  if (src.indexOf('.js') < 0 && !isServer()) {
-    src += '.js';
-  }
-  // Add root.
-  src = root + src;
+  src = (src.indexOf('.js') < 0 && !isServer())
+    ? root + src + '.js'
+    : root + src;
   return src;
 };
 
@@ -395,7 +392,6 @@ var normalizeModuleName = Modus.normalizeModuleName = function (name) {
 
 // Check if a module has been loaded.
 var moduleExists = Modus.moduleExists = function (name) {
-  console.log(name);
   name = normalizeModuleName(name);
   if (Modus.env.hasOwnProperty(name)) return true;
   return false;
@@ -405,8 +401,14 @@ var moduleExists = Modus.moduleExists = function (name) {
 // Primary API
 
 // Module factory.
-Modus.module = function (name, factory) {
-  var module = new Modus.Module(name, {});
+//
+// example:
+//    Modus.module('Foo/Bar', function (Bar) {
+//      Bar.exports('bin', function (Bar) {...});
+//    })
+Modus.module = function (name, factory, options) {
+  options = options || {};
+  var module = new Modus.Module(name, options);
   if (factory) {
     factory(module);
     module.run();
@@ -414,11 +416,32 @@ Modus.module = function (name, factory) {
   return module;
 };
 
+// Syntactic sugar for namespaces.
+//
+// example:
+//    Modus.namespace('Foo', function (Foo) {
+//      Foo.module('Bar', function (Bar) {...}); // Defines 'Foo/Bar'
+//    });
+//    // Or:
+//    Modus.namespace('Foo/Bar').module('Bin', function (Bin) { ... });
+Modus.namespace = function (namespace, factory) {
+  if (factory) return Modus.module(namespace, factory);
+  var options = {namespace: namespace};
+  return {
+    module: function (name, factory) {
+      return Modus.module(name, factory, options);
+    },
+    publish: function (name, value) {
+      return Modus.publish(name, value, options);
+    }
+  };
+};
+
 // Shortcut to export a single value as a module.
-Modus.publish = function (name, value) {
+Modus.publish = function (name, value, options) {
   return Modus.module(name, function (module) {
     module.exports(value);
-  });
+  }, options);
 };
 
 // --------------------
@@ -510,10 +533,10 @@ var Import = Modus.Import = function (request, parent) {
   this._parent = parent;
   this._components = false;
   this._request = request;
+  this._namespacedRequest = false;
   this._as = false;
   this._global = false;
   this._uses = false;
-  this._inNamespace = false;
 };
 
 // Import components from the request.
@@ -616,7 +639,7 @@ Import.prototype._parseRequest = function (error) {
   // Handle namespace shortcuts (e.g. "module.imports('./foo')" )
   if (request.indexOf('.') === 0 && this._parent) {
     // Drop the starting './'
-    this._inNamespace = request.substring(2);
+    this._namespacedRequest = request.substring(2);
     // Apply the parent's namespace to the request, droping the '.'
     // but keeping the '/'.
     this._request = this._parent.options.namespace + request.substring(1);
@@ -634,7 +657,7 @@ Import.prototype._loadWithPlugin = function (next, error) {
     }, error);
     return;
   }
-  if (false === Modus.plugin(this._uses)) {
+  if (!Modus.plugin(this._uses)) {
     // Try to load the plugin from an external file
     Modus.load(this._uses, function () {
       // Ensure this is run after plugin has a chance
@@ -657,8 +680,8 @@ Import.prototype._loadWithPlugin = function (next, error) {
 
 // Ensure imported modules are enabled.
 Import.prototype._enableImportedModule = function (next, error) {
-  var moduleName = normalizeModuleName(this._request);
-  var module = (moduleExists(moduleName))? Modus.env[moduleName] : false;
+  var requestName = normalizeModuleName(this._request);
+  var module = (moduleExists(requestName))? Modus.env[requestName] : false;
   var self = this;
   if (this._global) {
     if (!getObjectByName(this._global)) {
@@ -684,13 +707,12 @@ Import.prototype._enableImportedModule = function (next, error) {
 // Apply imported components to the parent module.
 Import.prototype._applyDependencies = function () {
   var module = this._parent.env;
-  var moduleName = normalizeModuleName(this._request);
-  var dep = (moduleExists(moduleName))? Modus.env[moduleName] : false;
-  if (this._global) {
-    dep = getObjectByName(this._global);
-  } else {
-    dep = dep.env;
-  }
+  var requestName = normalizeModuleName(this._request);
+  var dep = (this._global)
+    ? getObjectByName(this._global)
+    : (moduleExists(requestName))
+      ? Modus.env[requestName].env 
+      : false;
   if (this._components instanceof Array) {
     each(this._components, function (component) {
       module[component] = dep[component];
@@ -704,11 +726,12 @@ Import.prototype._applyDependencies = function () {
   } else if (this._as) {
     module[this._as] = dep;
   } else {
+    // Apply the import using the full name.
     var obj;
-    if (this._inNamespace) {
-      obj = normalizeModuleName(this._inNamespace).replace(/\//g, '.');
+    if (this._namespacedRequest) {
+      obj = normalizeModuleName(this._namespacedRequest).replace(/\//g, '.');
     } else {
-      obj = normalizeModuleName(this._request).replace(/\//g, '.');
+      obj = requestName.replace(/\//g, '.');
     }
     createObjectByName(obj, dep, module);
   }
@@ -820,7 +843,6 @@ var Module = Modus.Module = function (name, options) {
   // Parse the name.
   this._parseName(name);
   // Register self with Modus
-  console.log(this.getFullName(), this.options);
   Modus.env[this.getFullName()] = this;
 };
 
@@ -918,8 +940,7 @@ Module.prototype.exports = function (name, factory) {
 // Register a function to run after all imports and exports
 // are complete. Unlike `Module#exports`, the value returned
 // from the callback will NOT be applied to the module. Instead,
-// you can define things diretly, by adding a property
-// to the passed variable, or by using the special 'exports'
+// you can define properties directly, or by using the special 'exports'
 // property, which works similarly to Node's module system.
 //
 // Can only be called once per module.
@@ -930,7 +951,7 @@ Module.prototype.exports = function (name, factory) {
 //    foo.body(function (foo) {
 //      foo.bin; // === 'bin'
 //      foo.bar = 'bar'; // Set items directly.
-//      // Use exports to set the root of this module.
+//      // Use 'exports' to set the root of this module.
 //      // This WILL NOT overwrite previously exported properties.
 //      foo.exports = function() { return 'foo'; };
 //    });
@@ -977,7 +998,6 @@ Module.prototype.run = function () {
 
 // Get the namespace from the passed name.
 Module.prototype._parseName = function (name) {
-  console.log(name, this.options);
   var namespace = this.options.namespace || '';
   name = normalizeModuleName(name);
   if (name.indexOf('/') > 0) {
@@ -985,7 +1005,6 @@ Module.prototype._parseName = function (name) {
     namespace += name.substring(0, name.lastIndexOf('/'));
     name = name.substring(name.lastIndexOf('/') + 1);
   }
-  console.log(namespace, name);
   this.options.moduleName = name;
   this.options.namespace = namespace;
 };
