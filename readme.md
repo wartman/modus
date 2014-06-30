@@ -10,23 +10,21 @@ How about some code?
 ```JavaScript
 Modus.namespace('app').module('foo', function (foo) {
    
-    foo.imports('.bar');
-    foo.imports('my.library.bin').as('bin');
-    foo.imports(['Bin', 'Baz']).from('my.libaray.ban');
+    foo.imports('.baritize').from('app.baz');
+    foo.imports('Bin', {'Baz':'BazAlias'}).from('my.library.ban');
 
-    foo.exports('foo', 'foo');
+    // You can use imports right away inside the module callback.
+    var bar = foo.baritize('bar');
 
-    foo.exports('saysFoo', function (foo) {
+    // Exporting something is as simple as this:
+    foo.foo = 'foo';
+
+    // Functions too.
+    foo.saysFoo = function (foo) {
         return function () {
             return 'says ' + foo.foo;
         }
-    });
-
-    foo.body(function (foo) {
-        foo.exports = new foo.Bin.extend({
-            saysFoo: foo.saysFoo
-        });
-    });
+    };
 
 });
 ```
