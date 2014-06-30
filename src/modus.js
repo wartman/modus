@@ -1,9 +1,9 @@
 
-// --------------------
 // Modus
+// =====
 
-// --------------------
 // Environment helpers
+// -------------------
 
 // 'env' holds modules.
 Modus.env = {};
@@ -99,7 +99,7 @@ Modus.map = function (path, provides) {
 // Get a mapped path
 var getMappedPath = Modus.getMappedPath = function (module, root) {
   root = root || Modus.config('root');
-  var src = module;
+  var src = module.replace(/\./g, '/');
   each(Modus.config('map'), function (maps, pathPattern) {
     each(maps, function (map) {
       module.replace(map, function (matches, many, single) {
@@ -121,12 +121,19 @@ var getMappedPath = Modus.getMappedPath = function (module, root) {
 
 // Make sure all names are correct.
 var normalizeModuleName = Modus.normalizeModuleName = function (name) {
-  // Strip extensions
-  if (name.indexOf('.') > 0) {
-    name = name.substring(0, name.indexOf('.'));
+  if(isPath(name)) {
+    // Strip extensions
+    if (name.indexOf('.') > 0) {
+      name = name.substring(0, name.indexOf('.'));
+    }
+    name = name.replace(/\/\\/g, '.');
   }
-  // More???
   return name;
+};
+
+var getMappedGlobal = Modus.getMappedGlobal = function (path) {
+  // to do.
+  return false;
 };
 
 // Check if a module has been loaded.
@@ -136,22 +143,25 @@ var moduleExists = Modus.moduleExists = function (name) {
   return false;
 };
 
-// --------------------
+// Get a module from the env.
+var getModule = Modus.getModule = function (name) {
+  name = normalizeModuleName(name);
+  return Modus.env[name];
+}
+
 // Primary API
+// -----------
 
 // Module factory.
 //
 // example:
-//    Modus.module('Foo/Bar', function (Bar) {
-//      Bar.exports('bin', function (Bar) {...});
+//    Modus.module('foo.bar', function (bar) {
+//      // code
 //    })
 Modus.module = function (name, factory, options) {
   options = options || {};
-  var module = new Modus.Module(name, options);
-  if (factory) {
-    factory(module);
-    module.run();
-  }
+  var module = new Modus.Module(name, options, factory);
+  module.enable();
   return module;
 };
 
@@ -168,17 +178,17 @@ Modus.namespace = function (namespace, factory) {
   var options = {namespace: namespace};
   return {
     module: function (name, factory) {
-      return Modus.module(name, factory, options);
+      return Modus.module(name, options, factory);
     },
     publish: function (name, value) {
-      return Modus.publish(name, value, options);
+      return Modus.publish(name, options, value);
     }
   };
 };
 
 // Shortcut to export a single value as a module.
 Modus.publish = function (name, value, options) {
-  return Modus.module(name, function (module) {
-    module.exports(value);
-  }, options);
+  return Modus.module(name, options, function (module) {
+    module.default = value;
+  });
 };

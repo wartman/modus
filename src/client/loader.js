@@ -1,3 +1,7 @@
+
+// Modus Loaders
+// -------------
+
 if (isClient()) {
 
   // A collection of previously visited scripts.
@@ -6,23 +10,23 @@ if (isClient()) {
 
   // Test for the load event the current browser supports.
   var onLoadEvent = (function (){
-    var testNode = document.createElement('script')
+    var testNode = document.createElement('script');
     if (testNode.attachEvent){
-      return function(script, wait){
+      return function(script, emitter){
         script.attachEvent('onreadystatechange', function () {
           if(/complete|loaded/.test(script.readyState)){
-            wait.resolve();
+            emitter.emit('done');
           }
         });
         // Can't handle errors with old browsers.
       }
     }
-    return function(script, wait){
+    return function(script, emitter){
       script.addEventListener('load', function (e) {
-        wait.resolve();
+        emitter.emit('done');
       }, false);
       script.addEventListener('error', function (e) {
-        wait.reject();
+        emitter.emit('error');
       }, false);
     }
   })();
@@ -45,7 +49,8 @@ if (isClient()) {
     // If the script is already loading, add the callback
     // to the queue and don't load it again.
     if (visited.hasOwnProperty(src)) {
-      visited[src].done(next, error);
+      visited[src].once('done', next);
+      visited[src].once('error', error);
       return;
     }
 
@@ -62,8 +67,9 @@ if (isClient()) {
     entry.parentNode.insertBefore(script, entry);
 
     // Add event listener
-    visited[src] = new Wait();
-    visited[src].done(next, error);
+    visited[src] = new EventEmitter();
+    visited[src].once('done', next);
+    visited[src].once('error', error);
     onLoadEvent(script, visited[src]);
   };
 

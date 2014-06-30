@@ -1,4 +1,4 @@
-Modus.module('fixtures/one', function (one) {
-  one.exports('foo', 'foo');
-  one.exports('bar', 'bar');
+Modus.module('fixtures.one', function (one) {
+  one.foo = 'foo';
+  one.bar = 'bar';
 })

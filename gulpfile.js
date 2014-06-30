@@ -1,4 +1,3 @@
-var Modus = require('./'); // Is GLOBAL
 var gulp = require('gulp');
 var concat = require('gulp-concat');
 var mocha = require('gulp-mocha');
@@ -11,9 +10,9 @@ gulp.task('build', function() {
       './src/intro.js',
       './src/helpers.js',
       './src/Modus.js',
-      './src/plugin.js',
+      './src/EventEmitter.js',
+      // './src/Wait.js', // Trying WITHOUT wait for now.
       './src/Import.js',
-      './src/Export.js',
       './src/Module.js',
       './src/client/loader.js',
       './src/server/loader.js',
@@ -26,11 +25,13 @@ gulp.task('build', function() {
 });
 
 gulp.task('mochaPhantomJs', function () {
+  var Modus = require('./'); // Is GLOBAL
   gulp.src('./test/runner.html')
     .pipe(mochaPhantomJs({reporter: 'spec'}));
 });
 
 gulp.task('mocha', function () {
+  var Modus = require('./'); // Is GLOBAL
   gulp.src('./test/*_test.js')
     .pipe(mocha({reporter: 'spec'}));
 });
