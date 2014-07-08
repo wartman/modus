@@ -17,7 +17,7 @@ Modus.module = function (name, factory) {
       mod.env[key] = items[key];
     }
   };
-  mod.factory = function () {
+  mod.enable = function () {
     factory(Modus.imports, exports);
     mod.ran = true;
   }
@@ -27,6 +27,11 @@ Modus.module = function (name, factory) {
 Modus.imports = function (name) {
   if (!Modus.env.hasOwnProperty(name)) return {};
   var mod = Modus.env[name];
-  if (!mod.ran) mod.factory();
+  if (!mod.ran) mod.enable();
   return mod.env;
+};
+
+// Start the main module
+Modus.main = function (name) {
+  Modus.env[name].enable();
 };

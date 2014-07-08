@@ -1,1 +1,0 @@
-Modus.main('app.main');
