@@ -1,10 +1,11 @@
-//!
-// Modus 0.1.3
-//
-// Copyright 2014
-// Released under the MIT license
-//
-// Date: 2014-06-30T23:03Z
+/*!
+ * Modus 0.1.3
+ *
+ * Copyright 2014
+ * Released under the MIT license
+ *
+ * Date: 2014-07-08T19:53Z
+ */
 
 (function (factory) {
 
@@ -18,112 +19,18 @@
   }
 
 }(function (root, undefined) {
+// We need to use Function, sorry jsLint.
+/*jslint evil: true */
 
-"use strict"
 
-// The main modus namespace
-var Modus = root.Modus = {};
+// Internal helpers
+// ================
 
-// Save the current version.
-Modus.VERSION = '0.1.3';
-
-// Helpers
-// -------
-
-// Get all keys from an object
-var keys = function(obj) {
-  if ("object" !== typeof obj) return [];
-  if (Object.keys) return Object.keys(obj);
-  var keys = [];
-  for (var key in obj) if (_.has(obj, key)) keys.push(key);
-  return keys;
-};
-
-// Get the size of an object
-var size = function (obj) {
-  if (obj == null) return 0;
-  return (obj.length === +obj.length) ? obj.length : keys(obj).length;
-};
-
-// Apply defaults to an object.
-var defaults = function(defaults, options){
-  if (!options) return defaults;
-  for(var key in defaults){
-    if(defaults.hasOwnProperty(key) && !options.hasOwnProperty(key)){
-      options[key] = defaults[key];
-    }
-  }
-  return options;
-};
-
-// Extend an object
-var extend = function (obj){
-  each(Array.prototype.slice.call(arguments, 1), function(source){
-    if(source){
-      for(var prop in source){
-        if (source.hasOwnProperty(prop)) obj[prop] = source[prop];
-      }
-    }
-  });
-  return obj;
-};
-
-// A simple shim for `Function#bind`
-var bind = function (func, ctx) {
-  if (Function.prototype.bind && func.bind) return func.bind(ctx);
-  return function () { func.apply(ctx, arguments); };
-};
-
-// Iterator for arrays or objects. Uses native forEach if available.
-var each = function (obj, callback, context) {
-  if(!obj){
-    return obj;
-  }
-  context = (context || obj);
-  if(Array.prototype.forEach && obj.forEach){
-    obj.forEach(callback)
-  } else if ( obj instanceof Array ){
-    for (var i = 0; i < obj.length; i += 1) {
-      if (obj[i] && callback.call(context, obj[i], i, obj)) {
-        break;
-      }
-    }
-  } else {
-    for(var key in obj){
-      if(obj.hasOwnProperty(key)){
-        if(key && callback.call(context, obj[key], key, obj)){
-          break;
-        }
-      }
-    }
-  }
-  return obj;
-};
-
-// Run through all items in an object, then trigger
-// a callback on the last item.
-var eachAsync = function (obj, options) {
-  var remaining = size(obj);
-  options = defaults({
-    each: function(){},
-    onFinal: function(){},
-    onError: function(){}
-  }, options);
-  context = options.context || this;
-  each(obj, function (item) {
-    options.each(item, function () {
-      remaining -= 1;
-      if (remaining <= 0) 
-        options.onFinal.call(context);
-    }, options.onError);
-  });
-};
-
-// Enxure things are loaded async.
+// Ensure async loading.
 var nextTick = ( function () {
   var fns = [];
   var enqueueFn = function (fn, ctx) {
-    if (ctx) fn.bind(ctx);
+    if (ctx) bind(fn, ctx);
     return fns.push(fn);
   };
   var dispatchFns = function () {
@@ -131,7 +38,9 @@ var nextTick = ( function () {
       , i = 0
       , len = fns.length;
     fns = [];
-    while (i < len) { toCall[i++](); }
+    while (i < len) { 
+      toCall[i++]();
+    }
   };
   if (typeof setImmediate == 'function') {
     return function (fn, ctx) { enqueueFn(fn, ctx) && setImmediate(dispatchFns) }
@@ -151,77 +60,172 @@ var nextTick = ( function () {
         dispatchFns();
       }
     };
-    global.addEventListener('message', onMessage, true);
-    return function (fn, ctx) { enqueueFn(fn, ctx) && global.postMessage(msg, '*'); };
+    root.addEventListener('message', onMessage, true);
+    return function (fn, ctx) { enqueueFn(fn, ctx) && root.postMessage(msg, '*'); };
   }
 })();
 
-var nativeFilter = Array.prototype.filter;
-var filter = function (obj, predicate, context) {
-  var results = [];
-  if (obj == null) return results;
-  if (nativeFilter && obj.filter === nativeFilter) return obj.filter(predicate, context);
-  each(obj, function(value, index, list) {
-    if (predicate.call(context, value, index, list)) results.push(value);
-  });
-  return results;
-}
-
-// UNNEEDED? /////
-
-  // // Create an object, ensuring that every level is defined
-  // // example:
-  // //    foo.bar.baz -> (foo={}), (foo.bar={}), (foo.bar.baz={})
-  // var createObjectByName = function (namespace, exports, env) {
-  //   var cur = env || global;
-  //   var parts = namespace.split('.');
-  //   for (var part; parts.length && (part = parts.shift()); ) {
-  //     if(!parts.length && exports !== undefined){
-  //       // Last part, so export to this.
-  //       cur[part] = exports;
-  //     } else if (cur[part]) {
-  //       cur = cur[part];
-  //     } else {
-  //       cur = cur[part] = {};
-  //     }
-  //   }
-  //   return cur;
-  // }
-
-  // // Convert a string into an object
-  // var getObjectByName = function (name, env) {
-  //   var cur = env || global;
-  //   var parts = name.split('.');
-  //   for (var part; part = parts.shift(); ) {
-  //     if(typeof cur[part] !== "undefined"){
-  //       cur = cur[part];
-  //     } else {
-  //       return null;
-  //     }
-  //   }
-  //   return cur;  
-  // };
-
-///////
-
-// Check if this is a path or an object name
-var isPath = function (obj) {
-  return obj.indexOf('/') >= 0;
+// A super stripped down promise-like thing.
+var Wait = function(){
+  this._state = 0;
+  this._onReady = [];
+  this._onFailed = [];
+  this._value = null;
 };
 
+// Run when done waiting.
+Wait.prototype.done = function(onReady, onFailed){
+  var self = this;
+  nextTick(function(){
+    if(onReady && ( "function" === typeof onReady)){
+      (self._state === 1)
+        ? onReady.call(self, self._value)
+        : self._onReady.push(onReady);
+    }
+    if(onFailed && ( "function" === typeof onFailed)){
+      (self._state === -1)
+        ? onFailed.call(self, self._value)
+        : self._onFailed.push(onFailed);
+    }
+  });
+  return this;
+};
+
+// Resolve the Wait.
+Wait.prototype.resolve = function(value, ctx){
+  this._state = 1;
+  this._dispatch(this._onReady, value, ctx);
+  this._onReady = [];
+};
+
+// Reject the Wait.
+Wait.prototype.reject = function(value, ctx){
+  this._state = -1;
+  this._dispatch(this._onFailed, value, ctx);
+  this._onFailed = [];
+};
+
+// Helper to run callbacks
+Wait.prototype._dispatch = function (fns, value, ctx) {
+  this._value = (value || this._value);
+  ctx = (ctx || this);
+  var self = this;
+  each(fns, function(fn){ fn.call(ctx, self._value); });
+};
+
+// Get all the keys in an object.
+var keys = function(obj) {
+  if ("object" !== typeof obj) return [];
+  if (Object.keys) return Object.keys(obj);
+  var keys = [];
+  for (var key in obj) if (_.has(obj, key)) keys.push(key);
+  return keys;
+};
+
+// Get the size of an object
+var size = function (obj) {
+  if (obj == null) return 0;
+  return (obj.length === +obj.length) ? obj.length : keys(obj).length;
+};
+
+// Iterate over arrays or objects.
+var each = function (obj, callback, context) {
+  if(!obj){
+    return obj;
+  }
+  context = (context || obj);
+  if(Array.prototype.forEach && obj.forEach){
+    obj.forEach(callback)
+  } else if (obj instanceof Array) {
+    for (var i = 0; i < obj.length; i += 1) {
+      if (obj[i] && callback.call(context, obj[i], i, obj)) {
+        break;
+      }
+    }
+  } else {
+    for (var key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        if (key && callback.call(context, obj[key], key, obj)) {
+          break;
+        }
+      }
+    }
+  }
+  return obj;
+};
+
+// Run through each item in an array, then resolve a Wait
+// once all items have been iterated through.
+//
+// example:
+//
+//    eachWait(object, function(item, next, error) {
+//      // do something with 'item', then do the next thing
+//      next();
+//    })
+//    .done(function () {
+//      console.log("Last item ran!")
+//    }, function (reason) {
+//      // Handle errors here.
+//    });
+//
+var eachWait = function (obj, callback, context) {
+  var len = size(obj);
+  var current = 0;
+  var wait = new Wait();
+  context = context || obj;
+  var next = function () {
+    current += 1;
+    // We're at the last item, so resolve the wait.
+    if (current === len) wait.resolve();
+  };
+  var error = function (reason) {
+    wait.reject(reason);
+  };
+  // Run an 'each' loop
+  each(obj, function (item) {
+    callback.call(context, item, next, error);
+  });
+  return wait;
+};
+
+// Extend an object
+var extend = function(obj /*...*/){
+  each(Array.prototype.slice.call(arguments, 1), function(source){
+    if(source){
+      for(var prop in source){
+        if (source.hasOwnProperty(prop)) obj[prop] = source[prop];
+      }
+    }
+  });
+  return obj;
+};
+
+// A simple shim for Function.bind
+var bind = function (func, ctx) {
+  if (Function.prototype.bind && func.bind) return func.bind(ctx);
+  return function () { func.apply(ctx, arguments); };
+};
 // Modus
 // =====
+//
+// The primary API
 
-// Environment helpers
-// -------------------
+// Create the main namespace.
+var Modus = root.Modus = {};
 
-// 'env' holds modules.
 Modus.env = {};
 
 // Config options for Modus.
 Modus.options = {
   root: '',
   map: {}
+};
+
+var getMappedPath = Modus.getMappedPath = function(path) {
+  // more: gotta handle path maps.
+  path = Modus.config('root') + path.replace(/\./g, '/') + '.js';
+  return path;
 };
 
 // Set or get a Modus config option.
@@ -240,6 +244,26 @@ Modus.config = function (key, val) {
   }
   Modus.options[key] = val;
   return Modus.options[key];
+};
+
+// Import a module from the env.
+Modus.imports = function (name) {
+  if (!Modus.env.hasOwnProperty(name)) {
+    throw new Error('Module was not found: ' + name);
+    return {};
+  }
+  return Modus.env[name].env;
+};
+
+// Run the main module.
+Modus.main = function (name, next, error) {
+  error = error || function (e) {
+    throw e;
+  }
+  Modus.Loader.load(name).done(function (mod) {
+    mod.enable();
+    mod.done(next, error)
+  }, error);
 };
 
 // Figure out what we're running Modus in.
@@ -264,541 +288,250 @@ var isClient = Modus.isClient =  function () {
   return Modus.config('environment') != 'node'
     && Modus.config('environment') != 'server';
 };
+// Modus.Module
+// ============
 
-// Map modules to a given path.
-//
-// example:
-//    Modus.map('lib/foo.js', ['foo.bar', 'foo.bin']);
-//    // You can also map a file to a base namespace
-//    Modus.map('lib/foo.js', ['foo.*']);
-//    // The following will now load lib/foo.js:
-//    module.import('foo.bar');
-//
-Modus.map = function (path, provides) {
-  // TODO: This method needs some love.
-  if ("object" === typeof path){
-    for ( var item in path ) {
-      Modus.map(item, path[item]);
-    }
-    return;
-  }
-  if (!Modus.options.map[path]) {
-    Modus.options.map[path] = [];
-  }
-  if (provides instanceof Array) {
-    each(provides, function (item) {
-      Modus.map(path, item);
-    });
-    return;
-  }
-  provides = new RegExp ( 
-    provides
-      // ** matches any number of segments (will only use the first)
-      .replace('**', "([\\s\\S]+?)")
-      // * matches a single segment (will only use the first)
-      .replace('*', "([^\\/|^$]+?)") 
-      // escapes
-      .replace(/\//g, '\\/')
-      .replace(/\./g, "\\.")
-      .replace(/\$/g, '\\$')
-      + '$'
-  );
-  Modus.options.map[path].push(provides);
+// Module states
+var MODULE_STATE = {
+  PENDING: 0,
+  WORKING: 1,
+  LOADED: 2,
+  READY: 3,
+  ENABLED: 4,
+  DISABLED: -1
 };
 
-// Get a mapped path
-var getMappedPath = Modus.getMappedPath = function (module, root) {
-  root = root || Modus.config('root');
-  var src = module.replace(/\./g, '/');
-  each(Modus.config('map'), function (maps, pathPattern) {
-    each(maps, function (map) {
-      module.replace(map, function (matches, many, single) {
-        src = pathPattern;
-        if (!single) {
-          single = many;
-          many = false;
-        }
-        if (many) src = src.replace('**', many);
-        if (single) src = src.replace('*', single)
-      });
-    });
+// The core of Modus. Modules are where all dependency
+// management happens.
+var Module = Modus.Module = function (name) {
+  var self = this;
+  this._state = MODULE_STATE.PENDING;
+  this.imports = [];
+  this.env = {};
+  this.factory = function () {};
+  this._name = "";
+  this._wait = new Wait();
+  // Register the Module
+  if (name) this.defines(name);
+};
+
+// Register the Module. If a name is not provided
+// to the constructor, this method MUST be called somewhere
+// in the package definition.
+Module.prototype.defines = function (name) {
+  // Set this Module's name.
+  this._name = name;
+  // Register in the Modus.env
+  Modus.env[name] = this;
+};
+
+// Run the package, gathering all imports and defining
+// all exports.
+Module.prototype.enable = function () {
+  if (this.isDisabled() || this.isWorking()) return;
+  if (this.isPending()) {
+    this._importDependencies();
+  } else if (this.isEnabled()) {
+    this._wait.resolve();
+  }
+};
+
+// Disable this package
+Module.prototype.disable = function (reason) {
+  this.isDisabled(true);
+  this._wait.reject(reason);
+};
+
+// Gather all imports.
+Module.prototype._importDependencies = function () {
+  if (this.isDisabled() || this.isWorking()) return;
+  var queue = [];
+  var self = this;
+  each(this.imports, function (item) {
+    if (item.imported === true || Modus.env.hasOwnProperty(item.id)) return;
+    item.imported = true;
+    queue.push(item);
   });
-  src = (src.indexOf('.js') < 0 && !isServer())
-    ? root + src + '.js'
-    : root + src;
-  return src;
-};
-
-// Make sure all names are correct.
-var normalizeModuleName = Modus.normalizeModuleName = function (name) {
-  if(isPath(name)) {
-    // Strip extensions
-    if (name.indexOf('.') > 0) {
-      name = name.substring(0, name.indexOf('.'));
-    }
-    name = name.replace(/\/\\/g, '.');
+  if (queue.length > 0) {
+    this.isWorking(true);
+    eachWait(queue, function getImports (item, next, error) {
+      // Wait for a package to load its deps before continuing,
+      // and ensure that an object is defined before continuing.
+      var check = function () {
+        var name = item.id;
+        // if (isPath(name)) name = getObjectByPath(name, {stripExt:true});
+        if (Modus.env.hasOwnProperty(name)) {
+          Modus.env[name].done(next, error);
+          Modus.env[name].enable();
+        // } else {
+        //   if (getObjectByName(name)) {
+        //     next();
+        //   } else {
+        //     error('A dependency was not loaded: ' + name);
+        //   }
+        }
+      };
+      // Load the item, either with a plugin or the default method.
+      // if (item.plugin) {
+      //   if ('function' === typeof item.plugin) {
+      //     item.plugin(item.id, check, error);
+      //   } else {
+      //     Modus.plugin(item.plugin, item.id, check, error);
+      //   }
+      // } else {
+        Modus.Loader.load(item.id, check, error);
+      // }
+    })
+    .done(function () {
+      self.isLoaded(true);
+      self._define();
+    }, function (reason) {
+      self.disable(reason);
+    });
+  } else {
+    this.isLoaded(true);
+    self._define();
   }
-  return name;
 };
 
-var getMappedGlobal = Modus.getMappedGlobal = function (path) {
-  // to do.
-  return false;
+Module.prototype.exports = function (items) {
+  this.env = extend(this.env, items);
 };
 
-// Check if a module has been loaded.
-var moduleExists = Modus.moduleExists = function (name) {
-  name = normalizeModuleName(name);
-  if (Modus.env.hasOwnProperty(name)) return true;
-  return false;
+Module.prototype.done = function (next, error) {
+  this._wait.done(next, error);
 };
 
-// Get a module from the env.
-var getModule = Modus.getModule = function (name) {
-  name = normalizeModuleName(name);
-  return Modus.env[name];
-}
+Module.prototype._define = function () {
+  this.factory(Modus.imports, bind(this.exports, this));
+  this.isEnabled(true);
+  // Set this as done!
+  this._wait.resolve();
+};
 
-// Primary API
-// -----------
+// State methods
+each(['Enabled', 'Ready', 'Working', 'Loaded', 'Pending', 'Disabled'], function (state) {
+  var modState = MODULE_STATE[state.toUpperCase()];
+  Module.prototype['is' + state] = function(set){
+    if(set) this._state = modState;
+    return this._state === modState;
+  } 
+});
+// Modus.Loader
+// ============
 
-// Module factory.
-//
-// example:
-//    Modus.module('foo.bar', function (bar) {
-//      // code
-//    })
-Modus.module = function (name, factory, options) {
-  options = options || {};
-  var module = new Modus.Module(name, options, factory);
-  module.enable();
+var Loader = Modus.Loader = {};
+
+// Regexp for parsing
+var _module = /module\s+?([\s\S]+?)[;|\n\r]/g;
+var _import = /import\s+?([\s\S]+?)[;|\n\r]/g;
+var _as = /\s+?as\s+?([\s\S]+?)$/g;
+var _using = /using\s+?([\s\S]+?)$/g;
+var _exportVar = /export\s+?var\s+?([\s\S]+?)\s+?[\S]/g;
+var _exportList = /export\s+?{([\s\S]+?)};?/g;
+
+// Parse a Modus module into pure javascript.
+Loader.parse = function (raw, name) {
+  var module = new Modus.Module(name);
+
+  // Find the module name.
+  raw = raw.replace(_module, function (matches, modname) {
+    module.defines(modname);
+    name = modname;
+    return '';
+  });
+
+  var namespace = name.split('.');
+  namespace.pop();
+  namespace = namespace.join('.');
+
+  // Find imports
+  raw = raw.replace(_import, function (matches, dep) {
+    var alias = dep.split('.').pop(); // Get the last segment of the module name.
+    var plugin = false
+    if (dep.indexOf('.') === 0) {
+      dep = namespace + dep;
+    }
+    dep = dep.replace(_as, function (matches, as) {
+      alias = as;
+      return '';
+    });
+    dep = dep.replace(_using, function (matches, using) {
+      plugin = using;
+      return '';
+    });
+    module.imports.push({id:dep});
+    return "var " + alias + " = __import__('" + dep + "');\n";
+  });
+
+  // Find exports.
+  raw = raw.replace(_exportVar, function (matches, exports) {
+    return '__export__.' + exports.trim();
+  });
+
+  raw = raw.replace(_exportList, function (matches, list) {
+    var items = list.split(',');
+    var result = []
+    each(items, function (item) {
+      item = item.trim();
+      result.push(item + ':' + item);
+    });
+    return '__export__({' + result.join(',') + '});\n';
+  });
+
+  // console.log(raw);
+
+  module.factory = new Function('__import__, __export__', raw);
+
   return module;
 };
 
-// Syntactic sugar for namespaces.
-//
-// example:
-//    Modus.namespace('Foo', function (Foo) {
-//      Foo.module('Bar', function (Bar) {...}); // Defines 'Foo/Bar'
-//    });
-//    // Or:
-//    Modus.namespace('Foo/Bar').module('Bin', function (Bin) { ... });
-Modus.namespace = function (namespace, factory) {
-  if (factory) return Modus.module(namespace, factory);
-  var options = {namespace: namespace};
-  return {
-    module: function (name, factory) {
-      return Modus.module(name, options, factory);
-    },
-    publish: function (name, value) {
-      return Modus.publish(name, options, value);
-    }
-  };
-};
+// Holds visited urls to ensure they are only loaded once.
+var _visited = {};
 
-// Shortcut to export a single value as a module.
-Modus.publish = function (name, value, options) {
-  return Modus.module(name, options, function (module) {
-    module.default = value;
-  });
-};
-
-// Modus.EventEmitter
-// ------------------
-// A simple event emitter, used internally for hooks.
-
-var EventEmitter = Modus.EventEmitter = function () {
-  this._listeners = {};
-};
-
-EventEmitter.prototype.addEventListener = function (name, callback, once) {
-  if (typeof callback !== 'function')
-    throw new TypeError('Listener must be a function: ' + typeof callback);
-  if (!this._listeners[name]) this._listeners[name] = [];
-  this._listeners[name].push({
-    once: once,
-    cb: callback
-  }); 
-  return this;
-};
-
-EventEmitter.prototype.emit = function (name) {
-  var evs = this._listeners[name];
+// Load the module via ajax.
+Loader.load = function (module, next, error, options) {
+  var src = getMappedPath(module, Modus.config('root'));
   var self = this;
-  var args = Array.prototype.slice.call(arguments, 1);
-  if (!evs) return this;
-  each(evs, function(ev, index) {
-    ev.cb.apply(self, args);
-  });
-  var filtered = filter(evs, function(ev) {
-    return (ev.once === false);
-  });
-  if (filtered.length <= 0) 
-    this.removeEventListener(name);
-  else
-    this._listeners[name] = filtered;
-  return this;
-};
 
-EventEmitter.prototype.on = function (name, callback) {
-  return this.addEventListener(name, callback, false);
-};
-
-EventEmitter.prototype.once = function (name, callback) {
-  return this.addEventListener(name, callback, true);
-};
-
-EventEmitter.prototype.removeEventListener = function (name) {
-  if (name) {
-    delete this._listeners[name];
-    return this;
-  }
-  for (var e in this._listeners) delete this._listeners[e];
-  return this;
-};
-
-// Set up global event handler
-Modus.events = new EventEmitter();
-
-// Modus.Import
-// ------------
-// Import does what you expect: it handles all imports for 
-// Modus namespaces and Modus modules.
-
-// Create a new import. [request] can be a path to a resource,
-// a module name, or an array of components to import, depending
-// on how you modify the import.
-var Import = Modus.Import = function (parent) {
-  this._parent = parent;
-  this._components = [];
-  this._module = false;
-};
-
-// Import components from a module.
-Import.prototype.imports = function() {
-  var self = this;
-  if (!this._components) this._components = [];
-  each(arguments, function (arg) {
-    self._components.push(arg);
-  });
-  return this;
-}
-
-// Specify the module to import from. Modus.Module uses
-// RegExp to find investigate this method, and try to load
-// the specified module. When actually called in the module
-// environment, this module will apply your request to the env.
-Import.prototype.from = function (module) {
-  this._module = module;
-  this._applyToEnv();
-  return this;
-};
-
-// Get the parent module.
-Import.prototype.getModule = function () {
-  return this._parent;
-};
-
-// Apply imported components to the parent module.
-Import.prototype._applyToEnv = function () {
-  if (!this._module) throw new Error('No module specified for import');
-  var parentEnv = this._parent.env;
-  var module = normalizeModuleName(this._module);
-  // Check if this is using a namespace shortcut
-  if (module.indexOf('.') === 0)
-    module = this._parent.options.namespace + module;
-  var self = this;
-  var depEnv = (moduleExists(module))
-    ? getModule(module).env 
-    : getMappedGlobal(module);
-  if (!depEnv) throw new Error('Dependency not avalilable [' + module + '] for: ' + this._parent.getFullName());
-  if (this._components.length <= 0) return;
-  if (this._components.length === 1) {
-    // Handle something like "module.imports('foo').from('app.foo')"
-    // If the name matches the last segment of the module name, it should import the entire module.
-    var moduleName = module.substring(module.lastIndexOf('.') + 1);
-    var component = this._components[0];
-    if (component === moduleName) {
-      if (depEnv['default'])
-        parentEnv[component] = depEnv['default'];
-      else
-        parentEnv[component] = depEnv;
-      return;
-    }
-  }
-  each(this._components, function(component) {
-    if(depEnv.hasOwnProperty(component))
-      parentEnv[component] = depEnv[component];
-  });
-}
-
-// Modus.Module
-// ------------
-// The core of Modus.
-
-var Module = Modus.Module = function (name, options, factory) {
-  this.options = defaults({
-    namespace: false,
-    moduleName: null,
-    throwErrors: true,
-    wait: false,
-    hooks: {}
-  }, options);
-  this.env = {};
-  this._isDisabled = false;
-  this._isEnabled = false;
-  this._isEnabling = false;
-  this._deps = [];
-  this._listeners = {};
-  this._factory = factory;
-  // Parse the name.
-  this._parseName(name);
-  // Register self with Modus
-  Modus.env[this.getFullName()] = this;
-  this._registerHooks();
-};
-
-// Extend the event emitter.
-Module.prototype = new EventEmitter();
-Module.prototype.constructor = Module;
-
-// Get the name of the module, excluding the namespace.
-Module.prototype.getName = function () {
-  return this.options.moduleName;
-};
-
-// Get the full name of the module, including the namespace.
-Module.prototype.getFullName = function () {
-  if(!this.options.namespace || !this.options.namespace.length)
-    return this.options.moduleName;
-  return this.options.namespace + '.' + this.options.moduleName;
-};
-
-// Helper that waits for a modules to emit a 'done' or 'error'
-// event.
-var _onModuleDone = function (dep, next, error) {
-  if (moduleExists(dep)) {
-    var mod = getModule(dep);
-    mod.once('done', next);
-    mod.once('error', error);
-    mod.enable();
-  } else if (getMappedGlobal(dep)) {
-    next();
-  } else {
-    error('Could not load dependency: ' + dep);
-  }
-};
-
-// Enable this module.
-Module.prototype.enable = function() {
-  if (this._isDisabled || this._isEnabling) return;
-  if (this._isEnabled) {
-    this.emit('done');
+  if(_visited.hasOwnProperty(src)){
+    _visited[src].done(next, error);
     return;
   }
-  // Ensure we don't try to enable this module twice.
-  this._isEnabling = true;
-  this.emit('enable.before');
-  this._investigate();
-  var onFinal = bind(function () {
-    this._isEnabling = false;
-    this._isEnabled = true;
-    if(!this.options.wait) this._runFactory();
-    this.emit('enable.after');
-    this.emit('done');
-  }, this);
-  var self = this;
-  if (this._deps.length <= 0) return onFinal();
-  eachAsync(this._deps, {
-    each: function (dep, next, error) {
-      if (moduleExists(dep)) {
-        _onModuleDone(dep, next, error);
-      } else if (getMappedGlobal(dep)) {
-        next();
+
+  var visit = _visited[src] = new Wait();
+  visit.done(next, error);
+
+  if(root.XMLHttpRequest){
+    var request = new XMLHttpRequest();
+  } else { // code for IE6, IE5
+    var request = new ActiveXObject("Microsoft.XMLHTTP");
+  }
+
+  request.onreadystatechange = function(){
+    if(4 === this.readyState){
+      if(200 === this.status){
+        try {
+          var res = self.parse(this.responseText, module);
+          visit.resolve(res);
+        } catch (e) {
+          visit.reject(e);
+          console.log(e);
+          throw new Error(e.message + ' in module [' + module + '] ');
+        }
       } else {
-        // Try to find the module.
-        Modus.load(dep, function () {
-          _onModuleDone(dep, next, error);
-        }, error);
-      }
-    },
-    onFinal: onFinal,
-    onError: function (reason) {
-      self.disable(reason);
-    }
-  });
-};
-
-Module.prototype.disable = function (reason) {
-  this._isDisabled = true;
-  this.emit('error');
-  if (this.options.throwErrors && reason instanceof Error) {
-    throw reason;
-  } else if (this.options.throwErrors) {
-    throw new Error(reason);
-  }
-};
-
-// Import dependencies.
-Module.prototype.imports = function (/*...*/) {
-  var imp = new Modus.Import(this);
-  imp.imports.apply(imp, arguments);
-  return imp;
-};
-
-// Get the namespace from the passed name.
-Module.prototype._parseName = function (name) {
-  var namespace = this.options.namespace || '';
-  name = normalizeModuleName(name);
-  if (name.indexOf('.') > 0) {
-    if (namespace.length) namespace += '.';
-    namespace += name.substring(0, name.lastIndexOf('.'));
-    name = name.substring(name.lastIndexOf('.') + 1);
-  }
-  this.options.moduleName = name;
-  this.options.namespace = namespace;
-};
-
-Module.prototype._registerHooks = function () {
-  var hooks = this.options.hooks;
-  var self = this;
-  each(hooks, function (cb, name) {
-    self.once(name, cb);
-  });
-};
-
-var _findDeps = /\.from\([\'|\"]([\s\S]+?)[\'|\"]\)/g;
-
-Module.prototype._investigate = function () {
-  var factory = this._factory.toString();
-  var self = this;
-  factory.replace(_findDeps, function (matches, dep) {
-    // Check if this is using a namespace shortcut
-    if (dep.indexOf('.') === 0)
-      dep = self.options.namespace + dep;
-    self._deps.push(dep);
-  });
-  this.emit('investigate');
-};
-
-Module.prototype._runFactory = function () {
-  if (!this._factory) return;
-  // Bind helpers to the env.
-  this.emit('factory.before');
-  this.env.imports = bind(this.imports, this);
-  if (this.options.wait) this.env.emit = bind(this.emit, this);
-  this._factory(this.env);
-  // Cleanup the env.
-  delete this.env.imports;
-  delete this.env.emit;
-  delete this._factory;
-  this.emit('factory.after');
-};
-
-
-// Modus Loaders
-// -------------
-
-if (isClient()) {
-
-  // A collection of previously visited scripts.
-  // Used to ensure that scripts are only requested once.
-  var visited = {};
-
-  // Test for the load event the current browser supports.
-  var onLoadEvent = (function (){
-    var testNode = document.createElement('script');
-    if (testNode.attachEvent){
-      return function(script, emitter){
-        script.attachEvent('onreadystatechange', function () {
-          if(/complete|loaded/.test(script.readyState)){
-            emitter.emit('done');
-          }
-        });
-        // Can't handle errors with old browsers.
+        visit.reject(this.status);
       }
     }
-    return function(script, emitter){
-      script.addEventListener('load', function (e) {
-        emitter.emit('done');
-      }, false);
-      script.addEventListener('error', function (e) {
-        emitter.emit('error');
-      }, false);
-    }
-  })();
+  }
 
-  // Load a script. This can only be used for JS files, 
-  // if you want to load a text file or do some other AJAX
-  // request you'll need to write a plugin (see the 'examples'
-  // folder for inspiration).
-  Modus.load = function (module, next, error) {
+  request.open('GET', src, true);
+  request.send();
 
-    if (module instanceof Array) {
-      eachThen(module, function (item, next, error) {
-        Modus.load(item, next, error);
-      }, next, error);
-      return;
-    }
+  return visit;
+};
 
-    var src = getMappedPath(module, Modus.config('root'));
+// If this script has 'data-main' set, try to load it.
 
-    // If the script is already loading, add the callback
-    // to the queue and don't load it again.
-    if (visited.hasOwnProperty(src)) {
-      visited[src].once('done', next);
-      visited[src].once('error', error);
-      return;
-    }
 
-    // Set up script
-    var script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.charset = 'utf-8';
-    script.async = true;
-    script.setAttribute('data-module', module);
-    script.src = src;
-
-    // Add to DOM
-    var entry = document.getElementsByTagName('script')[0];
-    entry.parentNode.insertBefore(script, entry);
-
-    // Add event listener
-    visited[src] = new EventEmitter();
-    visited[src].once('done', next);
-    visited[src].once('error', error);
-    onLoadEvent(script, visited[src]);
-  };
-
-}
-if (isServer()) {
-
-  // Make Modus GLOBAL so it can run in each context.
-  // This basically makes Modus a wrapper for 'require'.
-  // This isn't a best practice, but Modus modules have to
-  // run in both browser and node contexts, so using 
-  // 'module.exports' is out.
-  GLOBAL.Modus = Modus;
-
-  Modus.load = function (module, next, error) {
-    if (module instanceof Array) {
-      eachThen(module, function (item, next, error) {
-        Modus.load(item, next, error);
-      }, next, error);
-      return;
-    }
-    var src = getMappedPath(module, Modus.config('root'));
-    try {
-      require(src);
-      nextTick(function () {
-        next();
-      });
-    } catch(e) {
-      nextTick(function () {
-        error(e);
-      });
-    }
-  };
-
-}
 }));

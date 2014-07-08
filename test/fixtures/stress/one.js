@@ -1,8 +1,5 @@
-Modus.module('fixtures.stress.one', function (one) {
+import .sub.one as thing;
 
-  one.imports('two').from('.two');
-  one.imports('three').from('.three');
+var one = 'one';
 
-  one.default = 'one';
-
-});
+export {one, thing};

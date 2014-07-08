@@ -1,17 +1,23 @@
-
 // Modus
 // =====
+//
+// The primary API
 
-// Environment helpers
-// -------------------
+// Create the main namespace.
+var Modus = root.Modus = {};
 
-// 'env' holds modules.
 Modus.env = {};
 
 // Config options for Modus.
 Modus.options = {
   root: '',
   map: {}
+};
+
+var getMappedPath = Modus.getMappedPath = function(path) {
+  // more: gotta handle path maps.
+  path = Modus.config('root') + path.replace(/\./g, '/') + '.js';
+  return path;
 };
 
 // Set or get a Modus config option.
@@ -30,6 +36,26 @@ Modus.config = function (key, val) {
   }
   Modus.options[key] = val;
   return Modus.options[key];
+};
+
+// Import a module from the env.
+Modus.imports = function (name) {
+  if (!Modus.env.hasOwnProperty(name)) {
+    throw new Error('Module was not found: ' + name);
+    return {};
+  }
+  return Modus.env[name].env;
+};
+
+// Run the main module.
+Modus.main = function (name, next, error) {
+  error = error || function (e) {
+    throw e;
+  }
+  Modus.Loader.load(name).done(function (mod) {
+    mod.enable();
+    mod.done(next, error)
+  }, error);
 };
 
 // Figure out what we're running Modus in.
@@ -53,142 +79,4 @@ var isClient = Modus.isClient =  function () {
   if (!Modus.config('environment')) checkEnv();
   return Modus.config('environment') != 'node'
     && Modus.config('environment') != 'server';
-};
-
-// Map modules to a given path.
-//
-// example:
-//    Modus.map('lib/foo.js', ['foo.bar', 'foo.bin']);
-//    // You can also map a file to a base namespace
-//    Modus.map('lib/foo.js', ['foo.*']);
-//    // The following will now load lib/foo.js:
-//    module.import('foo.bar');
-//
-Modus.map = function (path, provides) {
-  // TODO: This method needs some love.
-  if ("object" === typeof path){
-    for ( var item in path ) {
-      Modus.map(item, path[item]);
-    }
-    return;
-  }
-  if (!Modus.options.map[path]) {
-    Modus.options.map[path] = [];
-  }
-  if (provides instanceof Array) {
-    each(provides, function (item) {
-      Modus.map(path, item);
-    });
-    return;
-  }
-  provides = new RegExp ( 
-    provides
-      // ** matches any number of segments (will only use the first)
-      .replace('**', "([\\s\\S]+?)")
-      // * matches a single segment (will only use the first)
-      .replace('*', "([^\\/|^$]+?)") 
-      // escapes
-      .replace(/\//g, '\\/')
-      .replace(/\./g, "\\.")
-      .replace(/\$/g, '\\$')
-      + '$'
-  );
-  Modus.options.map[path].push(provides);
-};
-
-// Get a mapped path
-var getMappedPath = Modus.getMappedPath = function (module, root) {
-  root = root || Modus.config('root');
-  var src = module.replace(/\./g, '/');
-  each(Modus.config('map'), function (maps, pathPattern) {
-    each(maps, function (map) {
-      module.replace(map, function (matches, many, single) {
-        src = pathPattern;
-        if (!single) {
-          single = many;
-          many = false;
-        }
-        if (many) src = src.replace('**', many);
-        if (single) src = src.replace('*', single)
-      });
-    });
-  });
-  src = (src.indexOf('.js') < 0 && !isServer())
-    ? root + src + '.js'
-    : root + src;
-  return src;
-};
-
-// Make sure all names are correct.
-var normalizeModuleName = Modus.normalizeModuleName = function (name) {
-  if(isPath(name)) {
-    // Strip extensions
-    if (name.indexOf('.') > 0) {
-      name = name.substring(0, name.indexOf('.'));
-    }
-    name = name.replace(/\/\\/g, '.');
-  }
-  return name;
-};
-
-var getMappedGlobal = Modus.getMappedGlobal = function (path) {
-  // to do.
-  return false;
-};
-
-// Check if a module has been loaded.
-var moduleExists = Modus.moduleExists = function (name) {
-  name = normalizeModuleName(name);
-  if (Modus.env.hasOwnProperty(name)) return true;
-  return false;
-};
-
-// Get a module from the env.
-var getModule = Modus.getModule = function (name) {
-  name = normalizeModuleName(name);
-  return Modus.env[name];
-}
-
-// Primary API
-// -----------
-
-// Module factory.
-//
-// example:
-//    Modus.module('foo.bar', function (bar) {
-//      // code
-//    })
-Modus.module = function (name, factory, options) {
-  options = options || {};
-  var module = new Modus.Module(name, options, factory);
-  module.enable();
-  return module;
-};
-
-// Syntactic sugar for namespaces.
-//
-// example:
-//    Modus.namespace('Foo', function (Foo) {
-//      Foo.module('Bar', function (Bar) {...}); // Defines 'Foo/Bar'
-//    });
-//    // Or:
-//    Modus.namespace('Foo/Bar').module('Bin', function (Bin) { ... });
-Modus.namespace = function (namespace, factory) {
-  if (factory) return Modus.module(namespace, factory);
-  var options = {namespace: namespace};
-  return {
-    module: function (name, factory) {
-      return Modus.module(name, options, factory);
-    },
-    publish: function (name, value) {
-      return Modus.publish(name, options, value);
-    }
-  };
-};
-
-// Shortcut to export a single value as a module.
-Modus.publish = function (name, value, options) {
-  return Modus.module(name, options, function (module) {
-    module.default = value;
-  });
 };

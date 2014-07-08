@@ -1,3 +1,3 @@
-Modus.module('fixtures.stress.two', function (two) {
-  two.default = 'two';
-});
+var two = 'two';
+
+export {two};

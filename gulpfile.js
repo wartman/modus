@@ -10,12 +10,8 @@ gulp.task('build', function() {
       './src/intro.js',
       './src/helpers.js',
       './src/Modus.js',
-      './src/EventEmitter.js',
-      // './src/Wait.js', // Trying WITHOUT wait for now.
-      './src/Import.js',
       './src/Module.js',
-      './src/client/loader.js',
-      './src/server/loader.js',
+      './src/Loader.js',
       './src/outro.js',
     ])
     .pipe(concat('Modus.js'))

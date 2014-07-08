@@ -6,32 +6,20 @@ unstable is an understatement at the moment.
 
 How about some code?
 --------------------
+Modus uses a super simple, java-style import syntax:
 
 ```JavaScript
-Modus.namespace('app').module('foo', function (foo) {
-   
-    foo.imports('.baritize').from('app.baz');
-    foo.imports('Bin', {'Baz':'BazAlias'}).from('my.library.ban');
+import app.baz; // Available as 'baz' in this module.
+import lib.library as ban; // Use 'as' to avoid any naming conflicts.
 
-    // You can use imports right away inside the module callback.
-    var bar = foo.baritize('bar');
+// You can use imports right away inside the module callback.
+var bar = baz.baritize('bar');
 
-    // Exporting something is as simple as this:
-    foo.foo = 'foo';
-
-    // Functions too.
-    foo.saysFoo = function (foo) {
-        return function () {
-            return 'says ' + foo.foo;
-        }
-    };
-
-});
+// Exporting something is as simple as this:
+var foo = 'foo';
+export {foo};
 ```
 
-*More details are coming, once I nail down the API*
-
-v0.1.3
-------
-Client-side module loading works and has some tests. Server-side
-module loading and compiling is being planned.
+Because this is all done with AJAX, it isn't suitable for live projects.
+Please wait until the build functionality is ready before trying
+to use Modus.

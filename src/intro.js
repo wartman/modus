@@ -1,10 +1,11 @@
-//!
-// Modus @VERSION
-//
-// Copyright 2014
-// Released under the MIT license
-//
-// Date: @DATE
+/*!
+ * Modus @VERSION
+ *
+ * Copyright 2014
+ * Released under the MIT license
+ *
+ * Date: @DATE
+ */
 
 (function (factory) {
 
@@ -18,11 +19,5 @@
   }
 
 }(function (root, undefined) {
-
-"use strict"
-
-// The main modus namespace
-var Modus = root.Modus = {};
-
-// Save the current version.
-Modus.VERSION = '@VERSION';
+// We need to use Function, sorry jsLint.
+/*jslint evil: true */
