@@ -1,6 +1,6 @@
 
-// --------------------
 // Modus plugin
+// ------------
 
 // Registered plugins.
 Modus.plugins = {};

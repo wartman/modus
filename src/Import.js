@@ -3,15 +3,17 @@
 // ------------
 // Import does what you expect: it handles all imports for 
 // Modus namespaces and Modus modules.
-
-// Create a new import. [request] can be a path to a resource,
-// a module name, or an array of components to import, depending
-// on how you modify the import.
 var Import = Modus.Import = function (parent) {
+  this._listeners = {};
   this._parent = parent;
   this._components = [];
   this._module = false;
+  this._plugin = false;
 };
+
+// Extend the event emitter.
+Import.prototype = new EventEmitter()
+Import.prototype.constructor = Import;
 
 // Import components from a module.
 Import.prototype.imports = function() {
@@ -21,16 +23,23 @@ Import.prototype.imports = function() {
     self._components.push(arg);
   });
   return this;
-}
+};
 
-// Specify the module to import from. Modus.Module uses
-// RegExp to find investigate this method, and try to load
-// the specified module. When actually called in the module
-// environment, this module will apply your request to the env.
+// Use a plugin to load this module. 
+Import.prototype.using = function (plugin) {
+  this._plugin = plugin;
+  return this;
+};
+
+// Specify the module to import from. Note that this method
+// doesn't actually load a module: see 'Modus.Module#investigate'
+// to figure out what Modus is doing.
+//
+// When defining imports, note that 'from' MUST be the last
+// part of your chain. 
 Import.prototype.from = function (module) {
   this._module = module;
   this._applyToEnv();
-  return this;
 };
 
 // Get the parent module.
@@ -49,8 +58,8 @@ Import.prototype._applyToEnv = function () {
   var self = this;
   var depEnv = (moduleExists(module))
     ? getModule(module).env 
-    : getMappedGlobal(module);
-  if (!depEnv) throw new Error('Dependency not avalilable [' + module + '] for: ' + this._parent.getFullName());
+    : getGlobal(module);
+  if (!depEnv) Modus.err('Dependency not avalilable [' + module + '] for: ' + this._parent.getFullName());
   if (this._components.length <= 0) return;
   if (this._components.length === 1) {
     // Handle something like "module.imports('foo').from('app.foo')"

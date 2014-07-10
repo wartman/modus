@@ -1,4 +1,4 @@
-if (Modus.isServer()) var assert = require('assert');
+if (Modus.isServer()) var expect = require('expect');
 
 describe('Modus.Module', function () {
   var mod;
@@ -15,23 +15,22 @@ describe('Modus.Module', function () {
       var opts = {namespace: 'moduleTest'};
       var modTest = new Modus.Module('moduleName', opts);
       opts.moduleName = 'moduleName';
-      assert.deepEqual(modTest.options, opts, 'Options were defined');
+      expect(modTest.options).to.deep.equal(opts);
     });
 
     it('registers itself with Modus.env', function () {
       var module = new Modus.Module('moduleTest.isRegistered');
-      assert.deepEqual(module, Modus.env['moduleTest.isRegistered'], 'Saved');
+      expect(module).to.deep.equal(Modus.env['moduleTest.isRegistered']);
     });
 
   });
 
   describe('#getName / #getFullName', function () {
     it('returns the name', function () {
-      assert.equal(mod.getName(), 'test' + modID);
-      assert.equal(mod.getFullName(), 'moduleTest.test' + modID);
+      expect(mod.getName()).to.equal('test');
+      expect(mod.getFullName()).to.equal('moduleTest.test');
     });
   });
-
 
   describe('#imports', function () {
 
@@ -40,26 +39,26 @@ describe('Modus.Module', function () {
       Modus.env['fixture.one'] = new Modus.Module('fixture.one', {}, function (one) {
         one.foo = 'foo'
       });
-      var mod = new Modus.Module('test.importer', {}, function (importer) {
+      var mod = new Modus.Module('tests.importer', {}, function (importer) {
         importer.imports('foo').from('fixture.one');
-        assert.equal(importer.foo, 'foo', 'imported');
+        expect(importer.foo).to.equal('foo');
         done();
       });
       mod.enable();
     });
 
     it('imports an external module', function (done) {
-      Modus.module('test.real', function (real) {
-        real.imports('test_imports').from('fixtures.test_imports');
-        assert.equal(real.test_imports.got(), 'foobar:got');
+      Modus.module('tests.real', function (real) {
+        real.imports('importTest').from('fixtures.importTest');
+        expect(real.importTest.test).to.equal('importTest');
         done();
       });
     });
 
     it('imports an external module', function (done) {
-      Modus.module('test.stress', function (stress) {
-        stress.imports('two', 'three').from('fixtures.stress.one');
-        assert.equal(stress.two + stress.three, 'twothree');
+      Modus.module('tests.stress', function (stress) {
+        stress.imports('one', 'two').from('fixtures.stress.one');
+        expect(stress.one + stress.two).to.equal('onetwo');
         done();
       });
     });

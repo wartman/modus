@@ -96,6 +96,11 @@ Modus.map = function (path, provides) {
   Modus.options.map[path].push(provides);
 };
 
+// Simple error wrapper.
+Modus.err = function (error) {
+  throw new Error(error);
+};
+
 // Get a mapped path
 var getMappedPath = Modus.getMappedPath = function (module, root) {
   root = root || Modus.config('root');
@@ -131,8 +136,11 @@ var normalizeModuleName = Modus.normalizeModuleName = function (name) {
   return name;
 };
 
+// Try to get a global export from a script.
 var getMappedGlobal = Modus.getMappedGlobal = function (path) {
-  // to do.
+  if (Modus.options.map.hasOwnProperty(path)) {
+    return root[Modus.options.map[path]] || false;
+  }
   return false;
 };
 

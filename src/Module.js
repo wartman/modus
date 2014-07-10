@@ -135,6 +135,7 @@ Module.prototype._registerHooks = function () {
 };
 
 var _findDeps = /\.from\([\'|\"]([\s\S]+?)[\'|\"]\)/g;
+var _findPlugin = /\.using\([\'|\"]([\s\S]+?)[\'|\"]\)/g;
 
 Module.prototype._investigate = function () {
   var factory = this._factory.toString();
