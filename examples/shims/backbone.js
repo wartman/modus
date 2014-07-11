@@ -1,13 +1,18 @@
-Modus.namespace('examples.plugins').module('backbone', function (backbone) {
+Modus.namespace('examples.shims').module('backbone', function (backbone) {
   // Load Backbone's depencencies before loading Backbone.
   Modus.load([
+    // The following assumes that we don't already have
+    // a shims module that loads these scripts. If you do,
+    // you can just do:
+    //   backbone.imports('shims').from('app.shims');
+    // ... or whatever you nammed your module.
     'bower_components/jquery/dist/jquery.min.js',
     'bower_components/underscore/underscore.js'
   ], function () {
     Modus.load('bower_components/backbone/Backbone.js', function () {
       // Backbone is now available in the global scope,
       // but we want it to be accessable from this module too:
-      backbone.Backbone = window.Backbone;
+      backbone.default = window.Backbone;
       // Tell the module that it now finished.
       backbone.emit('done');
     }, error);
@@ -21,17 +26,17 @@ Modus.namespace('examples.plugins').module('backbone', function (backbone) {
 });
 
 // Example of use:
-Modus.namespace('examples.plugins').module('view', function (view) {
+Modus.namespace('examples.shims').module('view', function (view) {
 
-  view.imports('Backbone').from('.backbone');
+  view.imports('backbone').from('.backbone');
 
-  // We can now use Backbone in the global scope:
+  // We can now use the global Backbone:
   var View = Backbone.View.extend({
     // code
   });
 
-  // ... or in the module context:
-  var View = view.Backbone.extend({
+  // ... or as a module property:
+  var View = view.backbone.extend({
     // code
   });
 

@@ -4,19 +4,11 @@
 // The core of Modus.
 
 var Module = Modus.Module = function (name, factory, options) {
-  this.options = defaults({
-    namespace: false,
-    moduleName: null,
-    throwErrors: true,
-    // If true, the factory will not be run.
-    compiling: false,
-    // If true, you'll need to manualy emit 'done' before
-    // the module will be marked as 'enabled'
-    wait: false,
-    hooks: {}
-  }, options);
+  this.options = defaults(Module.defaults, options);
   var self = this;
   if (this.options.wait) {
+    // We only want to wait until 'done' is emited, then
+    // return to the usual behavior.
     this.once('done', function () {
       self.options.wait = false;
     });
@@ -34,6 +26,20 @@ var Module = Modus.Module = function (name, factory, options) {
   Modus.env[this.getFullName()] = this;
   this._registerHooks();
 };
+
+// The default options for modules.
+// Any changes made to these defaults will effect all modules.
+Module.defaults = {
+  namespace: false,
+  moduleName: null,
+  throwErrors: true,
+  // If true, the factory will not be run.
+  compiling: false,
+  // If true, you'll need to manualy emit 'done' before
+  // the module will be marked as 'enabled'
+  wait: false,
+  hooks: {}
+}
 
 // Extend the event emitter.
 Module.prototype = new EventEmitter();
@@ -136,6 +142,7 @@ Module.prototype._parseName = function (name) {
   this.options.namespace = namespace;
 };
 
+// Not used yet.
 Module.prototype._registerHooks = function () {
   var hooks = this.options.hooks;
   var self = this;
@@ -144,9 +151,11 @@ Module.prototype._registerHooks = function () {
   });
 };
 
+// RegExp to find imports.
 var _findDeps = /\.from\([\'|\"]([\s\S]+?)[\'|\"]\)/g;
-var _findPlugin = /\.using\([\'|\"]([\s\S]+?)[\'|\"]\)/g;
 
+// Use RegExp to find any imports this module needs, then add
+// them to the imports stack.
 Module.prototype._investigate = function () {
   var factory = this._factory.toString();
   var self = this;
@@ -159,6 +168,7 @@ Module.prototype._investigate = function () {
   this.emit('investigate');
 };
 
+// Run the registered factory.
 Module.prototype._runFactory = function () {
   if (!this._factory) return;
   var self = this;

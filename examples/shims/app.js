@@ -1,20 +1,14 @@
-Modus.namespace('examples.shims').module('app', function (app) {
+Modus.module('examples.shims.app', function (app) {
   // Simply import the 'shims' module.
-  app.imports('.shims');
+  app.imports('shims').from('.shims');
   // You could also import specific components from the shim,
   // as normal:
-  app.imports('$').from('.shims');
+  app.imports('$', '_').from('.shims');
 
-  app.body(function (app) {
+  // Global vars are available in the global scope, as usual.
+  $('.foo').html('This works!');
 
-    // Global vars are available in the global scope, as usual.
-    $('.foo').html('This works!');
-
-    // They should also be applied to the current module as expected.
-    var View = app.shims.Backbone.View.extend({
-      // code
-    });
-
-  });
-  
+  // You can also access them as module properties:
+  app.foo = app.$('.foo');
+  app.foo.html('This also works!');
 });
