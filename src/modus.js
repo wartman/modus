@@ -104,7 +104,7 @@ Modus.err = function (error) {
 // Get a mapped path
 var getMappedPath = Modus.getMappedPath = function (module, root) {
   root = root || Modus.config('root');
-  var src = module.replace(/\./g, '/');
+  var src = (isPath(module))? module : module.replace(/\./g, '/');
   each(Modus.config('map'), function (maps, pathPattern) {
     each(maps, function (map) {
       module.replace(map, function (matches, many, single) {
@@ -168,7 +168,7 @@ var getModule = Modus.getModule = function (name) {
 //    })
 Modus.module = function (name, factory, options) {
   options = options || {};
-  var module = new Modus.Module(name, options, factory);
+  var module = new Modus.Module(name, factory, options);
   module.enable();
   return module;
 };

@@ -25,12 +25,6 @@ Import.prototype.imports = function() {
   return this;
 };
 
-// Use a plugin to load this module. 
-Import.prototype.using = function (plugin) {
-  this._plugin = plugin;
-  return this;
-};
-
 // Specify the module to import from. Note that this method
 // doesn't actually load a module: see 'Modus.Module#investigate'
 // to figure out what Modus is doing.
@@ -58,7 +52,7 @@ Import.prototype._applyToEnv = function () {
   var self = this;
   var depEnv = (moduleExists(module))
     ? getModule(module).env 
-    : getGlobal(module);
+    : false;
   if (!depEnv) Modus.err('Dependency not avalilable [' + module + '] for: ' + this._parent.getFullName());
   if (this._components.length <= 0) return;
   if (this._components.length === 1) {

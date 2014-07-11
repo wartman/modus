@@ -4,7 +4,7 @@
 // Copyright 2014
 // Released under the MIT license
 //
-// Date: 2014-06-30T23:03Z
+// Date: 2014-07-11T18:23Z
 
 (function (factory) {
 
@@ -306,10 +306,15 @@ Modus.map = function (path, provides) {
   Modus.options.map[path].push(provides);
 };
 
+// Simple error wrapper.
+Modus.err = function (error) {
+  throw new Error(error);
+};
+
 // Get a mapped path
 var getMappedPath = Modus.getMappedPath = function (module, root) {
   root = root || Modus.config('root');
-  var src = module.replace(/\./g, '/');
+  var src = (isPath(module))? module : module.replace(/\./g, '/');
   each(Modus.config('map'), function (maps, pathPattern) {
     each(maps, function (map) {
       module.replace(map, function (matches, many, single) {
@@ -341,8 +346,11 @@ var normalizeModuleName = Modus.normalizeModuleName = function (name) {
   return name;
 };
 
+// Try to get a global export from a script.
 var getMappedGlobal = Modus.getMappedGlobal = function (path) {
-  // to do.
+  if (Modus.options.map.hasOwnProperty(path)) {
+    return root[Modus.options.map[path]] || false;
+  }
   return false;
 };
 
@@ -370,7 +378,7 @@ var getModule = Modus.getModule = function (name) {
 //    })
 Modus.module = function (name, factory, options) {
   options = options || {};
-  var module = new Modus.Module(name, options, factory);
+  var module = new Modus.Module(name, factory, options);
   module.enable();
   return module;
 };
@@ -464,15 +472,17 @@ Modus.events = new EventEmitter();
 // ------------
 // Import does what you expect: it handles all imports for 
 // Modus namespaces and Modus modules.
-
-// Create a new import. [request] can be a path to a resource,
-// a module name, or an array of components to import, depending
-// on how you modify the import.
 var Import = Modus.Import = function (parent) {
+  this._listeners = {};
   this._parent = parent;
   this._components = [];
   this._module = false;
+  this._plugin = false;
 };
+
+// Extend the event emitter.
+Import.prototype = new EventEmitter()
+Import.prototype.constructor = Import;
 
 // Import components from a module.
 Import.prototype.imports = function() {
@@ -482,16 +492,17 @@ Import.prototype.imports = function() {
     self._components.push(arg);
   });
   return this;
-}
+};
 
-// Specify the module to import from. Modus.Module uses
-// RegExp to find investigate this method, and try to load
-// the specified module. When actually called in the module
-// environment, this module will apply your request to the env.
+// Specify the module to import from. Note that this method
+// doesn't actually load a module: see 'Modus.Module#investigate'
+// to figure out what Modus is doing.
+//
+// When defining imports, note that 'from' MUST be the last
+// part of your chain. 
 Import.prototype.from = function (module) {
   this._module = module;
   this._applyToEnv();
-  return this;
 };
 
 // Get the parent module.
@@ -510,8 +521,8 @@ Import.prototype._applyToEnv = function () {
   var self = this;
   var depEnv = (moduleExists(module))
     ? getModule(module).env 
-    : getMappedGlobal(module);
-  if (!depEnv) throw new Error('Dependency not avalilable [' + module + '] for: ' + this._parent.getFullName());
+    : false;
+  if (!depEnv) Modus.err('Dependency not avalilable [' + module + '] for: ' + this._parent.getFullName());
   if (this._components.length <= 0) return;
   if (this._components.length === 1) {
     // Handle something like "module.imports('foo').from('app.foo')"
@@ -536,14 +547,24 @@ Import.prototype._applyToEnv = function () {
 // ------------
 // The core of Modus.
 
-var Module = Modus.Module = function (name, options, factory) {
+var Module = Modus.Module = function (name, factory, options) {
   this.options = defaults({
     namespace: false,
     moduleName: null,
     throwErrors: true,
+    // If true, the factory will not be run.
+    compiling: false,
+    // If true, you'll need to manualy emit 'done' before
+    // the module will be marked as 'enabled'
     wait: false,
     hooks: {}
   }, options);
+  var self = this;
+  if (this.options.wait) {
+    this.once('done', function () {
+      self.options.wait = false;
+    });
+  }
   this.env = {};
   this._isDisabled = false;
   this._isEnabled = false;
@@ -593,7 +614,7 @@ var _onModuleDone = function (dep, next, error) {
 Module.prototype.enable = function() {
   if (this._isDisabled || this._isEnabling) return;
   if (this._isEnabled) {
-    this.emit('done');
+    if (!this.options.wait) this.emit('done');
     return;
   }
   // Ensure we don't try to enable this module twice.
@@ -603,9 +624,9 @@ Module.prototype.enable = function() {
   var onFinal = bind(function () {
     this._isEnabling = false;
     this._isEnabled = true;
-    if(!this.options.wait) this._runFactory();
+    if(!this.options.compiling) this._runFactory();
     this.emit('enable.after');
-    this.emit('done');
+    if(!this.options.wait) this.emit('done');
   }, this);
   var self = this;
   if (this._deps.length <= 0) return onFinal();
@@ -668,6 +689,7 @@ Module.prototype._registerHooks = function () {
 };
 
 var _findDeps = /\.from\([\'|\"]([\s\S]+?)[\'|\"]\)/g;
+var _findPlugin = /\.using\([\'|\"]([\s\S]+?)[\'|\"]\)/g;
 
 Module.prototype._investigate = function () {
   var factory = this._factory.toString();
@@ -683,15 +705,19 @@ Module.prototype._investigate = function () {
 
 Module.prototype._runFactory = function () {
   if (!this._factory) return;
+  var self = this;
   // Bind helpers to the env.
   this.emit('factory.before');
   this.env.imports = bind(this.imports, this);
-  if (this.options.wait) this.env.emit = bind(this.emit, this);
+  this.env.emit = bind(this.emit, this);
+  // Run the factory.
   this._factory(this.env);
   // Cleanup the env.
-  delete this.env.imports;
-  delete this.env.emit;
-  delete this._factory;
+  this.once('done', function () {
+    delete self.env.imports;
+    delete self.env.emit;
+    delete self._factory;
+  });
   this.emit('factory.after');
 };
 
@@ -735,9 +761,13 @@ if (isClient()) {
   Modus.load = function (module, next, error) {
 
     if (module instanceof Array) {
-      eachThen(module, function (item, next, error) {
-        Modus.load(item, next, error);
-      }, next, error);
+      eachAsync(module, {
+        each: function (item, next, error) {
+          Modus.load(item, next, error);
+        },
+        onFinal: next,
+        onError: error
+      });
       return;
     }
 
@@ -782,9 +812,13 @@ if (isServer()) {
 
   Modus.load = function (module, next, error) {
     if (module instanceof Array) {
-      eachThen(module, function (item, next, error) {
-        Modus.load(item, next, error);
-      }, next, error);
+      eachAsync(module, {
+        each: function (item, next, error) {
+          Modus.load(item, next, error);
+        },
+        onFinal: next,
+        onError: error
+      });
       return;
     }
     var src = getMappedPath(module, Modus.config('root'));

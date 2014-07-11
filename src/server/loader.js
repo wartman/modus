@@ -9,9 +9,13 @@ if (isServer()) {
 
   Modus.load = function (module, next, error) {
     if (module instanceof Array) {
-      eachThen(module, function (item, next, error) {
-        Modus.load(item, next, error);
-      }, next, error);
+      eachAsync(module, {
+        each: function (item, next, error) {
+          Modus.load(item, next, error);
+        },
+        onFinal: next,
+        onError: error
+      });
       return;
     }
     var src = getMappedPath(module, Modus.config('root'));

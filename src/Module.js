@@ -3,14 +3,24 @@
 // ------------
 // The core of Modus.
 
-var Module = Modus.Module = function (name, options, factory) {
+var Module = Modus.Module = function (name, factory, options) {
   this.options = defaults({
     namespace: false,
     moduleName: null,
     throwErrors: true,
+    // If true, the factory will not be run.
+    compiling: false,
+    // If true, you'll need to manualy emit 'done' before
+    // the module will be marked as 'enabled'
     wait: false,
     hooks: {}
   }, options);
+  var self = this;
+  if (this.options.wait) {
+    this.once('done', function () {
+      self.options.wait = false;
+    });
+  }
   this.env = {};
   this._isDisabled = false;
   this._isEnabled = false;
@@ -60,7 +70,7 @@ var _onModuleDone = function (dep, next, error) {
 Module.prototype.enable = function() {
   if (this._isDisabled || this._isEnabling) return;
   if (this._isEnabled) {
-    this.emit('done');
+    if (!this.options.wait) this.emit('done');
     return;
   }
   // Ensure we don't try to enable this module twice.
@@ -70,9 +80,9 @@ Module.prototype.enable = function() {
   var onFinal = bind(function () {
     this._isEnabling = false;
     this._isEnabled = true;
-    if(!this.options.wait) this._runFactory();
+    if(!this.options.compiling) this._runFactory();
     this.emit('enable.after');
-    this.emit('done');
+    if(!this.options.wait) this.emit('done');
   }, this);
   var self = this;
   if (this._deps.length <= 0) return onFinal();
@@ -151,14 +161,18 @@ Module.prototype._investigate = function () {
 
 Module.prototype._runFactory = function () {
   if (!this._factory) return;
+  var self = this;
   // Bind helpers to the env.
   this.emit('factory.before');
   this.env.imports = bind(this.imports, this);
-  if (this.options.wait) this.env.emit = bind(this.emit, this);
+  this.env.emit = bind(this.emit, this);
+  // Run the factory.
   this._factory(this.env);
   // Cleanup the env.
-  delete this.env.imports;
-  delete this.env.emit;
-  delete this._factory;
+  this.once('done', function () {
+    delete self.env.imports;
+    delete self.env.emit;
+    delete self._factory;
+  });
   this.emit('factory.after');
 };
