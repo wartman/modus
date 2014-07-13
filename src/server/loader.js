@@ -8,13 +8,26 @@ if (isServer()) {
   GLOBAL.Modus = Modus;
 
   Modus.load = function (module, next, error) {
-    var path = getMappedPath(module, Modus.config('root'));
-    var src = path.src;
+    if (module instanceof Array) {
+      eachAsync(module, {
+        each: function (item, next, error) {
+          Modus.load(item, next, error);
+        },
+        onFinal: next,
+        onError: error
+      });
+      return;
+    }
+    var src = getMappedPath(module, Modus.config('root'));
     try {
       require(src);
-      next();
+      nextTick(function () {
+        next();
+      });
     } catch(e) {
-      error(e);
+      nextTick(function () {
+        error(e);
+      });
     }
   };
 

@@ -1,158 +1,48 @@
 
-// --------------------
 // Modus.Module
-//
+// ------------
 // The core of Modus.
-
-var Module = Modus.Module = function (options) {
-  this.options = defaults(this.options, options);
-  this.wait = new Wait();
-  this.is = new Is();
-  this.env = {};
-  this.modules = {};
-  this._body = false;
-  this._imports = [];
-  this._exports = [];
-};
-
-Module.prototype.options = {
-  namespace: 'root',
-  moduleName: null,
-  throwErrors: true
-};
-
-// Define a sub-namespace
-//
-// example: 
-//    (to do)
-Module.prototype.namespace = function (name, factory) {
-  var namespace = this.module(name, factory, {namespace: true});
-  return namespace;
-};
-
-// Define a sub-module
-//
-// example: 
-//    (to do)
-Module.prototype.module = function (name, factory, options) {
-  if (name.indexOf('.') >= 0) {
-    throw new Error('Cannot create a sub-namespace from a module: ' + name);
-  }
-  options = (options || {});
+var Module = Modus.Module = function (name, factory, options) {
+  this.options = defaults({
+    namespace: false,
+    moduleName: null,
+    throwErrors: true,
+    // If true, the factory will not be run.
+    compiling: false,
+    // If true, you'll need to manualy emit 'done' before
+    // the module will be marked as 'enabled'
+    wait: false,
+    hooks: {}
+  }, options);
   var self = this;
-  var namespace = (options.namespace)
-    ? this.getFullName() + '.' + name 
-    : this.getFullName();
-  var moduleName = (options.namespace)
-    ? null
-    : name;
-  var module = new Modus.Module({
-    namespace: namespace,
-    moduleName: moduleName
-  });
-  createObjectByName(name, module, this.modules);
-  if (factory) factory(module);
-  nextTick(function () {
-    self.is.pending(true);
-    self.run();
-  });
-  return module;
+  // If the factory has more then one argument, this module
+  // depends on some sort of async operation.
+  if (factory && factory.length >= 2) 
+    this.options.wait = true;
+  if (this.options.wait) {
+    // We only want to wait until 'done' is emited, then
+    // return to the usual behavior.
+    this.once('done', function () {
+      self.options.wait = false;
+    });
+  }
+  this.env = {};
+  this._isDisabled = false;
+  this._isEnabled = false;
+  this._isEnabling = false;
+  this._deps = [];
+  this._listeners = {};
+  this._factory = factory;
+  // Parse the name.
+  this._parseName(name);
+  // Register self with Modus
+  Modus.env[this.getFullName()] = this;
+  this._registerHooks();
 };
 
-// Import a dependency into this module.
-//
-// example:
-//    module.import('foo.bar').as('bar');
-//    module.import(['foo', 'bin']).from('foo.baz');
-//
-// Imported dependencies will be available as properties
-// in the current module.
-//
-// example:
-//    module.import(['foo', 'bin']).from('foo.baz');
-//    module.body(function () {
-//      module.foo(); // from foo.baz.foo
-//      module.bin(); // frim foo.baz.bin
-//    });
-Module.prototype.imports = function (deps) {
-  this.is.pending(true);
-  var item = new Modus.Import(deps, this);
-  this._imports.push(item);
-  return item;
-};
-
-// Export a component to this module using [factory].
-//
-// You should wrap all code that uses imported
-// dependencies in an export method. 
-//
-// example:
-//    module.exports('foo', function (module) {
-//      var thing = module.importedThing();
-//      // Set an export by returning a value
-//      return thing;
-//    });
-//    module.exports('fid', function (module) {
-//      // Set a value using CommonJS like syntax.
-//      module.exports.foo = "foo";
-//      module.exports.bar = 'bar';
-//    });
-//
-// You can also export several components in one go
-// by skipping [name] and returning an object from [factory]
-//
-// example:
-//    module.exports(function (module) {
-//      return {
-//        foo: 'foo',
-//        bar: 'bar'
-//      };
-//    });
-Module.prototype.exports = function (name, factory) {
-  if (!this.options.moduleName) {
-    throw new Error('Cannot export from a namespace: ', this.getFullName());
-    return;
-  }
-  if (!factory) {
-    factory = name;
-    name = false;
-  }
-  var item = new Modus.Export(name, factory, this);
-  this._exports.push(item);
-  return item;
-};
-
-// Register a function to run after all imports and exports
-// are complete. Unlike `Module#exports`, the value returned
-// from the callback will NOT be applied to the module. Instead,
-// you can define things diretly, by adding a property
-// to the passed variable, or by using the special 'exports'
-// property, which works similarly to Node's module system.
-//
-// Can only be called once per module.
-//
-// example:
-//    foo.imports('foo.bar').as('importedFoo');
-//    foo.exports('bin', 'bin');
-//    foo.body(function (foo) {
-//      foo.bin; // === 'bin'
-//      foo.bar = 'bar'; // Set items directly.
-//      // Use exports to set the root of this module.
-//      // This WILL NOT overwrite previously exported properties.
-//      foo.exports = function() { return 'foo'; };
-//    });
-Module.prototype.body = function (factory) {
-  if (!this.options.moduleName) {
-    throw new Error('Cannot export from a namespace: ', this.getFullName());
-    return;
-  }
-  if (this._body) {
-    this._disable('Cannot define [body] more then once: ', this.getFullName());
-    return;
-  }
-  this._body = new Modus.Export(factory, this, {isBody: true});
-  return this;
-};
+// Extend the event emitter.
+Module.prototype = new EventEmitter();
+Module.prototype.constructor = Module;
 
 // Get the name of the module, excluding the namespace.
 Module.prototype.getName = function () {
@@ -161,122 +51,147 @@ Module.prototype.getName = function () {
 
 // Get the full name of the module, including the namespace.
 Module.prototype.getFullName = function () {
-  if(!this.options.moduleName) return this.options.namespace;
+  if(!this.options.namespace || !this.options.namespace.length)
+    return this.options.moduleName;
   return this.options.namespace + '.' + this.options.moduleName;
 };
 
-// Run the module. The action taken will differ depending
-// on the current state of the module.
-Module.prototype.run = function () {
-  if (this.is.pending()) {
-    this._loadImports();
-  } else if (this.is.loaded()) {
-    this._enable();
-  } else if (this.is.ready() || this.is.enabled()) {
-    this.is.enabled(true);
-    this.wait.resolve(this);
-  } else if (this.is.failed()) {
-    this.wait.reject();
+// Helper that waits for a modules to emit a 'done' or 'error'
+// event.
+var _onModuleDone = function (dep, next, error) {
+  if (moduleExists(dep)) {
+    var mod = getModule(dep);
+    mod.once('done', next);
+    mod.once('error', error);
+    mod.enable();
+  } else if (getMappedGlobal(dep)) {
+    next();
+  } else {
+    error('Could not load dependency: ' + dep);
   }
-  return this;
 };
 
-// Disable the module. A disabled module CANNOT be re-enabled.
-Module.prototype._disable = function (reason) {
-  var self = this;
-  this.is.failed(true);
-  this.wait.done(null, function (e) {
-    if (self.options.throwErrors && e instanceof Error) {
-      throw e
-    }
-  });
-  this.wait.reject(reason);
+// Helper to run after the last dependency is loaded.
+var _onFinal = function () {
+  this._isEnabling = false;
+  this._isEnabled = true;
+  if(!this.options.compiling) this._runFactory();
+  this.emit('enable.after');
+  if(!this.options.wait) this.emit('done');
 };
 
-// This will be used by the Modus compiler down the road.
-Module.prototype._compile = function () {
-  // Run compile code here.
-};
-
-// Iterate through imports and run them all.
-Module.prototype._loadImports = function () {
-  var remaining = this._imports.length;
-  var self = this;
-  var onUpdate = function () {
-    remaining -= 1;
-    if (remaining <= 0) {
-      self.is.loaded(true);
-      self.run();
-    }
-  }
-  this.is.working(true);
-  if (!remaining) {
-    this.is.loaded(true);
-    this.run();
+// Enable this module.
+Module.prototype.enable = function() {
+  if (this._isDisabled || this._isEnabling) return;
+  if (this._isEnabled) {
+    if (!this.options.wait) this.emit('done');
     return;
   }
-  each(this._imports, function (item) {
-    if(item.is.loaded()) {
-      onUpdate();
-      return;
+  // Ensure we don't try to enable this module twice.
+  this._isEnabling = true;
+  this.emit('enable.before');
+  this._investigate();
+  var onFinal = bind(_onFinal, this);
+  var self = this;
+  if (this._deps.length <= 0) return onFinal();
+  eachAsync(this._deps, {
+    each: function (dep, next, error) {
+      if (moduleExists(dep)) {
+        _onModuleDone(dep, next, error);
+      } else {
+        // Try to find the module.
+        Modus.load(dep, function () {
+          _onModuleDone(dep, next, error);
+        }, error);
+      }
+    },
+    onFinal: onFinal,
+    onError: function (reason) {
+      self.disable(reason);
     }
-    item.load(function () {
-      onUpdate();
-    }, function (reason) {
-      self._disable(reason);
-    });
   });
 };
 
-Module.prototype._enable = function () {
-  var self = this;
-  if (size(this.modules)) {
-    this._enableModules(function () {
-      self._enableExports(function () {
-        self.is.enabled(true);
-        self.run();
-      });
-    });
-  } else {
-    self._enableExports(function () {
-      self.is.enabled(true);
-      self.run();
-    });
+Module.prototype.disable = function (reason) {
+  this._isDisabled = true;
+  this.emit('error');
+  if (this.options.throwErrors && reason instanceof Error) {
+    throw reason;
+  } else if (this.options.throwErrors) {
+    throw new Error(reason);
   }
 };
 
-// Iterate through exports and run them.
-Module.prototype._enableExports = function (next) {
-  var self = this;
-  this.is.working(true);
-  each(this._exports, function (item) {
-    if (item.is.enabled()) return;
-    try {
-      item.run();
-    } catch(e) {
-      self._disable(e);
-    }
-  });
-  if (!this.is.working()) return;
-  if (this._body) this._body.run();
-  next();
+// Import dependencies.
+Module.prototype.imports = function (/*...*/) {
+  var imp = new Modus.Import(this);
+  imp.imports.apply(imp, arguments);
+  return imp;
 };
 
-// Enable all modules.
-Module.prototype._enableModules = function (next) {
-  var remaining = size(this.modules);
+// Get the namespace from the passed name.
+Module.prototype._parseName = function (name) {
+  var namespace = this.options.namespace || '';
+  name = normalizeModuleName(name);
+  if (name.indexOf('.') > 0) {
+    if (namespace.length) namespace += '.';
+    namespace += name.substring(0, name.lastIndexOf('.'));
+    name = name.substring(name.lastIndexOf('.') + 1);
+  }
+  this.options.moduleName = name;
+  this.options.namespace = namespace;
+};
+
+// Not used yet.
+Module.prototype._registerHooks = function () {
+  var hooks = this.options.hooks;
   var self = this;
-  if (!remaining) return;
-  this.is.working(true);
-  each(this.modules, function (module, id) {
-    module.run();
-    module.wait.done(function () {
-      remaining -= 1;
-      if (remaining <= 0) {
-        next();
-      }
-    }, function () {
-      self._disable('The module [' + id + '] failed for: ' + self.getFullName());
-    });
+  each(hooks, function (cb, name) {
+    self.once(name, cb);
+  }); 
+};
+
+// RegExp to find imports.
+var _findDeps = /\.from\([\'|\"]([\s\S]+?)[\'|\"]\)/g;
+
+// Use RegExp to find any imports this module needs, then add
+// them to the imports stack.
+Module.prototype._investigate = function () {
+  var factory = this._factory.toString();
+  var self = this;
+  factory.replace(_findDeps, function (matches, dep) {
+    // Check if this is using a namespace shortcut
+    if (dep.indexOf('.') === 0)
+      dep = self.options.namespace + dep;
+    self._deps.push(dep);
   });
+  this.emit('investigate');
+};
+
+// Run the registered factory.
+Module.prototype._runFactory = function () {
+  if (!this._factory) return;
+  var self = this;
+  // Bind helpers to the env.
+  this.emit('factory.before');
+  this.env.imports = bind(this.imports, this);
+  // this.env.emit = bind(this.emit, this);
+  // Run the factory.
+  if (this._factory.length <= 1) {
+    this._factory(this.env);
+  } else {
+    this._factory(this.env, function (err) {
+      if (err)
+        self.emit('error', err);
+      else
+        self.emit('done');
+    });
+  }
+  // Cleanup the env.
+  this.once('done', function () {
+    delete self.env.imports;
+    // delete self.env.emit;
+    delete self._factory;
+  });
+  this.emit('factory.after');
 };

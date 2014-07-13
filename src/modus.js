@@ -1,21 +1,17 @@
 
-// --------------------
 // Modus
+// =====
 
-// --------------------
 // Environment helpers
+// -------------------
 
-// 'env' holds modules and namespaces.
+// 'env' holds modules.
 Modus.env = {};
-
-// 'shims' holds references to shimmed modules.
-Modus.shims = {};
 
 // Config options for Modus.
 Modus.options = {
   root: '',
-  map: {},
-  shim: {}
+  map: {}
 };
 
 // Set or get a Modus config option.
@@ -31,8 +27,6 @@ Modus.config = function (key, val) {
   }
   if ( 'map' === key ) {
     return Modus.map(val);
-  } else if ( 'shim' === key ) {
-    return Modus.shim(val);
   }
   Modus.options[key] = val;
   return Modus.options[key];
@@ -92,8 +86,9 @@ Modus.map = function (path, provides) {
       // ** matches any number of segments (will only use the first)
       .replace('**', "([\\s\\S]+?)")
       // * matches a single segment (will only use the first)
-      .replace('*', "([^\\.|^$]+?)") 
+      .replace('*', "([^\\/|^$]+?)") 
       // escapes
+      .replace(/\//g, '\\/')
       .replace(/\./g, "\\.")
       .replace(/\$/g, '\\$')
       + '$'
@@ -101,126 +96,107 @@ Modus.map = function (path, provides) {
   Modus.options.map[path].push(provides);
 };
 
-// Shim a module. This will work with any module that returns
-// something in the global scope.
-Modus.shim = function (name, options) {
-  if ("object" === typeof name){
-    for ( var item in name ) {
-      Modus.shim(item, name[item]);
-    }
-    return;
-  }
-  options = options || {}; 
-  if (options.map) {
-    Modus.map(options.map, name);
-  }
-  Modus.shims[name] = options;
+// Simple error wrapper.
+Modus.err = function (error) {
+  throw new Error(error);
 };
 
 // Get a mapped path
 var getMappedPath = Modus.getMappedPath = function (module, root) {
   root = root || Modus.config('root');
-  var path = {};
-  if (isPath(module)) {
-    path.obj = getObjectByPath(module);
-    path.src = module;
-  } else {
-    path.obj = module;
-    path.src = getPathByObject(module) + '.js';
-  }
+  var src = (isPath(module))? module : module.replace(/\./g, '/');
   each(Modus.config('map'), function (maps, pathPattern) {
     each(maps, function (map) {
-      if (map.test(path.obj)){
-        path.src = pathPattern;
-        var matches = map.exec(path.obj);
-        // NOTE: The following doesn't take ordering into account.
-        // Could pose an issue for paths like: 'foo/*/**.js'
-        // Think more on this. Could be fine as is! Not sure what the use cases are like.
-        if (matches.length > 2) {
-          path.src = path.src
-            .replace('**', matches[1].replace(/\./g, '/'))
-            .replace('*', matches[2]);
-        } else if (matches.length === 2) {
-          path.src = path.src.replace('*', matches[1]);
+      module.replace(map, function (matches, many, single) {
+        src = pathPattern;
+        if (!single) {
+          single = many;
+          many = false;
         }
-      }
+        if (many) src = src.replace('**', many);
+        if (single) src = src.replace('*', single)
+      });
     });
   });
-  if (isServer()) {
-    // strip '.js' from the path.
-    path.src = path.src.replace('.js', '');
+  src = (src.indexOf('.js') < 0 && !isServer())
+    ? root + src + '.js'
+    : root + src;
+  return src;
+};
+
+// Make sure all names are correct.
+var normalizeModuleName = Modus.normalizeModuleName = function (name) {
+  if(isPath(name)) {
+    // Strip extensions
+    if (name.indexOf('.') > 0) {
+      name = name.substring(0, name.indexOf('.'));
+    }
+    name = name.replace(/\/\\/g, '.');
   }
-  // Add root.
-  path.src = root + path.src;
-  return path;
+  return name;
+};
+
+// Try to get a global export from a script.
+var getMappedGlobal = Modus.getMappedGlobal = function (path) {
+  if (Modus.options.map.hasOwnProperty(path)) {
+    return root[Modus.options.map[path]] || false;
+  }
+  return false;
+};
+
+// Check if a module has been loaded.
+var moduleExists = Modus.moduleExists = function (name) {
+  name = normalizeModuleName(name);
+  if (Modus.env.hasOwnProperty(name)) return true;
+  return false;
+};
+
+// Get a module from the env.
+var getModule = Modus.getModule = function (name) {
+  name = normalizeModuleName(name);
+  return Modus.env[name];
 }
 
-// --------------------
 // Primary API
+// -----------
 
-// (This stuff works, but could use some refactoring)
-
-// Helper to ensure that a module exists for every level
-// of a namespace.
-var ensureNamespaces = function (name) {
-  if (!name.indexOf('.')) return;
-  var cur = Modus.env[name];
-  var parts = name.split('.');
-  if(! (cur instanceof Modus.Module)) {
-    cur = new Modus.Module({
-      namespace: parts[0],
-      name: false
-    });
-  }
-  for (var part; part = parts.shift(); ) {
-    if(cur.modules[part] instanceof Modus.Module){
-      cur = cur.modules[part];
-    } else {
-      cur.module(part);
-      cur = cur.modules[part];
-    }
-  }
+// Module factory.
+//
+// example:
+//    Modus.module('foo.bar', function (bar) {
+//      // code
+//    })
+Modus.module = function (name, factory, options) {
+  options = options || {};
+  var module = new Modus.Module(name, factory, options);
+  module.enable();
+  return module;
 };
 
-// Namespace factory.
-Modus.namespace = function (name, factory) {
-  var namespace;
-  var modulePath = getModulePath(name);
-  if (name.indexOf('.')) {
-    var namespace = getObjectByName(modulePath, Modus.env);
-    if (!namespace) {
-      ensureNamespaces(name);
-      var namespace = getObjectByName(modulePath, Modus.env);
+// Syntactic sugar for namespaces.
+//
+// example:
+//    Modus.namespace('Foo', function (Foo) {
+//      Foo.module('Bar', function (Bar) {...}); // Defines 'Foo/Bar'
+//    });
+//    // Or:
+//    Modus.namespace('Foo/Bar').module('Bin', function (Bin) { ... });
+Modus.namespace = function (namespace, factory) {
+  if (factory) return Modus.module(namespace, factory);
+  var options = {namespace: namespace};
+  return {
+    module: function (name, factory) {
+      return Modus.module(name, options, factory);
+    },
+    publish: function (name, value) {
+      return Modus.publish(name, options, value);
     }
-  }
-  if (! (namespace instanceof Modus.Module)) {
-    namespace = new Modus.Module({
-      namespace: name,
-      name: false
-    });
-    createObjectByName(modulePath, namespace, Modus.env);
-  }
-  if (factory) {
-    factory(namespace);
-    namespace.run();
-  }
-  return namespace;
-};
-
-// Module factory. Will create a new module in the 'root' namespace.
-Modus.module = function (name, factory) {
-  var namespace = 'root';
-  var moduleName = name;
-  if (name.indexOf('.') >= 0) {
-    namespace = name.substring(0, name.lastIndexOf('.'));
-    moduleName = name.substring(name.lastIndexOf('.') + 1);
-  }
-  return Modus.namespace(namespace).module(moduleName, factory);
+  };
 };
 
 // Shortcut to export a single value as a module.
-Modus.publish = function (name, value) {
-  return Modus.module(name, function (module) {
-    module.exports(value);
+Modus.publish = function (name, value, options) {
+  return Modus.module(name, options, function (module) {
+    module.default = value;
   });
 };
