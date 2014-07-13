@@ -81,7 +81,7 @@ var eachAsync = function (obj, options) {
     onFinal: function(){},
     onError: function(){}
   }, options);
-  context = options.context || this;
+  var context = options.context || this;
   each(obj, function (item) {
     options.each(item, function () {
       remaining -= 1;

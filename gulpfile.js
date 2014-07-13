@@ -11,7 +11,6 @@ gulp.task('build', function() {
       './src/helpers.js',
       './src/Modus.js',
       './src/EventEmitter.js',
-      // './src/Wait.js', // Trying WITHOUT wait for now.
       './src/Import.js',
       './src/Module.js',
       './src/client/loader.js',
@@ -25,15 +24,14 @@ gulp.task('build', function() {
 });
 
 gulp.task('mochaPhantomJs', function () {
-  var Modus = require('./'); // Is GLOBAL
-  gulp.src('./test/runner.html')
+  gulp.src('test/runner.html')
     .pipe(mochaPhantomJs({reporter: 'spec'}));
 });
 
-gulp.task('mocha', function () {
-  var Modus = require('./'); // Is GLOBAL
-  gulp.src('./test/*_test.js')
-    .pipe(mocha({reporter: 'spec'}));
-});
+// gulp.task('mocha', function () {
+//   var Modus = require('./'); // Is GLOBAL
+//   gulp.src('./test/*_test.js')
+//     .pipe(mocha({reporter: 'spec'}));
+// });
 
-gulp.task('default', ['build', 'mocha', 'mochaPhantomJs']);
+gulp.task('default', ['build', 'mochaPhantomJs']);

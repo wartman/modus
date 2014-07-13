@@ -1,4 +1,4 @@
-Modus.namespace('examples.shims').module('shims', function (shims) {
+Modus.namespace('examples.shims').module('shims', function (shims, done) {
   // This is an example of how we can use the 'wait' option to
   // load scripts that aren't wrapped in a Modus.Module. For this
   // example, we'll load the popular underscore and jquery libraies from
@@ -11,14 +11,10 @@ Modus.namespace('examples.shims').module('shims', function (shims) {
     // However, we can also make them available as exports from this module:
     shims._ = _;
     shims.$ = jQuery;
-    // Now all we need to do is emit 'done' and all dependent modules can continue
-    // enabling.
-    shims.emit('done');
+    // Now the module is finished!
+    done();
   }, function (err) {
-    // Always a good idea to catch an error! If you don't do this,
-    // your script might just hang forever without telling you why.
-    shims.emit('error', err);
+    // If something goes wrong, you can pass an error to the 'done' func.
+    done(err);
   });
-}, {
-  wait: true
 });

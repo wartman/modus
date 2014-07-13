@@ -1,4 +1,4 @@
-if (Modus.isServer()) var expect = require('expect');
+if (Modus.isServer()) var expect = require('chai').expect;
 
 describe('Modus.Module', function () {
 
@@ -28,15 +28,13 @@ describe('Modus.Module', function () {
 
   describe('#enable', function () {
 
-    it('will wait for a "done" event to be emited if options.wait is true', function (done) {
-      Modus.module('tests.wait.target', function (target) {
+    it('will wait for a "done" event to be emited if a second arg is passed', function (done) {
+      Modus.module('tests.wait.target', function (target, moduleDone) {
         target.foo = 'didn\'t wait';
         setTimeout(function () {
           target.foo = 'waited';
-          target.emit('done');
+          moduleDone();
         }, 10);
-      }, {
-        wait: true
       });
       Modus.module('tests.wait.tester', function (tester) {
         tester.imports('foo').from('.target');
@@ -73,7 +71,6 @@ describe('Modus.Module', function () {
     it('imports an external module', function (done) {
       Modus.module('tests.stress', function (stress) {
         stress.imports('foo', 'bar').from('fixtures.stress.one');
-        console.log(stress);
         expect(stress.foo + stress.bar).to.equal('onetwo');
         done();
       });

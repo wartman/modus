@@ -2,10 +2,23 @@
 // Modus.Module
 // ------------
 // The core of Modus.
-
 var Module = Modus.Module = function (name, factory, options) {
-  this.options = defaults(Module.defaults, options);
+  this.options = defaults({
+    namespace: false,
+    moduleName: null,
+    throwErrors: true,
+    // If true, the factory will not be run.
+    compiling: false,
+    // If true, you'll need to manualy emit 'done' before
+    // the module will be marked as 'enabled'
+    wait: false,
+    hooks: {}
+  }, options);
   var self = this;
+  // If the factory has more then one argument, this module
+  // depends on some sort of async operation.
+  if (factory && factory.length >= 2) 
+    this.options.wait = true;
   if (this.options.wait) {
     // We only want to wait until 'done' is emited, then
     // return to the usual behavior.
@@ -26,20 +39,6 @@ var Module = Modus.Module = function (name, factory, options) {
   Modus.env[this.getFullName()] = this;
   this._registerHooks();
 };
-
-// The default options for modules.
-// Any changes made to these defaults will effect all modules.
-Module.defaults = {
-  namespace: false,
-  moduleName: null,
-  throwErrors: true,
-  // If true, the factory will not be run.
-  compiling: false,
-  // If true, you'll need to manualy emit 'done' before
-  // the module will be marked as 'enabled'
-  wait: false,
-  hooks: {}
-}
 
 // Extend the event emitter.
 Module.prototype = new EventEmitter();
@@ -72,6 +71,15 @@ var _onModuleDone = function (dep, next, error) {
   }
 };
 
+// Helper to run after the last dependency is loaded.
+var _onFinal = function () {
+  this._isEnabling = false;
+  this._isEnabled = true;
+  if(!this.options.compiling) this._runFactory();
+  this.emit('enable.after');
+  if(!this.options.wait) this.emit('done');
+};
+
 // Enable this module.
 Module.prototype.enable = function() {
   if (this._isDisabled || this._isEnabling) return;
@@ -83,21 +91,13 @@ Module.prototype.enable = function() {
   this._isEnabling = true;
   this.emit('enable.before');
   this._investigate();
-  var onFinal = bind(function () {
-    this._isEnabling = false;
-    this._isEnabled = true;
-    if(!this.options.compiling) this._runFactory();
-    this.emit('enable.after');
-    if(!this.options.wait) this.emit('done');
-  }, this);
+  var onFinal = bind(_onFinal, this);
   var self = this;
   if (this._deps.length <= 0) return onFinal();
   eachAsync(this._deps, {
     each: function (dep, next, error) {
       if (moduleExists(dep)) {
         _onModuleDone(dep, next, error);
-      } else if (getMappedGlobal(dep)) {
-        next();
       } else {
         // Try to find the module.
         Modus.load(dep, function () {
@@ -148,7 +148,7 @@ Module.prototype._registerHooks = function () {
   var self = this;
   each(hooks, function (cb, name) {
     self.once(name, cb);
-  });
+  }); 
 };
 
 // RegExp to find imports.
@@ -175,13 +175,22 @@ Module.prototype._runFactory = function () {
   // Bind helpers to the env.
   this.emit('factory.before');
   this.env.imports = bind(this.imports, this);
-  this.env.emit = bind(this.emit, this);
+  // this.env.emit = bind(this.emit, this);
   // Run the factory.
-  this._factory(this.env);
+  if (this._factory.length <= 1) {
+    this._factory(this.env);
+  } else {
+    this._factory(this.env, function (err) {
+      if (err)
+        self.emit('error', err);
+      else
+        self.emit('done');
+    });
+  }
   // Cleanup the env.
   this.once('done', function () {
     delete self.env.imports;
-    delete self.env.emit;
+    // delete self.env.emit;
     delete self._factory;
   });
   this.emit('factory.after');

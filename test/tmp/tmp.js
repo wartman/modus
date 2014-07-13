@@ -1,31 +1,4 @@
-//!
-// Modus 0.1.3
-//
-// Copyright 2014
-// Released under the MIT license
-//
-// Date: 2014-07-13T13:55Z
-
-(function (factory) {
-
-  if (typeof module === "object" && typeof module.exports === "object") {
-    // For CommonJS environments.
-    var root = {};
-    factory(root);
-    module.exports = root.Modus;
-  } else if (typeof window !== "undefined") {
-    factory(window);
-  }
-
-}(function (root, undefined) {
-
-"use strict"
-
-// The main modus namespace
-var Modus = root.Modus = {};
-
-// Save the current version.
-Modus.VERSION = '0.1.3';
+(function (root, undefined) {
 
 // Helpers
 // -------
@@ -854,4 +827,15 @@ if (isServer()) {
   };
 
 }
-}));
+Modus.module('fixtures.build.main', function (main) {
+  main.imports('foo', 'bar', 'baz').from('.one');
+});
+Modus.module('fixtures.build.one', function (one) {
+  one.imports('bar', 'baz').from('.two');
+  one.foo = 'foo';
+});
+Modus.module('fixtures.build.two', function (two) {
+  two.bar = 'bar';
+  two.baz = 'baz';
+});
+})(this);

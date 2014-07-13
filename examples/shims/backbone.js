@@ -1,5 +1,10 @@
-Modus.namespace('examples.shims').module('backbone', function (backbone) {
+// We can make a module async by simply passing a second argument to the
+// factory. You can call this whatever you'd like, but typically
+// it's called 'done'.
+Modus.namespace('examples.shims').module('backbone', function (backbone, done) {
   // Load Backbone's depencencies before loading Backbone.
+  // Note that we're passing 'done' as the error callback. This ensures
+  // that Modus won't just hang forever if something goes wrong.
   Modus.load([
     // The following assumes that we don't already have
     // a shims module that loads these scripts. If you do,
@@ -14,15 +19,9 @@ Modus.namespace('examples.shims').module('backbone', function (backbone) {
       // but we want it to be accessable from this module too:
       backbone.default = window.Backbone;
       // Tell the module that it now finished.
-      backbone.emit('done');
-    }, error);
-  }, error);
-}, {
-  // Configure this module to NOT automatically
-  // mark itself as 'enabled' when it runs its factory.
-  // Instead, it will wait until 'done' is emitted inside
-  // the module. This allows for async stuff.
-  wait: true
+      done();
+    }, done);
+  }, done);
 });
 
 // Example of use:
