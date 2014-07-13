@@ -10,7 +10,7 @@ How about some code?
 ```javascript
 Modus.module('app.foo', function (foo) {
    
-    foo.imports('.baritize').from('app.baz');
+    foo.imports('baritize').from('app.baz');
     foo.imports('Bin', {'Baz':'BazAlias'}).from('my.library.ban');
 
     // You can use imports right away inside the module callback.

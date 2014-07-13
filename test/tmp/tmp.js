@@ -1,4 +1,5 @@
 (function (root, undefined) {
+var Modus = root.Modus = {};
 
 // Helpers
 // -------
@@ -124,8 +125,8 @@ var nextTick = ( function () {
         dispatchFns();
       }
     };
-    global.addEventListener('message', onMessage, true);
-    return function (fn, ctx) { enqueueFn(fn, ctx) && global.postMessage(msg, '*'); };
+    root.addEventListener('message', onMessage, true);
+    return function (fn, ctx) { enqueueFn(fn, ctx) && root.postMessage(msg, '*'); };
   }
 })();
 
@@ -146,7 +147,7 @@ var filter = function (obj, predicate, context) {
   // // example:
   // //    foo.bar.baz -> (foo={}), (foo.bar={}), (foo.bar.baz={})
   // var createObjectByName = function (namespace, exports, env) {
-  //   var cur = env || global;
+  //   var cur = env || root;
   //   var parts = namespace.split('.');
   //   for (var part; parts.length && (part = parts.shift()); ) {
   //     if(!parts.length && exports !== undefined){
@@ -163,7 +164,7 @@ var filter = function (obj, predicate, context) {
 
   // // Convert a string into an object
   // var getObjectByName = function (name, env) {
-  //   var cur = env || global;
+  //   var cur = env || root;
   //   var parts = name.split('.');
   //   for (var part; part = parts.shift(); ) {
   //     if(typeof cur[part] !== "undefined"){
@@ -352,7 +353,7 @@ var getModule = Modus.getModule = function (name) {
 Modus.module = function (name, factory, options) {
   options = options || {};
   var module = new Modus.Module(name, factory, options);
-  module.enable();
+  nextTick(bind(module.enable, module)  );
   return module;
 };
 
@@ -578,8 +579,8 @@ Module.prototype.getFullName = function () {
 var _onModuleDone = function (dep, next, error) {
   if (moduleExists(dep)) {
     var mod = getModule(dep);
-    mod.once('done', next);
-    mod.once('error', error);
+    mod.once('done', function () { nextTick(next) });
+    mod.once('error', function () { nextTick(error) });
     mod.enable();
   } else if (getMappedGlobal(dep)) {
     next();
@@ -829,6 +830,7 @@ if (isServer()) {
 }
 Modus.module('fixtures.build.main', function (main) {
   main.imports('foo', 'bar', 'baz').from('.one');
+  console.log(main.foo, main.bar, main.baz);
 });
 Modus.module('fixtures.build.one', function (one) {
   one.imports('bar', 'baz').from('.two');

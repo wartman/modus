@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+
+var program = require('commander');
+require('../dist/Modus');
+require('../lib/build');
+
+program
+  .version('0.0.1')
+  .usage('[options] [commands]');
+
+program
+  .command('build <main> [dest]')
+  .description('build a z app into a single file')
+  .option('-o --optimize', 'uglify the compiled script')
+  .option('-p --project <projectName>', 'set the project name')
+  .option('-m --main <mainModule>', "set the name of your main module (if using an anonymous module)")
+  .action(function(main, dest, options){
+
+    var options = {
+      root: process.cwd() + '/',
+      main: main,
+      dest: dest
+    };
+    
+    var build = new Modus.Build(options);
+
+  }).on('--help', function(){
+    console.log('   Examples:\n');
+    console.log('   $ zjs build -o foo/scripts/main.js foo/scripts/app-min.js\n');
+  });
+
+program.parse(process.argv);
+if (!program.args.length) program.help();

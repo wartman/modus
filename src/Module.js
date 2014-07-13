@@ -61,8 +61,8 @@ Module.prototype.getFullName = function () {
 var _onModuleDone = function (dep, next, error) {
   if (moduleExists(dep)) {
     var mod = getModule(dep);
-    mod.once('done', next);
-    mod.once('error', error);
+    mod.once('done', function () { nextTick(next) });
+    mod.once('error', function () { nextTick(error) });
     mod.enable();
   } else if (getMappedGlobal(dep)) {
     next();

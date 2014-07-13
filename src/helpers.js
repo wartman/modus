@@ -123,8 +123,8 @@ var nextTick = ( function () {
         dispatchFns();
       }
     };
-    global.addEventListener('message', onMessage, true);
-    return function (fn, ctx) { enqueueFn(fn, ctx) && global.postMessage(msg, '*'); };
+    root.addEventListener('message', onMessage, true);
+    return function (fn, ctx) { enqueueFn(fn, ctx) && root.postMessage(msg, '*'); };
   }
 })();
 
@@ -145,7 +145,7 @@ var filter = function (obj, predicate, context) {
   // // example:
   // //    foo.bar.baz -> (foo={}), (foo.bar={}), (foo.bar.baz={})
   // var createObjectByName = function (namespace, exports, env) {
-  //   var cur = env || global;
+  //   var cur = env || root;
   //   var parts = namespace.split('.');
   //   for (var part; parts.length && (part = parts.shift()); ) {
   //     if(!parts.length && exports !== undefined){
@@ -162,7 +162,7 @@ var filter = function (obj, predicate, context) {
 
   // // Convert a string into an object
   // var getObjectByName = function (name, env) {
-  //   var cur = env || global;
+  //   var cur = env || root;
   //   var parts = name.split('.');
   //   for (var part; part = parts.shift(); ) {
   //     if(typeof cur[part] !== "undefined"){

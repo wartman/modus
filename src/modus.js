@@ -169,7 +169,7 @@ var getModule = Modus.getModule = function (name) {
 Modus.module = function (name, factory, options) {
   options = options || {};
   var module = new Modus.Module(name, factory, options);
-  module.enable();
+  nextTick(bind(module.enable, module)  );
   return module;
 };
 
