@@ -32,34 +32,46 @@ Modus.module('app.foo', function (foo) {
 Only Modules
 ------------
 Modus is focused JUST on loading javascript modules. No support is provided
-for, say, loading text files. Instead, AJAX calls should be handled by other
-libraries imported into a Modus.Module. To help with the async nature of this,
-you can tell a module to wait until you manually trigger 'done'. For example:
+for, say, loading text files. However, you can tell a module to wait for
+some async function (like, say, an AJAX call) by simply adding a callback
+to the module factory (typically called 'done'). This should be familiar if
+you've used a testing framework like Mocha.
 
 ```javascript
-Modus.module('app.bar', function (bar) {
+Modus.module('app.bar', function (bar, done) {
     bar.imports('$').from('app.libs');
 
-    $.json('some/json/file.json', function (data) {
+    // Let's grab some JSON data with jquery.
+    $.getJSON('some/json/file.json', function (data) {
         bar.data = data;
-        // Mark this module as ready:
-        bar.emit('done')
+        // All done with async stuff!
+        done();
     });
-}, {
-    // Tell this module to wait until 'done' is emitted:
-    wait: true
+});
+```
+
+If you need to catch an error, simply pass an error or a message to the `done` callback.
+
+```javascript
+Modus.module('app.bar', function (bar, done) {
+    bar imports('thing').from('app.things');
+    try {
+        thing();
+        done();
+    } catch (e) {
+        done('Something went wrong!');
+    } 
 });
 ```
 
 Shims
 -----
 In the above example, we imported '$' from a module called 'app.libs', which
-provides shims for non-modus scripts. Here's how such a module could be implemented,
-using the same 'wait/emit-done' pattern:
+provides shims for non-modus scripts. Here's how you might write a simple shim:
 
 ```javascript
-Modus.module('app.libs', function (libs) {
-    // Modus.load can be used to load any script
+Modus.module('app.libs', function (libs, done) {
+    // Modus.load can be used to load any scripts
     Modus.load([
         'bower_components/jquery/dist/jquery.min.js',
         'bower_components/underscore/underscore.js'
@@ -68,20 +80,9 @@ Modus.module('app.libs', function (libs) {
         // However, we can also make them available as exports from this module:
         libs._ = _;
         libs.$ = jQuery;
-        // Now all we need to do is emit 'done' and all dependent modules can continue
-        // enabling.
-        libs.emit('done');
-    }, function (err) {
-        // Always a good idea to catch an error! If you don't do this,
-        // your script might just hang forever without telling you why.
-        libs.emit('error', err);
-    });
-}, {
-    wait: true
+        done();
+    }, done); // Note how 'done' is used to catch errors.
 });
 ```
 
-v0.1.3
-------
-Client-side module loading works and has some tests. Server-side
-module loading and compiling is being planned.
+(Coming soon: compiling)
