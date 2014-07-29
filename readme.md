@@ -1,14 +1,14 @@
 Modus
 =====
 
-*Modus* is under heavy development. Feel free to download it and screw around, but be aware that
+*modus* is under heavy development. Feel free to download it and screw around, but be aware that
 unstable is an understatement at the moment.
 
 How about some code?
 --------------------
 
 ```javascript
-Modus.module('app.foo', function (foo) {
+modus.module('app.foo', function (foo) {
    
     foo.imports('baritize').from('app.baz');
     foo.imports('Bin', {'Baz':'BazAlias'}).from('my.library.ban');
@@ -38,7 +38,7 @@ to the module factory (typically called 'done'). This should be familiar if
 you've used a testing framework like Mocha.
 
 ```javascript
-Modus.module('app.bar', function (bar, done) {
+modus.module('app.bar', function (bar, done) {
     bar.imports('$').from('app.libs');
 
     // Let's grab some JSON data with jquery.
@@ -53,7 +53,7 @@ Modus.module('app.bar', function (bar, done) {
 If you need to catch an error, simply pass an error or a message to the `done` callback.
 
 ```javascript
-Modus.module('app.bar', function (bar, done) {
+modus.module('app.bar', function (bar, done) {
     bar imports('thing').from('app.things');
     try {
         thing();
@@ -70,9 +70,10 @@ In the above example, we imported '$' from a module called 'app.libs', which
 provides shims for non-modus scripts. Here's how you might write a simple shim:
 
 ```javascript
-Modus.module('app.libs', function (libs, done) {
-    // Modus.load can be used to load any scripts
-    Modus.load([
+modus.module('app.libs', function (libs, done) {
+    // modus.Loader can be used to load any scripts
+    var loader = modus.Loader.getInstance();
+    loader.load([
         'bower_components/jquery/dist/jquery.min.js',
         'bower_components/underscore/underscore.js'
     ], function () {

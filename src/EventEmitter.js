@@ -1,9 +1,8 @@
-
-// Modus.EventEmitter
+// modus.EventEmitter
 // ------------------
 // A simple event emitter, used internally for hooks.
 
-var EventEmitter = Modus.EventEmitter = function () {
+var EventEmitter = modus.EventEmitter = function () {
   this._listeners = {};
 };
 
@@ -54,4 +53,4 @@ EventEmitter.prototype.removeEventListener = function (name) {
 };
 
 // Set up global event handler
-Modus.events = new EventEmitter();
+modus.events = new EventEmitter();

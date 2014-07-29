@@ -1,4 +1,3 @@
-
 // Helpers
 // -------
 
@@ -128,6 +127,7 @@ var nextTick = ( function () {
   }
 })();
 
+// Filter shim.
 var nativeFilter = Array.prototype.filter;
 var filter = function (obj, predicate, context) {
   var results = [];
@@ -137,44 +137,7 @@ var filter = function (obj, predicate, context) {
     if (predicate.call(context, value, index, list)) results.push(value);
   });
   return results;
-}
-
-// UNNEEDED? /////
-
-  // // Create an object, ensuring that every level is defined
-  // // example:
-  // //    foo.bar.baz -> (foo={}), (foo.bar={}), (foo.bar.baz={})
-  // var createObjectByName = function (namespace, exports, env) {
-  //   var cur = env || root;
-  //   var parts = namespace.split('.');
-  //   for (var part; parts.length && (part = parts.shift()); ) {
-  //     if(!parts.length && exports !== undefined){
-  //       // Last part, so export to this.
-  //       cur[part] = exports;
-  //     } else if (cur[part]) {
-  //       cur = cur[part];
-  //     } else {
-  //       cur = cur[part] = {};
-  //     }
-  //   }
-  //   return cur;
-  // }
-
-  // // Convert a string into an object
-  // var getObjectByName = function (name, env) {
-  //   var cur = env || root;
-  //   var parts = name.split('.');
-  //   for (var part; part = parts.shift(); ) {
-  //     if(typeof cur[part] !== "undefined"){
-  //       cur = cur[part];
-  //     } else {
-  //       return null;
-  //     }
-  //   }
-  //   return cur;  
-  // };
-
-///////
+};
 
 // Check if this is a path or an object name
 var isPath = function (obj) {

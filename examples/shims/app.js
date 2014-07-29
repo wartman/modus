@@ -1,4 +1,4 @@
-Modus.module('examples.shims.app', function (app) {
+modus.module('examples.shims.app', function (app) {
   // Simply import the 'shims' module.
   app.imports('shims').from('.shims');
   // You could also import specific components from the shim,

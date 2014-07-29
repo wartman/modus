@@ -1,8 +1,8 @@
-
-// Modus.Module
+// modus.Module
 // ------------
-// The core of Modus.
-var Module = Modus.Module = function (name, factory, options) {
+// The core of modus, Modules allow you to spread code across
+// several files.
+var Module = modus.Module = function (name, factory, options) {
   this.options = defaults({
     namespace: false,
     moduleName: null,
@@ -35,8 +35,8 @@ var Module = Modus.Module = function (name, factory, options) {
   this._factory = factory;
   // Parse the name.
   this._parseName(name);
-  // Register self with Modus
-  Modus.env[this.getFullName()] = this;
+  // Register self with modus
+  modus.env[this.getFullName()] = this;
   this._registerHooks();
 };
 
@@ -56,7 +56,7 @@ Module.prototype.getFullName = function () {
   return this.options.namespace + '.' + this.options.moduleName;
 };
 
-// Helper that waits for a modules to emit a 'done' or 'error'
+// Callback that waits for a modules to emit a 'done' or 'error'
 // event.
 var _onModuleDone = function (dep, next, error) {
   if (moduleExists(dep)) {
@@ -71,7 +71,7 @@ var _onModuleDone = function (dep, next, error) {
   }
 };
 
-// Helper to run after the last dependency is loaded.
+// Callback to run after the last dependency is loaded.
 var _onFinal = function () {
   this._isEnabling = false;
   this._isEnabled = true;
@@ -93,6 +93,7 @@ Module.prototype.enable = function() {
   this._investigate();
   var onFinal = bind(_onFinal, this);
   var self = this;
+  var loader = modus.Loader.getInstance();
   if (this._deps.length <= 0) return onFinal();
   eachAsync(this._deps, {
     each: function (dep, next, error) {
@@ -100,7 +101,7 @@ Module.prototype.enable = function() {
         _onModuleDone(dep, next, error);
       } else {
         // Try to find the module.
-        Modus.load(dep, function () {
+        loader.load(dep, function () {
           _onModuleDone(dep, next, error);
         }, error);
       }
@@ -112,6 +113,8 @@ Module.prototype.enable = function() {
   });
 };
 
+// Disable this module and run any error hooks. Once a 
+// module is disabled it cannot transition to an 'enabled' state.
 Module.prototype.disable = function (reason) {
   this._isDisabled = true;
   this.emit('error');
@@ -122,14 +125,18 @@ Module.prototype.disable = function (reason) {
   }
 };
 
-// Import dependencies.
+// Create an instance of `modus.Import`. Arguments passed here
+// will be passed to `modus.Import#imports`.
+//
+//    foo.imports('Bar', 'Bin').from('app.bar');
+//
 Module.prototype.imports = function (/*...*/) {
-  var imp = new Modus.Import(this);
+  var imp = new modus.Import(this);
   imp.imports.apply(imp, arguments);
   return imp;
 };
 
-// Get the namespace from the passed name.
+// Parse a string into a module name and namespace.
 Module.prototype._parseName = function (name) {
   var namespace = this.options.namespace || '';
   name = normalizeModuleName(name);
@@ -142,7 +149,14 @@ Module.prototype._parseName = function (name) {
   this.options.namespace = namespace;
 };
 
-// Not used yet.
+// You can add hooks by passing them to the 'options'
+// arg in the `modus.Module` constructor. Currently available
+// hooks are:
+//
+//    build: function (raw) <- Used by the builder to allow custom
+//                             compiling. Should return a string that will
+//                             be used in the final, compiled script.
+//
 Module.prototype._registerHooks = function () {
   var hooks = this.options.hooks;
   var self = this;
@@ -166,6 +180,7 @@ Module.prototype._investigate = function () {
     self._deps.push(dep);
   });
   this.emit('investigate');
+  modus.events.emit('module.investigate', this);
 };
 
 // Run the registered factory.
@@ -175,7 +190,6 @@ Module.prototype._runFactory = function () {
   // Bind helpers to the env.
   this.emit('factory.before');
   this.env.imports = bind(this.imports, this);
-  // this.env.emit = bind(this.emit, this);
   // Run the factory.
   if (this._factory.length <= 1) {
     this._factory(this.env);

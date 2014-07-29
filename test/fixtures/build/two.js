@@ -1,4 +1,4 @@
-Modus.module('fixtures.build.two', function (two) {
+modus.module('fixtures.build.two', function (two) {
   two.bar = 'bar';
   two.baz = 'baz';
 });

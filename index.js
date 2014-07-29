@@ -1,1 +1,1 @@
-module.exports = require('./dist/Modus');
+module.exports = require('./dist/modus');

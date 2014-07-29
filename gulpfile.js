@@ -11,13 +11,12 @@ gulp.task('build', function() {
       './src/helpers.js',
       './src/Modus.js',
       './src/EventEmitter.js',
+      './src/Loader.js',
       './src/Import.js',
       './src/Module.js',
-      './src/client/loader.js',
-      './src/server/loader.js',
       './src/outro.js',
     ])
-    .pipe(concat('Modus.js'))
+    .pipe(concat('modus.js'))
     .pipe(replace(/@VERSION/g, meta.version))
     .pipe(replace(/@DATE/g, ( new Date() ).toISOString().replace( /:\d+\.\d+Z$/, "Z" )) )
     .pipe(gulp.dest('./dist/'));

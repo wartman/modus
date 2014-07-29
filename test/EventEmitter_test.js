@@ -1,11 +1,11 @@
-if (Modus.isServer()) var expect = require('chai').expect;
+if (modus.isServer()) var expect = require('chai').expect;
 
-describe('Modus.EventEmitter', function () {
+describe('modus.EventEmitter', function () {
   
   var emitter;
 
   beforeEach(function () {
-    emitter = new Modus.EventEmitter();
+    emitter = new modus.EventEmitter();
   });
 
   describe('#on', function () {

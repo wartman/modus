@@ -1,11 +1,12 @@
 // We can make a module async by simply passing a second argument to the
 // factory. You can call this whatever you'd like, but typically
 // it's called 'done'.
-Modus.namespace('examples.shims').module('backbone', function (backbone, done) {
+modus.namespace('examples.shims').module('backbone', function (backbone, done) {
+  var loader = modus.Loader.getInstance();
   // Load Backbone's depencencies before loading Backbone.
   // Note that we're passing 'done' as the error callback. This ensures
-  // that Modus won't just hang forever if something goes wrong.
-  Modus.load([
+  // that modus won't just hang forever if something goes wrong.
+  loader.load([
     // The following assumes that we don't already have
     // a shims module that loads these scripts. If you do,
     // you can just do:
@@ -14,7 +15,7 @@ Modus.namespace('examples.shims').module('backbone', function (backbone, done) {
     'bower_components/jquery/dist/jquery.min.js',
     'bower_components/underscore/underscore.js'
   ], function () {
-    Modus.load('bower_components/backbone/Backbone.js', function () {
+    loader.load('bower_components/backbone/Backbone.js', function () {
       // Backbone is now available in the global scope,
       // but we want it to be accessable from this module too:
       backbone.default = window.Backbone;
@@ -22,10 +23,24 @@ Modus.namespace('examples.shims').module('backbone', function (backbone, done) {
       done();
     }, done);
   }, done);
+}, {
+  hooks: {
+    build: function (raw) {
+      // When compiling, we need to get the actual content of our requested files.
+      var build = modus.Build.getInstance();
+      var jquery = build.fs.readFileSync('bower_components/jquery/dist/jquery.min.js', 'utf-8');
+      var underscore = build.fs.readFileSync('bower_components/underscore/underscore.js', 'utf-8');
+      var backbone = build.fs.readFileSync('bower_components/backbone/Backbone.js', 'utf-8');
+      var compiled = "modus.module('examples.shims', function(shims) {\n"
+        + jquery + '\n' + underscore + '\n' + backbone
+        + "\nbackbone.default = Backbone;\n});"
+      return compiled;
+    }
+  }
 });
 
 // Example of use:
-Modus.namespace('examples.shims').module('view', function (view) {
+modus.namespace('examples.shims').module('view', function (view) {
 
   view.imports('backbone').from('.backbone');
 

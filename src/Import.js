@@ -1,9 +1,8 @@
-
-// Modus.Import
+// modus.Import
 // ------------
 // Import does what you expect: it handles all imports for 
-// Modus namespaces and Modus modules.
-var Import = Modus.Import = function (parent) {
+// modus namespaces and modus modules.
+var Import = modus.Import = function (parent) {
   this._listeners = {};
   this._parent = parent;
   this._components = [];
@@ -26,8 +25,8 @@ Import.prototype.imports = function() {
 };
 
 // Specify the module to import from. Note that this method
-// doesn't actually load a module: see 'Modus.Module#investigate'
-// to figure out what Modus is doing.
+// doesn't actually load a module: see 'modus.Module#investigate'
+// to figure out what modus is doing.
 //
 // When defining imports, note that 'from' MUST be the last
 // part of your chain. 
@@ -53,7 +52,7 @@ Import.prototype._applyToEnv = function () {
   var depEnv = (moduleExists(module))
     ? getModule(module).env 
     : false;
-  if (!depEnv) Modus.err('Dependency not avalilable [' + module + '] for: ' + this._parent.getFullName());
+  if (!depEnv) modus.err('Dependency not avalilable [' + module + '] for: ' + this._parent.getFullName());
   if (this._components.length <= 0) return;
   if (this._components.length === 1) {
     // Handle something like "module.imports('foo').from('app.foo')"
@@ -72,4 +71,4 @@ Import.prototype._applyToEnv = function () {
     if(depEnv.hasOwnProperty(component))
       parentEnv[component] = depEnv[component];
   });
-}
+};

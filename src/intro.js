@@ -1,18 +1,26 @@
-//!
-// Modus @VERSION
-//
-// Copyright 2014
-// Released under the MIT license
-//
-// Date: @DATE
+/*!
+   ___      ___
+  |   \    /   |
+  |    \  /    |
+  |     \/     |
+  |  |\    /|  |  __
+  |__| \__/ |__| |__|
+
+  Modus @VERSION
+  
+  Copyright 2014
+  Released under the MIT license
+  
+  Date: @DATE
+*/
 
 (function (factory) {
 
   if (typeof module === "object" && typeof module.exports === "object") {
     // For CommonJS environments.
-    var root = {};
+    var root = global || {}; // If this is nodejs, we want modus to be global.
     factory(root);
-    module.exports = root.Modus;
+    module.exports = root.modus;
   } else if (typeof window !== "undefined") {
     factory(window);
   }
@@ -22,7 +30,7 @@
 "use strict"
 
 // The main modus namespace
-var Modus = root.Modus = {};
+var modus = root.modus = {};
 
 // Save the current version.
-Modus.VERSION = '@VERSION';
+modus.VERSION = '@VERSION';
