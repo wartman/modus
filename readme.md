@@ -86,4 +86,76 @@ modus.module('app.libs', function (libs, done) {
 });
 ```
 
-(Coming soon: compiling)
+Building
+--------
+Modus comes with a compiler called `modus.Build` to crunch a project into
+a single file. You can use it from the command line:
+
+```cli
+$ modus build path\to\main\module path\to\destination
+```
+
+You can add functionality to the builder by using modus' event system, either
+globally or per-module.
+
+The following will be called for every module:
+
+```javascript
+modus.events.on('build', function (raw) {
+    // If we need to use modus.Build, we can call the `getInstance` function.
+    var build = modus.Build.getInstance();
+    // Let's say we, for whatever reason, want to add some text from a file.
+    // `modus.Build` has a handy alias for node's filesystem built-in:
+    var txt = build.fs.readFileSync('my/filename.txt', 'utf-8');
+    // 'raw' is the current module being built, loaded as a string.
+    raw += txt;
+    // Any returned value will be used when `modus.Build` compiles
+    // this module.
+    return raw; 
+});
+```
+
+We can also register a hook in a module to run it for *only* that module:
+
+```javascript
+modus.module('app.foo', function (foo) {
+    foo.bar = 'bar';
+}, {
+    hooks: {
+        build: function (raw) {
+            return raw += '/* this is added! */'
+        }
+    }
+});
+```
+
+A real world example of the above might be to compile shimmed files. Let's
+extend the `app.libs` module to do this:
+
+```javascript
+modus.module('app.libs', function (libs, done) {
+    var loader = modus.Loader.getInstance();
+    loader.load([
+        'bower_components/jquery/dist/jquery.min.js',
+        'bower_components/underscore/underscore.js'
+    ], function () {
+        libs._ = _;
+        libs.$ = jQuery;
+        done();
+    }, done); // Note how 'done' is used to catch errors.
+}, {
+    hooks: {
+        build: function (raw) {
+            var build = modus.Build.getInstance();
+            var jquery = build.fs.readFileSync('bower_components/jquery/dist/jquery.min.js', 'utf-8');
+            var underscore = build.fs.readFileSync('bower_components/underscore/underscore.js', 'utf-8');
+            var compiled = "modus.module('app.libs', function(libs) {\n"
+                + jquery + '\n' + underscore + '\n'
+                + 'libs.$ = $;\nlibs._=_;\n});';
+            return compiled;
+        }
+    }
+});
+```
+
+Check out `examples\building` for some more advanced uses of the build event.

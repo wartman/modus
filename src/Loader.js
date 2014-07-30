@@ -90,6 +90,7 @@ Loader.prototype.loadClient = function (moduleName, next, error) {
 
   script = this.newScript(moduleName, src);
   visit = this.addVisit(src);
+  
   visit.once('done', next);
   visit.once('error', error);
 
@@ -100,6 +101,7 @@ Loader.prototype.loadClient = function (moduleName, next, error) {
 
 // Load a module when in a Nodejs context.
 Loader.prototype.loadServer = function (moduleName, next, error) {
+  var src = getMappedPath(moduleName, modus.config('root'));
   try {
     require(src);
     nextTick(function () {

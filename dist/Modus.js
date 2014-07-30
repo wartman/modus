@@ -1,14 +1,12 @@
 /*!
-
   
-  ....         ....     ......     ........     ....  ....    .........
-  .    .     .    .   .  ....  .   .  ...  .    .  .  .  .   .        .
-  .  .  .   .  .  .   .  .  .  .   .  .  .  .   .  .  .  .   .   ......
-  .  . .  .  . .  .   .  .  .  .   .  .  .  .   .  .  .  .    .....  .
-  .  .  .   .  .  .   .  .  .  .   .  .  .  .   .  .  .  .   .......  .
-  .  .   . .   .  .   .  ....  .   .  ...  .    .  ....  .   .        .
-  ....    .    ....     ......     ........      ........    .........
-
+  
+  \\\\         \\\\     \\\\\\     \\\\\\\\     \\\\  \\\\    \\\\\\\\\
+  \\\\\\     \\\\\\   \\\\\\\\\\   \\\\\\\\\    \\\\  \\\\   \\\\\\\\\\
+  \\\\\\\   \\\\\\\   \\\\  \\\\   \\\\  \\\\   \\\\  \\\\    \\\\\
+  \\\\ \\\\\\\ \\\\   \\\\  \\\\   \\\\  \\\\   \\\\  \\\\       \\\\\
+  \\\\  \\\\\  \\\\   \\\\\\\\\\   \\\\\\\\\    \\\\\\\\\\   \\\\\\\\\\
+  \\\\   \\\   \\\\     \\\\\\     \\\\\\\\      \\\\\\\\    \\\\\\\\\
 
 
   Modus 0.1.3
@@ -16,7 +14,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-07-29T19:04Z
+  Date: 2014-07-30T16:43Z
 */
 
 (function (factory) {
@@ -539,6 +537,7 @@ Loader.prototype.loadClient = function (moduleName, next, error) {
 
   script = this.newScript(moduleName, src);
   visit = this.addVisit(src);
+  
   visit.once('done', next);
   visit.once('error', error);
 
@@ -549,6 +548,7 @@ Loader.prototype.loadClient = function (moduleName, next, error) {
 
 // Load a module when in a Nodejs context.
 Loader.prototype.loadServer = function (moduleName, next, error) {
+  var src = getMappedPath(moduleName, modus.config('root'));
   try {
     require(src);
     nextTick(function () {
@@ -599,21 +599,21 @@ Import.prototype.from = function (module) {
 };
 
 // Get the parent module.
-Import.prototype.getModule = function () {
+Import.prototype.getParent = function () {
   return this._parent;
 };
 
 // Apply imported components to the parent module.
 Import.prototype._applyToEnv = function () {
   if (!this._module) throw new Error('No module specified for import');
-  var parentEnv = this._parent.env;
+  var parentEnv = this._parent.getEnv();
   var module = normalizeModuleName(this._module);
   // Check if this is using a namespace shortcut
   if (module.indexOf('.') === 0)
-    module = this._parent.options.namespace + module;
+    module = this._parent.getNamespace() + module;
   var self = this;
   var depEnv = (moduleExists(module))
-    ? getModule(module).env 
+    ? getModule(module).getEnv() 
     : false;
   if (!depEnv) modus.err('Dependency not avalilable [' + module + '] for: ' + this._parent.getFullName());
   if (this._components.length <= 0) return;
@@ -645,14 +645,13 @@ var Module = modus.Module = function (name, factory, options) {
     namespace: false,
     moduleName: null,
     throwErrors: true,
-    // If true, the factory will not be run.
-    compiling: false,
     // If true, you'll need to manualy emit 'done' before
     // the module will be marked as 'enabled'
     wait: false,
     hooks: {}
   }, options);
   var self = this;
+
   // If the factory has more then one argument, this module
   // depends on some sort of async operation.
   if (factory && factory.length >= 2) 
@@ -664,27 +663,37 @@ var Module = modus.Module = function (name, factory, options) {
       self.options.wait = false;
     });
   }
-  this.env = {};
+
+  this._env = {};
   this._isDisabled = false;
   this._isEnabled = false;
   this._isEnabling = false;
   this._deps = [];
   this._listeners = {};
-  this._factory = factory;
-  // Parse the name.
-  this._parseName(name);
-  // Register self with modus
+  
+  this.setFactory(factory);
+  this.setName(name);
+
+  // Register with modus
   modus.env[this.getFullName()] = this;
-  this._registerHooks();
 };
 
 // Extend the event emitter.
 Module.prototype = new EventEmitter();
 Module.prototype.constructor = Module;
 
+Module.prototype.setName = function (name) {
+  this._parseName(name);
+};
+
 // Get the name of the module, excluding the namespace.
 Module.prototype.getName = function () {
   return this.options.moduleName;
+};
+
+// Get the module's namespace
+Module.prototype.getNamespace = function () {
+  return this.options.namespace;
 };
 
 // Get the full name of the module, including the namespace.
@@ -694,28 +703,53 @@ Module.prototype.getFullName = function () {
   return this.options.namespace + '.' + this.options.moduleName;
 };
 
-// Callback that waits for a modules to emit a 'done' or 'error'
-// event.
-var _onModuleDone = function (dep, next, error) {
+// API method to add a dependency.
+Module.prototype.addDependency = function (dep) {
+  this._deps.push(dep);
+};
+
+// API method to get all dependencies.
+Module.prototype.getDependencies = function () {
+  return this._deps || [];
+};
+
+// API method to set the factory function.
+Module.prototype.setFactory = function (factory) {
+  this._factory = factory;
+};
+
+// API method to get the factory function, if it exists.
+Module.prototype.getFactory = function () {
+  return this._factory || false;
+};
+
+// API method to get the module's environment.
+Module.prototype.getEnv = function () {
+  return this._env || {};
+};
+
+// Add a hook or hooks, registering them as events.
+Module.prototype.addHook = function (hook, cb) {
+  var self = this;
+  if (typeof hook === 'object') {
+    each(hook, function (val, key) {
+      self.addHook(key, val);
+    });
+    return;
+  }
+  this.on(hook, cb);
+};
+
+// Make sure a module is enabled and add event listeners.
+var _ensureModuleIsEnabled = function (dep, next, error) {
   if (moduleExists(dep)) {
     var mod = getModule(dep);
     mod.once('done', function () { nextTick(next) });
     mod.once('error', function () { nextTick(error) });
     mod.enable();
-  } else if (getMappedGlobal(dep)) {
-    next();
   } else {
     error('Could not load dependency: ' + dep);
   }
-};
-
-// Callback to run after the last dependency is loaded.
-var _onFinal = function () {
-  this._isEnabling = false;
-  this._isEnabled = true;
-  if(!this.options.compiling) this._runFactory();
-  this.emit('enable.after');
-  if(!this.options.wait) this.emit('done');
 };
 
 // Enable this module.
@@ -725,22 +759,33 @@ Module.prototype.enable = function() {
     if (!this.options.wait) this.emit('done');
     return;
   }
+  var self = this;
+  var loader = modus.Loader.getInstance();
+  var onFinal = function () {
+    self._isEnabling = false;
+    self._isEnabled = true;
+    if(!modus.isBuilding) self._runFactory();
+    if(!self.options.wait) self.emit('done');
+  });
+
   // Ensure we don't try to enable this module twice.
   this._isEnabling = true;
   this.emit('enable.before');
   this._investigate();
-  var onFinal = bind(_onFinal, this);
-  var self = this;
-  var loader = modus.Loader.getInstance();
-  if (this._deps.length <= 0) return onFinal();
+
+  if (this._deps.length <= 0) {
+    onFinal();
+    return;
+  }
+
   eachAsync(this._deps, {
     each: function (dep, next, error) {
       if (moduleExists(dep)) {
-        _onModuleDone(dep, next, error);
+        _ensureModuleIsEnabled(dep, next, error);
       } else {
         // Try to find the module.
         loader.load(dep, function () {
-          _onModuleDone(dep, next, error);
+          _ensureModuleIsEnabled(dep, next, error);
         }, error);
       }
     },
@@ -815,9 +860,9 @@ Module.prototype._investigate = function () {
     // Check if this is using a namespace shortcut
     if (dep.indexOf('.') === 0)
       dep = self.options.namespace + dep;
-    self._deps.push(dep);
+    self.addDependency(dep);
   });
-  this.emit('investigate');
+  this.emit('investigate', this);
   modus.events.emit('module.investigate', this);
 };
 
@@ -826,13 +871,13 @@ Module.prototype._runFactory = function () {
   if (!this._factory) return;
   var self = this;
   // Bind helpers to the env.
-  this.emit('factory.before');
-  this.env.imports = bind(this.imports, this);
+  this.emit('factory.before', this);
+  this._env.imports = bind(this.imports, this);
   // Run the factory.
   if (this._factory.length <= 1) {
-    this._factory(this.env);
+    this._factory(this._env);
   } else {
-    this._factory(this.env, function (err) {
+    this._factory(this._env, function (err) {
       if (err)
         self.emit('error', err);
       else
@@ -841,11 +886,10 @@ Module.prototype._runFactory = function () {
   }
   // Cleanup the env.
   this.once('done', function () {
-    delete self.env.imports;
-    // delete self.env.emit;
+    delete self._env.imports;
     delete self._factory;
   });
-  this.emit('factory.after');
+  this.emit('factory.after', this);
 };
 
 }));

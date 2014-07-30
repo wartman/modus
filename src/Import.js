@@ -36,21 +36,21 @@ Import.prototype.from = function (module) {
 };
 
 // Get the parent module.
-Import.prototype.getModule = function () {
+Import.prototype.getParent = function () {
   return this._parent;
 };
 
 // Apply imported components to the parent module.
 Import.prototype._applyToEnv = function () {
   if (!this._module) throw new Error('No module specified for import');
-  var parentEnv = this._parent.env;
+  var parentEnv = this._parent.getEnv();
   var module = normalizeModuleName(this._module);
   // Check if this is using a namespace shortcut
   if (module.indexOf('.') === 0)
-    module = this._parent.options.namespace + module;
+    module = this._parent.getNamespace() + module;
   var self = this;
   var depEnv = (moduleExists(module))
-    ? getModule(module).env 
+    ? getModule(module).getEnv() 
     : false;
   if (!depEnv) modus.err('Dependency not avalilable [' + module + '] for: ' + this._parent.getFullName());
   if (this._components.length <= 0) return;
