@@ -111,7 +111,6 @@ modus.events.on('build', function (moduleName, raw) {
     // the end of it:
     raw += txt;
     // Finally, we need to call `build.output` to use our modified module.
-    // This will overwrite any data associated with `moduleName`.
     build.output(moduleName, raw);
 });
 ```
@@ -145,13 +144,12 @@ modus.module('app.libs', function (libs, done) {
     var build = modus.Build.getInstance();
     var jquery = build.fs.readFileSync('bower_components/jquery/dist/jquery.min.js', 'utf-8');
     var underscore = build.fs.readFileSync('bower_components/underscore/underscore.js', 'utf-8');
-    var compiled = "modus.module('app.libs', function(libs) {\n"
-        + jquery + '\n' + underscore + '\n'
-        + 'libs.$ = $;\nlibs._=_;\n});';
-    // Make sure nothing is in the output for this module
-    build.removeOutput(moduleName)
-    // Then output our compiled module
-    build.output(moduleName, compiled);
+    // Add our shimmed files to the output
+    build.output('jquery', jquery);
+    build.output('undersocre', underscore);
+    // Rewrite the 'app.libs' module:
+    var mod = "modus.module('app.libs', function (libs) { libs._ = _; libs.$ = $; });";
+    build.output('app.libs', mod);
 });
 ```
 

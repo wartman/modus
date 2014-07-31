@@ -14,7 +14,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-07-31T16:23Z
+  Date: 2014-07-31T22:42Z
 */
 
 (function (factory) {
