@@ -22,7 +22,10 @@ program
       dest: dest
     };
     
-    var build = new Modus.Build(options);
+    var build = modus.Build.getInstance();
+    build.start(options).once('done', function (compiled) {
+      if (dest) build.writeOutput(dest);
+    });
 
   }).on('--help', function(){
     console.log('   Examples:\n');

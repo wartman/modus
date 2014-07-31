@@ -29,7 +29,7 @@ modus.module('examples.building.fs', function (fs) {
 
 // By binding a function to the 'build' event, we can
 // bundle imported files into our compiled project.
-modus.events.on('build', function (raw) {
+modus.events.on('build', function (moduleName, raw) {
   var build = modus.Build.getInstance();
   var fsFinder = /fs\.readFile\(([\s\S]+?)\)/g;
   var files = []
@@ -42,7 +42,7 @@ modus.events.on('build', function (raw) {
       // `build.fs` is just an alias for Node's `fs` library.
       var contents = build.fs.readFileSync(files[i], 'utf-8');
       var factory = "modus.module('" + files[i] + "', function (f) { f.default = '" + contents.replace(/'/g, "\'") + "' });";
-      build.add(files[i], factory);
+      build.output(files[i], factory);
     }
   }
 });

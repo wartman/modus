@@ -101,31 +101,29 @@ globally or per-module.
 The following will be called for every module:
 
 ```javascript
-modus.events.on('build', function (raw) {
+modus.events.on('build', function (moduleName, raw) {
     // If we need to use modus.Build, we can call the `getInstance` function.
     var build = modus.Build.getInstance();
     // Let's say we, for whatever reason, want to add some text from a file.
     // `modus.Build` has a handy alias for node's filesystem built-in:
     var txt = build.fs.readFileSync('my/filename.txt', 'utf-8');
-    // 'raw' is the current module being built, loaded as a string.
+    // 'raw' is the contents of the current module. We can append our text to
+    // the end of it:
     raw += txt;
-    // Any returned value will be used when `modus.Build` compiles
-    // this module.
-    return raw; 
+    // Finally, we need to call `build.output` to use our modified module.
+    // This will overwrite any data associated with `moduleName`.
+    build.output(moduleName, raw);
 });
 ```
 
-We can also register a hook in a module to run it for *only* that module:
+We can also register an event in a module to run it for *only* that module:
 
 ```javascript
 modus.module('app.foo', function (foo) {
     foo.bar = 'bar';
-}, {
-    hooks: {
-        build: function (raw) {
-            return raw += '/* this is added! */'
-        }
-    }
+}).on('build', function (moduleName, raw) {
+    var build = modus.Build.getInstance();
+    build.output(moduleName, raw + '/* this is added! */');
 });
 ```
 
@@ -143,18 +141,17 @@ modus.module('app.libs', function (libs, done) {
         libs.$ = jQuery;
         done();
     }, done); // Note how 'done' is used to catch errors.
-}, {
-    hooks: {
-        build: function (raw) {
-            var build = modus.Build.getInstance();
-            var jquery = build.fs.readFileSync('bower_components/jquery/dist/jquery.min.js', 'utf-8');
-            var underscore = build.fs.readFileSync('bower_components/underscore/underscore.js', 'utf-8');
-            var compiled = "modus.module('app.libs', function(libs) {\n"
-                + jquery + '\n' + underscore + '\n'
-                + 'libs.$ = $;\nlibs._=_;\n});';
-            return compiled;
-        }
-    }
+}).on('build', function (moduleName, raw) {
+    var build = modus.Build.getInstance();
+    var jquery = build.fs.readFileSync('bower_components/jquery/dist/jquery.min.js', 'utf-8');
+    var underscore = build.fs.readFileSync('bower_components/underscore/underscore.js', 'utf-8');
+    var compiled = "modus.module('app.libs', function(libs) {\n"
+        + jquery + '\n' + underscore + '\n'
+        + 'libs.$ = $;\nlibs._=_;\n});';
+    // Make sure nothing is in the output for this module
+    build.removeOutput(moduleName)
+    // Then output our compiled module
+    build.output(moduleName, compiled);
 });
 ```
 

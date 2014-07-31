@@ -9,8 +9,7 @@ var Module = modus.Module = function (name, factory, options) {
     throwErrors: true,
     // If true, you'll need to manualy emit 'done' before
     // the module will be marked as 'enabled'
-    wait: false,
-    hooks: {}
+    wait: false
   }, options);
   var self = this;
 
@@ -90,18 +89,6 @@ Module.prototype.getEnv = function () {
   return this._env || {};
 };
 
-// Add a hook or hooks, registering them as events.
-Module.prototype.addHook = function (hook, cb) {
-  var self = this;
-  if (typeof hook === 'object') {
-    each(hook, function (val, key) {
-      self.addHook(key, val);
-    });
-    return;
-  }
-  this.on(hook, cb);
-};
-
 // Make sure a module is enabled and add event listeners.
 var _ensureModuleIsEnabled = function (dep, next, error) {
   if (moduleExists(dep)) {
@@ -128,7 +115,7 @@ Module.prototype.enable = function() {
     self._isEnabled = true;
     if(!modus.isBuilding) self._runFactory();
     if(!self.options.wait) self.emit('done');
-  });
+  };
 
   // Ensure we don't try to enable this module twice.
   this._isEnabling = true;

@@ -14,7 +14,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-07-30T16:43Z
+  Date: 2014-07-31T16:23Z
 */
 
 (function (factory) {
@@ -196,7 +196,8 @@ modus.env = {};
 // Config options for modus.
 modus.options = {
   root: '',
-  map: {}
+  maps: {},
+  namespaceMaps: {}
 };
 
 // Set or get a modus config option.
@@ -210,8 +211,12 @@ modus.config = function (key, val) {
   if(arguments.length < 2){
     return ("undefined" === typeof modus.options[key])? false : modus.options[key];
   }
-  if ( 'map' === key ) {
-    return modus.map(val);
+  if ( 'maps' === key ) {
+    if (val.modules)
+      modus.map(val.modules);
+    if (val.namespaces)
+      modus.mapNamespace(val.namespaces);
+    return modus.options.maps;
   }
   modus.options[key] = val;
   return modus.options[key];
@@ -240,45 +245,34 @@ var isClient = modus.isClient =  function () {
     && modus.config('environment') != 'server';
 };
 
-// Map modules to a given path.
+// Map a module to the given path.
 //
-// example:
-//    modus.map('lib/foo.js', ['foo.bar', 'foo.bin']);
-//    // You can also map a file to a base namespace
-//    modus.map('lib/foo.js', ['foo.*']);
-//    // The following will now load lib/foo.js:
-//    module.import('foo.bar');
+//    modus.map('Foo', 'libs/foo.min.js');
+//    module.imports(...).from('Foo'); // -> Imports from libs/foo.min.js
 //
-modus.map = function (path, provides) {
-  // TODO: This method needs some love.
-  if ("object" === typeof path){
-    for ( var item in path ) {
-      modus.map(item, path[item]);
+modus.map = function (mod, path, options) {
+  options = options || {};
+  if ('object' === typeof mod) {
+    for (var key in mod) {
+      modus.maps(key, mod[key], options);
     }
     return;
   }
-  if (!modus.options.map[path]) {
-    modus.options.map[path] = [];
-  }
-  if (provides instanceof Array) {
-    each(provides, function (item) {
-      modus.map(path, item);
-    });
-    return;
-  }
-  provides = new RegExp ( 
-    provides
-      // ** matches any number of segments (will only use the first)
-      .replace('**', "([\\s\\S]+?)")
-      // * matches a single segment (will only use the first)
-      .replace('*', "([^\\/|^$]+?)") 
-      // escapes
-      .replace(/\//g, '\\/')
-      .replace(/\./g, "\\.")
-      .replace(/\$/g, '\\$')
-      + '$'
-  );
-  modus.options.map[path].push(provides);
+  if (options.type === 'namespaces') 
+    modus.options.namespaceMaps[mod] = path;
+  else
+    modus.options.maps[mod] = path;
+};
+
+// Map a namespace to the given path.
+//
+//    modus.mapNamespace('Foo.Bin', 'libs/FooBin');
+//    // The following import will now import 'lib/FooBin/Bax.js'
+//    // rather then 'Foo/Bin/Bax.js'
+//    module.imports(...).from('Foo.Bin.Bax');
+//
+modus.mapNamespace = function (ns, path) {
+  modus.map(ns, path, {type: 'namespaces'});
 };
 
 // Simple error wrapper.
@@ -286,23 +280,30 @@ modus.err = function (error) {
   throw new Error(error);
 };
 
+// Check namespace maps for any matches.
+var _getMappedNamespacePath = function (module) {
+  var ns = module.substring(0, module.lastIndexOf('.'));
+  var modName = module.substring(module.lastIndexOf('.') + 1);
+  ns = modus.normalizeModuleName(ns);
+  var maps = modus.config('namespaceMaps');
+  if (maps[ns]) {
+    return modus.normalizeModuleName(maps[ns]) + '.' + modName;
+  }
+  return module;
+};
+
+// Check module maps for any matches.
+var _getMappedModulePath = function (module) {
+  var maps = modus.config('maps');
+  return (maps[module])? maps[module] : module;
+};
+
 // Get a mapped path
 var getMappedPath = modus.getMappedPath = function (module, root) {
   root = root || modus.config('root');
-  var src = (isPath(module))? module : module.replace(/\./g, '/');
-  each(modus.config('map'), function (maps, pathPattern) {
-    each(maps, function (map) {
-      module.replace(map, function (matches, many, single) {
-        src = pathPattern;
-        if (!single) {
-          single = many;
-          many = false;
-        }
-        if (many) src = src.replace('**', many);
-        if (single) src = src.replace('*', single)
-      });
-    });
-  });
+  var src = _getMappedModulePath(module);
+  src = _getMappedNamespacePath(src);
+  src = (!isPath(src))? src.replace(/\./g, '/') : src;
   src = (src.indexOf('.js') < 0 && !isServer())
     ? root + src + '.js'
     : root + src;
@@ -313,20 +314,12 @@ var getMappedPath = modus.getMappedPath = function (module, root) {
 var normalizeModuleName = modus.normalizeModuleName = function (name) {
   if(isPath(name)) {
     // Strip extensions
-    if (name.indexOf('.') > 0) {
-      name = name.substring(0, name.indexOf('.'));
+    if (name.indexOf('.js') > 0) {
+      name = name.substring(0, name.indexOf('.js'));
     }
-    name = name.replace(/\/\\/g, '.');
   }
+  name = name.replace(/\/|\\/g, '.');
   return name;
-};
-
-// Try to get a global export from a script.
-var getMappedGlobal = modus.getMappedGlobal = function (path) {
-  if (modus.options.map.hasOwnProperty(path)) {
-    return root[modus.options.map[path]] || false;
-  }
-  return false;
 };
 
 // Check if a module has been loaded.
@@ -338,8 +331,9 @@ var moduleExists = modus.moduleExists = function (name) {
 
 // Get a module from the env.
 var getModule = modus.getModule = function (name) {
+  if (!name) return modus.env;
   name = normalizeModuleName(name);
-  return modus.env[name];
+  return modus.env[name] || false;
 }
 
 // Primary API
@@ -355,7 +349,7 @@ var getModule = modus.getModule = function (name) {
 modus.module = function (name, factory, options) {
   options = options || {};
   var module = new modus.Module(name, factory, options);
-  nextTick(bind(module.enable, module)  );
+  nextTick(bind(module.enable, module));
   return module;
 };
 
@@ -397,6 +391,13 @@ var EventEmitter = modus.EventEmitter = function () {
 };
 
 EventEmitter.prototype.addEventListener = function (name, callback, once) {
+  var self = this;
+  if (typeof name === 'object') {
+    each(name, function (val, key) {
+      self.addEventListener(key, val, once);
+    });
+    return this;
+  }
   if (typeof callback !== 'function')
     throw new TypeError('Listener must be a function: ' + typeof callback);
   if (!this._listeners[name]) this._listeners[name] = [];
@@ -404,6 +405,15 @@ EventEmitter.prototype.addEventListener = function (name, callback, once) {
     once: once,
     cb: callback
   }); 
+  return this;
+};
+
+EventEmitter.prototype.removeEventListener = function (name) {
+  if (name) {
+    delete this._listeners[name];
+    return this;
+  }
+  for (var e in this._listeners) delete this._listeners[e];
   return this;
 };
 
@@ -431,15 +441,6 @@ EventEmitter.prototype.on = function (name, callback) {
 
 EventEmitter.prototype.once = function (name, callback) {
   return this.addEventListener(name, callback, true);
-};
-
-EventEmitter.prototype.removeEventListener = function (name) {
-  if (name) {
-    delete this._listeners[name];
-    return this;
-  }
-  for (var e in this._listeners) delete this._listeners[e];
-  return this;
 };
 
 // Set up global event handler
@@ -647,8 +648,7 @@ var Module = modus.Module = function (name, factory, options) {
     throwErrors: true,
     // If true, you'll need to manualy emit 'done' before
     // the module will be marked as 'enabled'
-    wait: false,
-    hooks: {}
+    wait: false
   }, options);
   var self = this;
 
@@ -728,18 +728,6 @@ Module.prototype.getEnv = function () {
   return this._env || {};
 };
 
-// Add a hook or hooks, registering them as events.
-Module.prototype.addHook = function (hook, cb) {
-  var self = this;
-  if (typeof hook === 'object') {
-    each(hook, function (val, key) {
-      self.addHook(key, val);
-    });
-    return;
-  }
-  this.on(hook, cb);
-};
-
 // Make sure a module is enabled and add event listeners.
 var _ensureModuleIsEnabled = function (dep, next, error) {
   if (moduleExists(dep)) {
@@ -766,7 +754,7 @@ Module.prototype.enable = function() {
     self._isEnabled = true;
     if(!modus.isBuilding) self._runFactory();
     if(!self.options.wait) self.emit('done');
-  });
+  };
 
   // Ensure we don't try to enable this module twice.
   this._isEnabling = true;

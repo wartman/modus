@@ -2,6 +2,10 @@ if (modus.isServer()) var expect = require('chai').expect;
 
 describe('modus.Module', function () {
 
+  beforeEach(function () {
+    modus.config('root', '');
+  });
+
   describe('#init', function () {
 
     it('sets up correctly', function () {
