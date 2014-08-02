@@ -14,7 +14,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-07-31T22:42Z
+  Date: 2014-08-02T16:18Z
 */
 
 (function (factory) {
@@ -551,7 +551,7 @@ Loader.prototype.loadClient = function (moduleName, next, error) {
 Loader.prototype.loadServer = function (moduleName, next, error) {
   var src = getMappedPath(moduleName, modus.config('root'));
   try {
-    require(src);
+    require('./' + src);
     nextTick(function () {
       next();
     });

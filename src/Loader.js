@@ -103,7 +103,7 @@ Loader.prototype.loadClient = function (moduleName, next, error) {
 Loader.prototype.loadServer = function (moduleName, next, error) {
   var src = getMappedPath(moduleName, modus.config('root'));
   try {
-    require(src);
+    require('./' + src);
     nextTick(function () {
       next();
     });
