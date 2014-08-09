@@ -1,4 +1,4 @@
-modus.module('fixtures.build.one', function (one) {
-  one.imports('bar', 'baz').from('.two');
-  one.foo = 'foo';
+modus.module('fixtures.build.one', function () {
+  this.imports(['bar', 'baz']).from('.two');
+  this.foo = 'foo';
 });

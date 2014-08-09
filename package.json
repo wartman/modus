@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "commander": "~2.1.0",
-    "uglify-js": "~2.4.12",
+    "uglify-js": "~2.4.15",
     "lodash": "~2.4.1"
   },
   "devDependencies": {

@@ -6,31 +6,38 @@ require('../lib/build');
 
 program
   .version('0.0.1')
-  .usage('[options] [commands]');
+  .usage('<options> [commands]')
+  .option('-m, --minify', 'Minify the compiled script (using UglifyJs)')
+  .option('-r, --root <root>', "Set the root path for the module.\n"
+          + "                   This will be used in addition to modus.config('root').")
+  .on('--help', function(){
+    console.log('  Examples:\n');
+    console.log('   $ modus foo.main build/app.min.js --root scripts --minify')
+    console.log('   $ modus foo/main.js foo/app-min.js --root app/scripts --minify\n');
+  });
 
 program
-  .command('build <main> [dest]')
-  .description('build a z app into a single file')
-  .option('-o --optimize', 'uglify the compiled script')
-  .option('-p --project <projectName>', 'set the project name')
-  .option('-m --main <mainModule>', "set the name of your main module (if using an anonymous module)")
-  .action(function(main, dest, options){
+  .command('* [main] [dest]')
+  .description('build modus app into a single file')
+  .action(function(main, dest){
 
-    var options = {
-      root: process.cwd() + '/',
+    var rootPath = (program.root)
+      ? process.cwd() + '/' + program.root + '/'
+      : process.cwd() + '/';
+
+    var settings = {
+      root: rootPath,
       main: main,
-      dest: dest
+      dest: dest,
+      minify: program.minify || false
     };
-    
+
     var build = modus.Build.getInstance();
-    build.start(options).once('done', function (compiled) {
+    build.start(settings).once('done', function (compiled) {
       if (dest) build.writeOutput(dest);
     });
 
-  }).on('--help', function(){
-    console.log('   Examples:\n');
-    console.log('   $ zjs build -o foo/scripts/main.js foo/scripts/app-min.js\n');
-  });
+  })
 
 program.parse(process.argv);
 if (!program.args.length) program.help();

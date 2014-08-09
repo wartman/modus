@@ -33,16 +33,17 @@ describe('modus.Module', function () {
   describe('#enable', function () {
 
     it('will wait for a "done" event to be emited if a second arg is passed', function (done) {
-      modus.module('tests.wait.target', function (target, moduleDone) {
-        target.foo = 'didn\'t wait';
+      modus.module('tests.wait.target', function (moduleDone) {
+        var self = this;
+        this.foo = 'didn\'t wait';
         setTimeout(function () {
-          target.foo = 'waited';
+          self.foo = 'waited';
           moduleDone();
         }, 10);
       });
-      modus.module('tests.wait.tester', function (tester) {
-        tester.imports('foo').from('.target');
-        expect(tester.foo).to.equal('waited');
+      modus.module('tests.wait.tester', function () {
+        this.imports(['foo']).from('.target');
+        expect(this.foo).to.equal('waited');
         done();
       });
     });
@@ -51,41 +52,43 @@ describe('modus.Module', function () {
 
   describe('#imports', function () {
 
-    it('imports an item', function (done) {
-      // Fake up a module.
-      modus.env['fixture.one'] = new modus.Module('fixture.one', function (one) {
-        one.foo = 'foo'
+    it('imports `default` string is passed', function (done) {
+      var mod = new modus.Module('tests.import.stringTarget', function () {
+        this.default = 'String Target';
       });
-      var mod = new modus.Module('tests.importer', function (importer) {
-        importer.imports('foo').from('fixture.one');
-        expect(importer.foo).to.equal('foo');
+      var mod = new modus.Module('tests.import.string', function () {
+        this.imports('target').from('.stringTarget');
+        expect(this.target).to.equal('String Target');
         done();
       });
       mod.enable();
     });
 
-    it('imports an external module', function (done) {
-      modus.module('tests.real', function (real) {
-        real.imports('importTest').from('fixtures.importTest');
-        expect(real.importTest.test).to.equal('importTest');
+    it('imports an entire module if `default` is not set and a string is passed', function (done) {
+      var mod = new modus.Module('tests.import.stringAllTarget', function () {
+        this.foo = 'foo';
+        this.bar = 'bar';
+      });
+      var mod = new modus.Module('tests.import.stringAll', function () {
+        this.imports('target').from('.stringAllTarget');
+        expect(this.target).to.deep.equal({foo:'foo', bar:'bar'});
         done();
       });
+      mod.enable();
     });
 
-    it('imports an external module', function (done) {
-      modus.module('tests.stress', function (stress) {
-        stress.imports('foo', 'bar', 'bax').from('fixtures.stress.one');
-        expect(stress.foo + stress.bar + stress.bax).to.equal('onetwothree');
+    it('imports components if array is passed', function (done) {
+      var mod = new modus.Module('tests.import.stringArrayTarget', function () {
+        this.foo = 'foo';
+        this.bar = 'bar';
+      });
+      var mod = new modus.Module('tests.import.stringArray', function () {
+        this.imports(['foo', 'bar']).from('.stringArrayTarget');
+        expect(this.foo).to.equal('foo');
+        expect(this.bar).to.equal('bar');
         done();
       });
-    });
-
-    it('imports a shimmed global', function (done) {
-      modus.module('tests.global', function (glob) {
-        glob.imports('target').from('fixtures.global.shim');
-        expect(glob.target).to.equal('target');
-        done();
-      })
+      mod.enable();
     });
 
   });

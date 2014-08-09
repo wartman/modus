@@ -3,10 +3,10 @@
 
 // This is a simple file loader that uses jQuery to grab
 // text files.
-modus.module('examples.building.fs', function (fs) {
-  fs.imports('$').from('exampes.shims.shims');
+modus.module('examples.building.fs', function () {
+  this.imports(['$']).from('exampes.shims.shims');
 
-  fs.readFile = function (fileName, next) {
+  this.readFile = function (fileName, next) {
     if (modus.hasModule(fileName)) {
       next(modus.getModule(fileName).getEnv().default);
       return;
@@ -15,7 +15,7 @@ modus.module('examples.building.fs', function (fs) {
     $.ajax({
       url: fileName
     }).done(function (data) {
-      modus.module(fileName, function (f) { f.default = data });
+      modus.publish(fileName, data);
       var mod = modus.getModule(fileName);
       mod.enable();
       mod.once('done', function () {
@@ -39,9 +39,8 @@ modus.events.on('build', function (moduleName, raw) {
   var i;
   if (files.length) {
     for (i=0; i < files.length; i+=1) {
-      // `build.fs` is just an alias for Node's `fs` library.
-      var contents = build.fs.readFileSync(files[i], 'utf-8');
-      var factory = "modus.module('" + files[i] + "', function (f) { f.default = '" + contents.replace(/'/g, "\'") + "' });";
+      var contents = build.readFile(files[i]);
+      var factory = "modus.publish('" + files[i] + "', '" + contents.replace(/'/g, "\'") + "');";
       build.output(files[i], factory);
     }
   }

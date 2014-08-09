@@ -62,7 +62,8 @@ var isClient = modus.isClient =  function () {
 // Map a module to the given path.
 //
 //    modus.map('Foo', 'libs/foo.min.js');
-//    module.imports(...).from('Foo'); // -> Imports from libs/foo.min.js
+//    // Then, inside a module:
+//    this.imports(...).from('Foo'); // -> Imports from libs/foo.min.js
 //
 modus.map = function (mod, path, options) {
   options = options || {};
@@ -83,7 +84,7 @@ modus.map = function (mod, path, options) {
 //    modus.mapNamespace('Foo.Bin', 'libs/FooBin');
 //    // The following import will now import 'lib/FooBin/Bax.js'
 //    // rather then 'Foo/Bin/Bax.js'
-//    module.imports(...).from('Foo.Bin.Bax');
+//    this.imports(...).from('Foo.Bin.Bax');
 //
 modus.mapNamespace = function (ns, path) {
   modus.map(ns, path, {type: 'namespaces'});
@@ -155,7 +156,6 @@ var getModule = modus.getModule = function (name) {
 
 // Module factory.
 //
-// example:
 //    modus.module('foo.bar', function (bar) {
 //      // code
 //    });
@@ -169,29 +169,31 @@ modus.module = function (name, factory, options) {
 
 // Syntactic sugar for namespaces.
 //
-// example:
-//    modus.namespace('Foo', function (Foo) {
-//      Foo.module('Bar', function (Bar) {...}); // Defines 'Foo/Bar'
+//    modus.namespace('foo.bin', function () {
+//      this.module('bin', function () {...});
 //    });
-//    // Or:
-//    modus.namespace('Foo/Bar').module('Bin', function (Bin) { ... });
+//
+//    //Or:
+//    modus.namespace('foo.bar').module('bin', function () { ... });
 //
 modus.namespace = function (namespace, factory) {
-  if (factory) return modus.module(namespace, factory);
   var options = {namespace: namespace};
-  return {
+  var ns = {
     module: function (name, factory) {
-      return modus.module(name, options, factory);
+      return modus.module(name, factory, options);
     },
     publish: function (name, value) {
-      return modus.publish(name, options, value);
+      return modus.publish(name, value, options);
     }
   };
+  if (factory)
+    factory.call(ns);
+  return ns;
 };
 
 // Shortcut to export a single value as a module.
 modus.publish = function (name, value, options) {
-  return modus.module(name, options, function (module) {
-    module.default = value;
-  });
+  return modus.module(name, function () {
+    this.default = value;
+  }, options);
 };

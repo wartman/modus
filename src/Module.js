@@ -15,7 +15,7 @@ var Module = modus.Module = function (name, factory, options) {
 
   // If the factory has more then one argument, this module
   // depends on some sort of async operation.
-  if (factory && factory.length >= 2) 
+  if (factory && factory.length >= 1) 
     this.options.wait = true;
   if (this.options.wait) {
     // We only want to wait until 'done' is emited, then
@@ -108,6 +108,7 @@ Module.prototype.enable = function() {
     if (!this.options.wait) this.emit('done');
     return;
   }
+
   var self = this;
   var loader = modus.Loader.getInstance();
   var onFinal = function () {
@@ -160,11 +161,11 @@ Module.prototype.disable = function (reason) {
 // Create an instance of `modus.Import`. Arguments passed here
 // will be passed to `modus.Import#imports`.
 //
-//    foo.imports('Bar', 'Bin').from('app.bar');
+//    this.imports(['Bar', 'Bin']).from('app.bar');
 //
-Module.prototype.imports = function (/*...*/) {
+Module.prototype.imports = function (componets) {
   var imp = new modus.Import(this);
-  imp.imports.apply(imp, arguments);
+  imp.imports(componets);
   return imp;
 };
 
@@ -179,22 +180,6 @@ Module.prototype._parseName = function (name) {
   }
   this.options.moduleName = name;
   this.options.namespace = namespace;
-};
-
-// You can add hooks by passing them to the 'options'
-// arg in the `modus.Module` constructor. Currently available
-// hooks are:
-//
-//    build: function (raw) <- Used by the builder to allow custom
-//                             compiling. Should return a string that will
-//                             be used in the final, compiled script.
-//
-Module.prototype._registerHooks = function () {
-  var hooks = this.options.hooks;
-  var self = this;
-  each(hooks, function (cb, name) {
-    self.once(name, cb);
-  }); 
 };
 
 // RegExp to find imports.
@@ -223,10 +208,10 @@ Module.prototype._runFactory = function () {
   this.emit('factory.before', this);
   this._env.imports = bind(this.imports, this);
   // Run the factory.
-  if (this._factory.length <= 1) {
-    this._factory(this._env);
+  if (this._factory.length <= 0) {
+    this._factory.call(this._env);
   } else {
-    this._factory(this._env, function (err) {
+    this._factory.call(this._env, function (err) {
       if (err)
         self.emit('error', err);
       else
@@ -237,6 +222,7 @@ Module.prototype._runFactory = function () {
   this.once('done', function () {
     delete self._env.imports;
     delete self._factory;
+    delete self._deps;
   });
   this.emit('factory.after', this);
 };

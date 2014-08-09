@@ -1,8 +1,8 @@
-modus.module('fixtures.build.fileload', function (fileload) {
-  // Intentionally left blank.
+modus.module('fixtures.build.fileload', function () {
+  // Left blank.
 }).on('build', function (moduleName, raw) {
   var build = modus.Build.getInstance();
   build.removeOutput(moduleName);
-  var file = build.fs.readFileSync(modus.config('root') + '/fixtures/build/txt/file.txt', 'utf-8');
-  build.output(moduleName, "modus.module('" + moduleName + "', function (f) { f.default = '" + file + "' })" );
+  var file = build.readFile('fixtures/build/txt/file.txt');
+  build.output(moduleName, "modus.publish('" + moduleName + "', '" + file + "' )" );
 });

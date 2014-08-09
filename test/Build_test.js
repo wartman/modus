@@ -24,7 +24,7 @@ describe('modus.Build', function () {
       var build = modus.Build.getInstance();
       var factory = Function(compiled);
       var testRoot = {};
-      factory.apply(testRoot);
+      factory.call(testRoot);
       var main = testRoot.modus.getModule('fixtures.build.main');
       main.once('done', function () {
         expect(main.getEnv().foo).to.equal('foo');

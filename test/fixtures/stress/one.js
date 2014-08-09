@@ -1,5 +1,5 @@
-modus.module('fixtures.stress.one', function (one) {
-  one.imports('bar').from('.two');
-  one.imports('bax').from('.three');
-  one.foo = 'one';
+modus.module('fixtures.stress.one', function () {
+  this.imports(['bar']).from('.two');
+  this.imports(['bax']).from('.three');
+  this.foo = 'one';
 });

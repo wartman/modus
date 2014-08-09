@@ -10,17 +10,13 @@ var Import = modus.Import = function (parent) {
   this._plugin = false;
 };
 
-// Extend the event emitter.
-Import.prototype = new EventEmitter()
-Import.prototype.constructor = Import;
-
-// Import components from a module.
-Import.prototype.imports = function() {
-  var self = this;
+// Import components from a module. If a string is passed,
+// the default value of the module will be imported (or, if
+// default isn't set, the entire module). If an array is passed,
+// all matching properties from the requested module will be imported.
+Import.prototype.imports = function(components) {
+  this._components = components;
   if (!this._components) this._components = [];
-  each(arguments, function (arg) {
-    self._components.push(arg);
-  });
   return this;
 };
 
@@ -52,23 +48,20 @@ Import.prototype._applyToEnv = function () {
   var depEnv = (moduleExists(module))
     ? getModule(module).getEnv() 
     : false;
+  var components = this._components;
   if (!depEnv) modus.err('Dependency not avalilable [' + module + '] for: ' + this._parent.getFullName());
-  if (this._components.length <= 0) return;
-  if (this._components.length === 1) {
-    // Handle something like "module.imports('foo').from('app.foo')"
-    // If the name matches the last segment of the module name, it should import the entire module.
-    var moduleName = module.substring(module.lastIndexOf('.') + 1);
-    var component = this._components[0];
-    if (component === moduleName) {
-      if (depEnv['default'])
-        parentEnv[component] = depEnv['default'];
-      else
-        parentEnv[component] = depEnv;
-      return;
+  if (typeof components === 'string') {
+    if (depEnv['default']) {
+      parentEnv[components] = depEnv['default'];
+    } else {
+      parentEnv[components] = depEnv;
     }
+  } else if (this._components.length <= 0) {
+    return;
+  } else {
+    each(components, function(component) {
+      if(depEnv.hasOwnProperty(component))
+        parentEnv[component] = depEnv[component];
+    });
   }
-  each(this._components, function(component) {
-    if(depEnv.hasOwnProperty(component))
-      parentEnv[component] = depEnv[component];
-  });
 };

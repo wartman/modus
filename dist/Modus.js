@@ -14,7 +14,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-02T16:18Z
+  Date: 2014-08-09T18:24Z
 */
 
 (function (factory) {
@@ -248,7 +248,8 @@ var isClient = modus.isClient =  function () {
 // Map a module to the given path.
 //
 //    modus.map('Foo', 'libs/foo.min.js');
-//    module.imports(...).from('Foo'); // -> Imports from libs/foo.min.js
+//    // Then, inside a module:
+//    this.imports(...).from('Foo'); // -> Imports from libs/foo.min.js
 //
 modus.map = function (mod, path, options) {
   options = options || {};
@@ -269,7 +270,7 @@ modus.map = function (mod, path, options) {
 //    modus.mapNamespace('Foo.Bin', 'libs/FooBin');
 //    // The following import will now import 'lib/FooBin/Bax.js'
 //    // rather then 'Foo/Bin/Bax.js'
-//    module.imports(...).from('Foo.Bin.Bax');
+//    this.imports(...).from('Foo.Bin.Bax');
 //
 modus.mapNamespace = function (ns, path) {
   modus.map(ns, path, {type: 'namespaces'});
@@ -341,7 +342,6 @@ var getModule = modus.getModule = function (name) {
 
 // Module factory.
 //
-// example:
 //    modus.module('foo.bar', function (bar) {
 //      // code
 //    });
@@ -355,31 +355,33 @@ modus.module = function (name, factory, options) {
 
 // Syntactic sugar for namespaces.
 //
-// example:
-//    modus.namespace('Foo', function (Foo) {
-//      Foo.module('Bar', function (Bar) {...}); // Defines 'Foo/Bar'
+//    modus.namespace('foo.bin', function () {
+//      this.module('bin', function () {...});
 //    });
-//    // Or:
-//    modus.namespace('Foo/Bar').module('Bin', function (Bin) { ... });
+//
+//    //Or:
+//    modus.namespace('foo.bar').module('bin', function () { ... });
 //
 modus.namespace = function (namespace, factory) {
-  if (factory) return modus.module(namespace, factory);
   var options = {namespace: namespace};
-  return {
+  var ns = {
     module: function (name, factory) {
-      return modus.module(name, options, factory);
+      return modus.module(name, factory, options);
     },
     publish: function (name, value) {
-      return modus.publish(name, options, value);
+      return modus.publish(name, value, options);
     }
   };
+  if (factory)
+    factory.call(ns);
+  return ns;
 };
 
 // Shortcut to export a single value as a module.
 modus.publish = function (name, value, options) {
-  return modus.module(name, options, function (module) {
-    module.default = value;
-  });
+  return modus.module(name, function () {
+    this.default = value;
+  }, options);
 };
 
 // modus.EventEmitter
@@ -574,17 +576,13 @@ var Import = modus.Import = function (parent) {
   this._plugin = false;
 };
 
-// Extend the event emitter.
-Import.prototype = new EventEmitter()
-Import.prototype.constructor = Import;
-
-// Import components from a module.
-Import.prototype.imports = function() {
-  var self = this;
+// Import components from a module. If a string is passed,
+// the default value of the module will be imported (or, if
+// default isn't set, the entire module). If an array is passed,
+// all matching properties from the requested module will be imported.
+Import.prototype.imports = function(components) {
+  this._components = components;
   if (!this._components) this._components = [];
-  each(arguments, function (arg) {
-    self._components.push(arg);
-  });
   return this;
 };
 
@@ -616,25 +614,22 @@ Import.prototype._applyToEnv = function () {
   var depEnv = (moduleExists(module))
     ? getModule(module).getEnv() 
     : false;
+  var components = this._components;
   if (!depEnv) modus.err('Dependency not avalilable [' + module + '] for: ' + this._parent.getFullName());
-  if (this._components.length <= 0) return;
-  if (this._components.length === 1) {
-    // Handle something like "module.imports('foo').from('app.foo')"
-    // If the name matches the last segment of the module name, it should import the entire module.
-    var moduleName = module.substring(module.lastIndexOf('.') + 1);
-    var component = this._components[0];
-    if (component === moduleName) {
-      if (depEnv['default'])
-        parentEnv[component] = depEnv['default'];
-      else
-        parentEnv[component] = depEnv;
-      return;
+  if (typeof components === 'string') {
+    if (depEnv['default']) {
+      parentEnv[components] = depEnv['default'];
+    } else {
+      parentEnv[components] = depEnv;
     }
+  } else if (this._components.length <= 0) {
+    return;
+  } else {
+    each(components, function(component) {
+      if(depEnv.hasOwnProperty(component))
+        parentEnv[component] = depEnv[component];
+    });
   }
-  each(this._components, function(component) {
-    if(depEnv.hasOwnProperty(component))
-      parentEnv[component] = depEnv[component];
-  });
 };
 
 // modus.Module
@@ -654,7 +649,7 @@ var Module = modus.Module = function (name, factory, options) {
 
   // If the factory has more then one argument, this module
   // depends on some sort of async operation.
-  if (factory && factory.length >= 2) 
+  if (factory && factory.length >= 1) 
     this.options.wait = true;
   if (this.options.wait) {
     // We only want to wait until 'done' is emited, then
@@ -747,6 +742,7 @@ Module.prototype.enable = function() {
     if (!this.options.wait) this.emit('done');
     return;
   }
+
   var self = this;
   var loader = modus.Loader.getInstance();
   var onFinal = function () {
@@ -799,11 +795,11 @@ Module.prototype.disable = function (reason) {
 // Create an instance of `modus.Import`. Arguments passed here
 // will be passed to `modus.Import#imports`.
 //
-//    foo.imports('Bar', 'Bin').from('app.bar');
+//    this.imports(['Bar', 'Bin']).from('app.bar');
 //
-Module.prototype.imports = function (/*...*/) {
+Module.prototype.imports = function (componets) {
   var imp = new modus.Import(this);
-  imp.imports.apply(imp, arguments);
+  imp.imports(componets);
   return imp;
 };
 
@@ -818,22 +814,6 @@ Module.prototype._parseName = function (name) {
   }
   this.options.moduleName = name;
   this.options.namespace = namespace;
-};
-
-// You can add hooks by passing them to the 'options'
-// arg in the `modus.Module` constructor. Currently available
-// hooks are:
-//
-//    build: function (raw) <- Used by the builder to allow custom
-//                             compiling. Should return a string that will
-//                             be used in the final, compiled script.
-//
-Module.prototype._registerHooks = function () {
-  var hooks = this.options.hooks;
-  var self = this;
-  each(hooks, function (cb, name) {
-    self.once(name, cb);
-  }); 
 };
 
 // RegExp to find imports.
@@ -862,10 +842,10 @@ Module.prototype._runFactory = function () {
   this.emit('factory.before', this);
   this._env.imports = bind(this.imports, this);
   // Run the factory.
-  if (this._factory.length <= 1) {
-    this._factory(this._env);
+  if (this._factory.length <= 0) {
+    this._factory.call(this._env);
   } else {
-    this._factory(this._env, function (err) {
+    this._factory.call(this._env, function (err) {
       if (err)
         self.emit('error', err);
       else
@@ -876,6 +856,7 @@ Module.prototype._runFactory = function () {
   this.once('done', function () {
     delete self._env.imports;
     delete self._factory;
+    delete self._deps;
   });
   this.emit('factory.after', this);
 };

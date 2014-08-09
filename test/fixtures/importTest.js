@@ -1,3 +1,3 @@
-modus.module('fixtures.importTest', function (importTest) {
-  importTest.test = 'importTest';
+modus.module('fixtures.importTest', function () {
+  this.test = 'importTest';
 });

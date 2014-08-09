@@ -62,4 +62,80 @@ describe('modus', function () {
 
   });
 
+  describe('#moduleExists', function () {
+
+  });
+
+  describe('#getModule', function () {
+
+  });
+
+  describe('#namespace', function () {
+
+    it('defines modules using provided namespace', function (done) {
+      modus.namespace('tests.namespace', function () {
+        this.module('foo', function () {
+          this.foo = 'foo';
+        });
+        this.module('bar', function () {
+          this.bar = 'bar';
+        });
+      });
+      modus.module('tests.namespace.import', function () {
+        this.imports(['foo']).from('.foo');
+        this.imports(['bar']).from('.bar');
+        expect(modus.moduleExists('tests.namespace.foo')).to.be.true;
+        expect(modus.moduleExists('tests.namespace.bar')).to.be.true;
+        expect(this.foo).to.equal('foo');
+        expect(this.bar).to.equal('bar');
+        done();
+      })
+    });
+
+  });
+
+  describe('#module', function () {
+
+    it('creates a new module', function () {
+      var mod = modus.module('tests.create', function () {});
+      expect(mod).to.be.an.instanceOf(modus.Module);
+    });
+
+    it('imports an external module', function (done) {
+      modus.module('tests.real', function () {
+        this.imports('importTest').from('fixtures.importTest');
+        expect(this.importTest.test).to.equal('importTest');
+        done();
+      });
+    });
+
+    it('imports an external module', function (done) {
+      modus.module('tests.stress', function () {
+        this.imports(['foo', 'bar', 'bax']).from('fixtures.stress.one');
+        expect(this.foo + this.bar + this.bax).to.equal('onetwothree');
+        done();
+      });
+    });
+
+    it('imports a shimmed global', function (done) {
+      modus.module('tests.global', function () {
+        this.imports(['target']).from('fixtures.global.shim');
+        expect(this.target).to.equal('target');
+        done();
+      })
+    });
+
+  });
+
+  describe('#publish', function () {
+    it('publishes a value', function (done) {
+      modus.publish('tests.publish', 'published');
+      modus.module('tests.publish.import', function () {
+        this.imports('publish').from('tests.publish');
+        expect(this.publish).to.equal('published');
+        done();
+      });
+    });
+  });
+
 });
