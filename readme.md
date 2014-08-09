@@ -47,6 +47,7 @@ To import specific properties, pass an `array`:
 modus.module('app.example', function () {
     this.imports(['foo', 'bar']).from('app.foo');
 });
+```
 
 Async Modules
 -------------
