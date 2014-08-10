@@ -126,8 +126,8 @@ Module.prototype.enable = function() {
   }
 
   var self = this;
-  var deps = this.getDependencies();
   var loader = modus.Loader.getInstance();
+  var deps = [];
   var onFinal = function () {
     self._isEnabling = false;
     self._isEnabled = true;
@@ -144,6 +144,7 @@ Module.prototype.enable = function() {
   this._isEnabling = true;
   this.emit('enable.before');
   this._investigate();
+  deps = this.getDependencies();
 
   if (deps.length <= 0) {
     onFinal();
@@ -152,7 +153,9 @@ Module.prototype.enable = function() {
 
   eachAsync(deps, {
     each: function (dep, next, error) {
-      if (moduleExists(dep)) {
+      if (self.options.amd && dep === 'exports') {
+        next();
+      } else if (moduleExists(dep)) {
         _ensureModuleIsEnabled(dep, next, error);
       } else {
         // Try to find the module.
@@ -259,15 +262,21 @@ Module.prototype._runFactoryAMD = function () {
   var self = this;
   var deps = this.getDependencies();
   var mods = [];
+  var usingExports = false;
   each(deps, function (dep) {
-    dep = normalizeModuleName(dep);
-    if (moduleExists(dep)) 
-      mods.push(getModule(dep).getEnv());
+    if (dep === 'exports') {
+      mods.push(self._env);
+      usingExports = true;
+    } else {
+      dep = normalizeModuleName(dep);
+      if (moduleExists(dep)) 
+        mods.push(getModule(dep).getEnv());
+    }
   });
-  if (mods.length <= 0)
-    this._env = this._factory.call(this) || {};
-  else
+  if (!usingExports) 
     this._env = this._factory.apply(this, mods) || {};
+  else 
+    this._factory.apply(this, mods)
   this.once('done', function () {
     delete self._factory;
     delete self._deps;

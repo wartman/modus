@@ -14,7 +14,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-10T19:28Z
+  Date: 2014-08-10T20:52Z
 */
 
 (function (factory) {
@@ -208,16 +208,14 @@ modus.config = function (key, val) {
     }
     return;
   }
-  if(arguments.length < 2){
+  if(arguments.length === 0)
+    return modus.options;
+  if(arguments.length < 2)
     return ("undefined" === typeof modus.options[key])? false : modus.options[key];
-  }
-  if ( 'maps' === key ) {
-    if (val.modules)
-      modus.map(val.modules);
-    if (val.namespaces)
-      modus.mapNamespace(val.namespaces);
-    return modus.options.maps;
-  }
+  if ( 'maps' === key )
+    return modus.map(val);
+  if ('namespaceMaps' === key)
+    return modus.mapNamespace(val);
   modus.options[key] = val;
   return modus.options[key];
 };
@@ -255,7 +253,7 @@ modus.map = function (mod, path, options) {
   options = options || {};
   if ('object' === typeof mod) {
     for (var key in mod) {
-      modus.maps(key, mod[key], options);
+      modus.map(key, mod[key], options);
     }
     return;
   }
@@ -422,6 +420,10 @@ root.define = modus.define = function (name, deps, factory) {
   return mod;
 };
 
+// Make jQuery happy.
+root.define.amd = {
+  jQuery: true
+};
 // modus.EventEmitter
 // ------------------
 // A simple event emitter, used internally for hooks.
@@ -805,8 +807,8 @@ Module.prototype.enable = function() {
   }
 
   var self = this;
-  var deps = this.getDependencies();
   var loader = modus.Loader.getInstance();
+  var deps = [];
   var onFinal = function () {
     self._isEnabling = false;
     self._isEnabled = true;
@@ -823,6 +825,7 @@ Module.prototype.enable = function() {
   this._isEnabling = true;
   this.emit('enable.before');
   this._investigate();
+  deps = this.getDependencies();
 
   if (deps.length <= 0) {
     onFinal();
@@ -831,7 +834,9 @@ Module.prototype.enable = function() {
 
   eachAsync(deps, {
     each: function (dep, next, error) {
-      if (moduleExists(dep)) {
+      if (self.options.amd && dep === 'exports') {
+        next();
+      } else if (moduleExists(dep)) {
         _ensureModuleIsEnabled(dep, next, error);
       } else {
         // Try to find the module.
@@ -938,15 +943,21 @@ Module.prototype._runFactoryAMD = function () {
   var self = this;
   var deps = this.getDependencies();
   var mods = [];
+  var usingExports = false;
   each(deps, function (dep) {
-    dep = normalizeModuleName(dep);
-    if (moduleExists(dep)) 
-      mods.push(getModule(dep).getEnv());
+    if (dep === 'exports') {
+      mods.push(self._env);
+      usingExports = true;
+    } else {
+      dep = normalizeModuleName(dep);
+      if (moduleExists(dep)) 
+        mods.push(getModule(dep).getEnv());
+    }
   });
-  if (mods.length <= 0)
-    this._env = this._factory.call(this) || {};
-  else
+  if (!usingExports) 
     this._env = this._factory.apply(this, mods) || {};
+  else 
+    this._factory.apply(this, mods)
   this.once('done', function () {
     delete self._factory;
     delete self._deps;

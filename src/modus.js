@@ -22,16 +22,14 @@ modus.config = function (key, val) {
     }
     return;
   }
-  if(arguments.length < 2){
+  if(arguments.length === 0)
+    return modus.options;
+  if(arguments.length < 2)
     return ("undefined" === typeof modus.options[key])? false : modus.options[key];
-  }
-  if ( 'maps' === key ) {
-    if (val.modules)
-      modus.map(val.modules);
-    if (val.namespaces)
-      modus.mapNamespace(val.namespaces);
-    return modus.options.maps;
-  }
+  if ( 'maps' === key )
+    return modus.map(val);
+  if ('namespaceMaps' === key)
+    return modus.mapNamespace(val);
   modus.options[key] = val;
   return modus.options[key];
 };
@@ -69,7 +67,7 @@ modus.map = function (mod, path, options) {
   options = options || {};
   if ('object' === typeof mod) {
     for (var key in mod) {
-      modus.maps(key, mod[key], options);
+      modus.map(key, mod[key], options);
     }
     return;
   }
