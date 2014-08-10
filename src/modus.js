@@ -151,8 +151,27 @@ var getModule = modus.getModule = function (name) {
   return modus.env[name] || false;
 }
 
+var _lastModule = null;
+var getLastModule = modus.getLastModule = function () {
+  var mod = _lastModule;
+  _lastModule = null;
+  return mod;
+};
+
 // Primary API
 // -----------
+
+// Helper to enable modules. If a module is anonymous, it will wait
+// until the script has finished loading to be defined.
+function _enableModule(name, mod) {
+  if (typeof name === 'string') { 
+    // Enable now.
+    nextTick(bind(mod.enable, mod));
+  } else {
+    // Anon module: wait for the script to load.
+    _lastModule = mod;
+  }
+}
 
 // Module factory.
 //
@@ -162,9 +181,9 @@ var getModule = modus.getModule = function (name) {
 //
 modus.module = function (name, factory, options) {
   options = options || {};
-  var module = new modus.Module(name, factory, options);
-  nextTick(bind(module.enable, module));
-  return module;
+  var mod = new modus.Module(name, factory, options);
+  _enableModule(name, mod);
+  return mod;
 };
 
 // Syntactic sugar for namespaces.
@@ -196,4 +215,28 @@ modus.publish = function (name, value, options) {
   return modus.module(name, function () {
     this.default = value;
   }, options);
+};
+
+// Define an AMD module. This is exported to the root
+// namespace so non-modus modules can be natively imported
+// with a simple `define` call.
+root.define = modus.define = function (name, deps, factory) {
+  if (typeof name !== 'string') {
+    factory = deps;
+    deps = name;
+    name = false;
+  }
+  if (!(deps instanceof Array)) {
+    factory = deps;
+    deps = [];
+  }
+  var mod = new modus.Module(name, factory, {amd: true});
+  mod.addDependency(deps);
+  _enableModule(name, mod);
+  return mod;
+};
+
+// Make jQuery happy.
+root.define.amd = {
+  jQuery: true
 };

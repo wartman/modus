@@ -109,7 +109,7 @@ describe('modus', function () {
       });
     });
 
-    it('imports an external module', function (done) {
+    it('imports modules recursivly', function (done) {
       modus.module('tests.stress', function () {
         this.imports(['foo', 'bar', 'bax']).from('fixtures.stress.one');
         expect(this.foo + this.bar + this.bax).to.equal('onetwothree');
@@ -122,7 +122,39 @@ describe('modus', function () {
         this.imports(['target']).from('fixtures.global.shim');
         expect(this.target).to.equal('target');
         done();
+      });
+    });
+
+    it('imports anon modules', function (done) {
+      modus.module('tests.anon', function () {
+        this.imports('basic').from('fixtures.anon.basic');
+        expect(this.basic).to.deep.equal({foo:'foo', bar:'bar'});
+        done();
+      });
+    });
+
+    it('imports anon modules recursivly', function (done) {
+      modus.module('tests.anonRecursive', function () {
+        this.imports('hasDeps').from('fixtures.anon.hasDeps');
+        expect(this.hasDeps).to.deep.equal({one:'one', two:'two', hasDeps: 'hasDeps'});
+        done();
       })
+    });
+
+    it('imports external, anon AMD modules', function (done) {
+      modus.module('tests.importAmd', function () {
+        this.imports('basic').from('fixtures.amd.basic');
+        expect(this.basic).to.deep.equal({foo:'foo', bar:'bar'});
+        done();
+      });
+    });
+
+    it('imports external, anon AMD modules recursivly', function (done) {
+      modus.module('tests.importAmdRecursive', function () {
+        this.imports('hasDeps').from('fixtures.amd.hasDeps');
+        expect(this.hasDeps).to.deep.equal({one:'one', two:'two', hasDeps: 'hasDeps'});
+        done();
+      });
     });
 
   });
@@ -136,6 +168,46 @@ describe('modus', function () {
         done();
       });
     });
+  });
+
+  describe('#define', function () {
+
+    it('creates an AMD module', function (done) {
+      var mod = modus.define('tests/amd/basic', function () {
+        return {foo: 'foo'};
+      });
+      mod.once('done', function () {
+        expect(mod.getEnv().foo).to.equal('foo');
+        done();
+      });
+      mod.enable();
+    });
+
+    it('can import other modules', function (done) {
+      modus.define('tests/amd/targetOne', function () {
+        return {foo: 'foo'};
+      });
+      modus.define('tests/amd/importing', ['tests/amd/targetOne'], function (targetOne) {
+        expect(targetOne.foo).to.equal('foo');
+        done();
+      });
+    });
+
+    it('can be imported by normal modules', function (done) {
+      modus.define('tests/amd/targetTwo', function () {
+        return {
+          foo: 'foo',
+          bar: 'bar'
+        };
+      });
+      modus.module('tests.amd.import', function () {
+        this.imports(['foo', 'bar']).from('tests/amd/targetTwo');
+        expect(this.foo).to.equal('foo');
+        expect(this.bar).to.equal('bar');
+        done();
+      });
+    });
+
   });
 
 });

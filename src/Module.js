@@ -3,19 +3,27 @@
 // The core of modus, Modules allow you to spread code across
 // several files.
 var Module = modus.Module = function (name, factory, options) {
+  var self = this;
+
+  // Allow for anon modules.
+  if(typeof name === 'function') {
+    options = factory;
+    factory = name;
+    name = false;
+  }
+
   this.options = defaults({
     namespace: false,
     moduleName: null,
     throwErrors: true,
-    // If true, you'll need to manualy emit 'done' before
-    // the module will be marked as 'enabled'
+    amd: false,
     wait: false
   }, options);
-  var self = this;
 
   // If the factory has more then one argument, this module
-  // depends on some sort of async operation.
-  if (factory && factory.length >= 1) 
+  // depends on some sort of async operation (unless this is an
+  // amd module).
+  if ((factory && factory.length >= 1) && !this.options.amd) 
     this.options.wait = true;
   if (this.options.wait) {
     // We only want to wait until 'done' is emited, then
@@ -31,20 +39,25 @@ var Module = modus.Module = function (name, factory, options) {
   this._isEnabling = false;
   this._deps = [];
   this._listeners = {};
+  this._isAnon = true;
   
   this.setFactory(factory);
-  this.setName(name);
-
-  // Register with modus
-  modus.env[this.getFullName()] = this;
+  this.register(name)
 };
 
 // Extend the event emitter.
 Module.prototype = new EventEmitter();
 Module.prototype.constructor = Module;
 
-Module.prototype.setName = function (name) {
-  this._parseName(name);
+// Set the module name and register the module, if a name is
+// provided.
+Module.prototype.register = function (name) {
+  if (this._isAnon && name) {
+    this._isAnon = false;
+    this._parseName(name);
+    // Register with modus
+    modus.env[this.getFullName()] = this;
+  }
 };
 
 // Get the name of the module, excluding the namespace.
@@ -66,7 +79,10 @@ Module.prototype.getFullName = function () {
 
 // API method to add a dependency.
 Module.prototype.addDependency = function (dep) {
-  this._deps.push(dep);
+  if (dep instanceof Array)
+    this._deps = this._deps.concat(dep);
+  else
+    this._deps.push(dep);
 };
 
 // API method to get all dependencies.
@@ -110,11 +126,17 @@ Module.prototype.enable = function() {
   }
 
   var self = this;
+  var deps = this.getDependencies();
   var loader = modus.Loader.getInstance();
   var onFinal = function () {
     self._isEnabling = false;
     self._isEnabled = true;
-    if(!modus.isBuilding) self._runFactory();
+    if(!modus.isBuilding) {
+      if (self.options.amd)
+        self._runFactoryAMD();
+      else
+        self._runFactory();
+    }
     if(!self.options.wait) self.emit('done');
   };
 
@@ -123,20 +145,26 @@ Module.prototype.enable = function() {
   this.emit('enable.before');
   this._investigate();
 
-  if (this._deps.length <= 0) {
+  if (deps.length <= 0) {
     onFinal();
     return;
   }
 
-  eachAsync(this._deps, {
+  eachAsync(deps, {
     each: function (dep, next, error) {
       if (moduleExists(dep)) {
         _ensureModuleIsEnabled(dep, next, error);
       } else {
         // Try to find the module.
-        loader.load(dep, function () {
-          _ensureModuleIsEnabled(dep, next, error);
-        }, error);
+        nextTick(function () {
+          if (moduleExists(dep)) {
+            _ensureModuleIsEnabled(dep, next, error);
+          } else {
+            loader.load(dep, function () {
+              _ensureModuleIsEnabled(dep, next, error);
+            }, error);
+          }
+        });
       }
     },
     onFinal: onFinal,
@@ -205,7 +233,6 @@ Module.prototype._runFactory = function () {
   if (!this._factory) return;
   var self = this;
   // Bind helpers to the env.
-  this.emit('factory.before', this);
   this._env.imports = bind(this.imports, this);
   // Run the factory.
   if (this._factory.length <= 0) {
@@ -215,7 +242,7 @@ Module.prototype._runFactory = function () {
       if (err)
         self.emit('error', err);
       else
-        self.emit('done');
+        self.emit('done', null, self);
     });
   }
   // Cleanup the env.
@@ -224,5 +251,25 @@ Module.prototype._runFactory = function () {
     delete self._factory;
     delete self._deps;
   });
-  this.emit('factory.after', this);
+};
+
+// Run an AMD-style factory
+Module.prototype._runFactoryAMD = function () {
+  if (!this._factory) return;
+  var self = this;
+  var deps = this.getDependencies();
+  var mods = [];
+  each(deps, function (dep) {
+    dep = normalizeModuleName(dep);
+    if (moduleExists(dep)) 
+      mods.push(getModule(dep).getEnv());
+  });
+  if (mods.length <= 0)
+    this._env = this._factory.call(this) || {};
+  else
+    this._env = this._factory.apply(this, mods) || {};
+  this.once('done', function () {
+    delete self._factory;
+    delete self._deps;
+  });
 };

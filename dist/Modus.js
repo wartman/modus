@@ -14,7 +14,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-09T18:24Z
+  Date: 2014-08-10T19:28Z
 */
 
 (function (factory) {
@@ -337,8 +337,27 @@ var getModule = modus.getModule = function (name) {
   return modus.env[name] || false;
 }
 
+var _lastModule = null;
+var getLastModule = modus.getLastModule = function () {
+  var mod = _lastModule;
+  _lastModule = null;
+  return mod;
+};
+
 // Primary API
 // -----------
+
+// Helper to enable modules. If a module is anonymous, it will wait
+// until the script has finished loading to be defined.
+function _enableModule(name, mod) {
+  if (typeof name === 'string') { 
+    // Enable now.
+    nextTick(bind(mod.enable, mod));
+  } else {
+    // Anon module: wait for the script to load.
+    _lastModule = mod;
+  }
+}
 
 // Module factory.
 //
@@ -348,9 +367,9 @@ var getModule = modus.getModule = function (name) {
 //
 modus.module = function (name, factory, options) {
   options = options || {};
-  var module = new modus.Module(name, factory, options);
-  nextTick(bind(module.enable, module));
-  return module;
+  var mod = new modus.Module(name, factory, options);
+  _enableModule(name, mod);
+  return mod;
 };
 
 // Syntactic sugar for namespaces.
@@ -382,6 +401,25 @@ modus.publish = function (name, value, options) {
   return modus.module(name, function () {
     this.default = value;
   }, options);
+};
+
+// Define an AMD module. This is exported to the root
+// namespace so non-modus modules can be natively imported
+// with a simple `define` call.
+root.define = modus.define = function (name, deps, factory) {
+  if (typeof name !== 'string') {
+    factory = deps;
+    deps = name;
+    name = false;
+  }
+  if (!(deps instanceof Array)) {
+    factory = deps;
+    deps = [];
+  }
+  var mod = new modus.Module(name, factory, {amd: true});
+  mod.addDependency(deps);
+  _enableModule(name, mod);
+  return mod;
 };
 
 // modus.EventEmitter
@@ -528,6 +566,7 @@ Loader.prototype.load = function (moduleName, next, error) {
 
 // Load a module when in a browser context.
 Loader.prototype.loadClient = function (moduleName, next, error) {
+  var self = this;
   var src = getMappedPath(moduleName, modus.config('root'));
   var visit = this.getVisit(src);
   var script;
@@ -545,6 +584,9 @@ Loader.prototype.loadClient = function (moduleName, next, error) {
   visit.once('error', error);
 
   this.insertScript(script, function () {
+    // Handle anon modules.
+    var mod = modus.getLastModule();
+    if (mod) mod.register(moduleName);
     visit.emit('done');
   });
 };
@@ -554,6 +596,9 @@ Loader.prototype.loadServer = function (moduleName, next, error) {
   var src = getMappedPath(moduleName, modus.config('root'));
   try {
     require('./' + src);
+    // Handle anon modules.
+    var mod = modus.getLastModule();
+    if (mod) mod.register(moduleName);
     nextTick(function () {
       next();
     });
@@ -637,19 +682,27 @@ Import.prototype._applyToEnv = function () {
 // The core of modus, Modules allow you to spread code across
 // several files.
 var Module = modus.Module = function (name, factory, options) {
+  var self = this;
+
+  // Allow for anon modules.
+  if(typeof name === 'function') {
+    options = factory;
+    factory = name;
+    name = false;
+  }
+
   this.options = defaults({
     namespace: false,
     moduleName: null,
     throwErrors: true,
-    // If true, you'll need to manualy emit 'done' before
-    // the module will be marked as 'enabled'
+    amd: false,
     wait: false
   }, options);
-  var self = this;
 
   // If the factory has more then one argument, this module
-  // depends on some sort of async operation.
-  if (factory && factory.length >= 1) 
+  // depends on some sort of async operation (unless this is an
+  // amd module).
+  if ((factory && factory.length >= 1) && !this.options.amd) 
     this.options.wait = true;
   if (this.options.wait) {
     // We only want to wait until 'done' is emited, then
@@ -665,20 +718,25 @@ var Module = modus.Module = function (name, factory, options) {
   this._isEnabling = false;
   this._deps = [];
   this._listeners = {};
+  this._isAnon = true;
   
   this.setFactory(factory);
-  this.setName(name);
-
-  // Register with modus
-  modus.env[this.getFullName()] = this;
+  this.register(name)
 };
 
 // Extend the event emitter.
 Module.prototype = new EventEmitter();
 Module.prototype.constructor = Module;
 
-Module.prototype.setName = function (name) {
-  this._parseName(name);
+// Set the module name and register the module, if a name is
+// provided.
+Module.prototype.register = function (name) {
+  if (this._isAnon && name) {
+    this._isAnon = false;
+    this._parseName(name);
+    // Register with modus
+    modus.env[this.getFullName()] = this;
+  }
 };
 
 // Get the name of the module, excluding the namespace.
@@ -700,7 +758,10 @@ Module.prototype.getFullName = function () {
 
 // API method to add a dependency.
 Module.prototype.addDependency = function (dep) {
-  this._deps.push(dep);
+  if (dep instanceof Array)
+    this._deps = this._deps.concat(dep);
+  else
+    this._deps.push(dep);
 };
 
 // API method to get all dependencies.
@@ -744,11 +805,17 @@ Module.prototype.enable = function() {
   }
 
   var self = this;
+  var deps = this.getDependencies();
   var loader = modus.Loader.getInstance();
   var onFinal = function () {
     self._isEnabling = false;
     self._isEnabled = true;
-    if(!modus.isBuilding) self._runFactory();
+    if(!modus.isBuilding) {
+      if (self.options.amd)
+        self._runFactoryAMD();
+      else
+        self._runFactory();
+    }
     if(!self.options.wait) self.emit('done');
   };
 
@@ -757,20 +824,26 @@ Module.prototype.enable = function() {
   this.emit('enable.before');
   this._investigate();
 
-  if (this._deps.length <= 0) {
+  if (deps.length <= 0) {
     onFinal();
     return;
   }
 
-  eachAsync(this._deps, {
+  eachAsync(deps, {
     each: function (dep, next, error) {
       if (moduleExists(dep)) {
         _ensureModuleIsEnabled(dep, next, error);
       } else {
         // Try to find the module.
-        loader.load(dep, function () {
-          _ensureModuleIsEnabled(dep, next, error);
-        }, error);
+        nextTick(function () {
+          if (moduleExists(dep)) {
+            _ensureModuleIsEnabled(dep, next, error);
+          } else {
+            loader.load(dep, function () {
+              _ensureModuleIsEnabled(dep, next, error);
+            }, error);
+          }
+        });
       }
     },
     onFinal: onFinal,
@@ -839,7 +912,6 @@ Module.prototype._runFactory = function () {
   if (!this._factory) return;
   var self = this;
   // Bind helpers to the env.
-  this.emit('factory.before', this);
   this._env.imports = bind(this.imports, this);
   // Run the factory.
   if (this._factory.length <= 0) {
@@ -849,7 +921,7 @@ Module.prototype._runFactory = function () {
       if (err)
         self.emit('error', err);
       else
-        self.emit('done');
+        self.emit('done', null, self);
     });
   }
   // Cleanup the env.
@@ -858,7 +930,27 @@ Module.prototype._runFactory = function () {
     delete self._factory;
     delete self._deps;
   });
-  this.emit('factory.after', this);
+};
+
+// Run an AMD-style factory
+Module.prototype._runFactoryAMD = function () {
+  if (!this._factory) return;
+  var self = this;
+  var deps = this.getDependencies();
+  var mods = [];
+  each(deps, function (dep) {
+    dep = normalizeModuleName(dep);
+    if (moduleExists(dep)) 
+      mods.push(getModule(dep).getEnv());
+  });
+  if (mods.length <= 0)
+    this._env = this._factory.call(this) || {};
+  else
+    this._env = this._factory.apply(this, mods) || {};
+  this.once('done', function () {
+    delete self._factory;
+    delete self._deps;
+  });
 };
 
 }));

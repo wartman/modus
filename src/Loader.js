@@ -78,6 +78,7 @@ Loader.prototype.load = function (moduleName, next, error) {
 
 // Load a module when in a browser context.
 Loader.prototype.loadClient = function (moduleName, next, error) {
+  var self = this;
   var src = getMappedPath(moduleName, modus.config('root'));
   var visit = this.getVisit(src);
   var script;
@@ -95,6 +96,9 @@ Loader.prototype.loadClient = function (moduleName, next, error) {
   visit.once('error', error);
 
   this.insertScript(script, function () {
+    // Handle anon modules.
+    var mod = modus.getLastModule();
+    if (mod) mod.register(moduleName);
     visit.emit('done');
   });
 };
@@ -104,6 +108,9 @@ Loader.prototype.loadServer = function (moduleName, next, error) {
   var src = getMappedPath(moduleName, modus.config('root'));
   try {
     require('./' + src);
+    // Handle anon modules.
+    var mod = modus.getLastModule();
+    if (mod) mod.register(moduleName);
     nextTick(function () {
       next();
     });
