@@ -29,6 +29,7 @@ describe('modus.Build', function () {
       main.once('done', function () {
         expect(main.getEnv().foo).to.equal('foo');
         expect(main.getEnv().fileload).to.equal('file loaded');
+        expect(main.getEnv()._).to.be.a('function');
         done();
       });
       main.enable();

@@ -5,9 +5,9 @@ describe('Vendor', function () {
   before(function () {
     modus.config({
       maps: {
-        'jquery': '../node_modules/jquery/dist/jquery.min.js',
-        'underscore': '../node_modules/underscore/underscore-min.js',
-        'backbone': '../node_modules/backbone/backbone-min.js'
+        'jquery': '../node_modules/jquery/dist/jquery.min',
+        'underscore': '../node_modules/underscore/underscore-min',
+        'backbone': '../node_modules/backbone/backbone-min'
       }
     });
   });

@@ -29,7 +29,7 @@ gulp.task('mochaPhantomJs', function () {
 
 gulp.task('mocha', function () {
   var Modus = require('./'); // Is GLOBAL
-  return gulp.src('./test/*_test.js')
+  return gulp.src('./test/Build_test.js')
     .pipe(mocha({reporter: 'spec'}));
 });
 

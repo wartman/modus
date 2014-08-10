@@ -252,7 +252,6 @@ Module.prototype._runFactory = function () {
   this.once('done', function () {
     delete self._env.imports;
     delete self._factory;
-    delete self._deps;
   });
 };
 
@@ -279,6 +278,5 @@ Module.prototype._runFactoryAMD = function () {
     this._factory.apply(this, mods)
   this.once('done', function () {
     delete self._factory;
-    delete self._deps;
   });
 };
