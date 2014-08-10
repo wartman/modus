@@ -73,7 +73,7 @@ modus.module('example.hasDefault', function () {
 
 modus.module('example.otherModule', function () {
     this.imports('def').from('example.hasDefault');
-    console.log(this.def, this.def.foo);
+    console.log(this.def, this.def.bar);
     // --> 'foo undefined';
 });
 ```
