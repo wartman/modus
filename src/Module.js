@@ -6,7 +6,7 @@ var Module = modus.Module = function (name, factory, options) {
   var self = this;
 
   // Allow for anon modules.
-  if(typeof name === 'function') {
+  if('function' === typeof name) {
     options = factory;
     factory = name;
     name = false;
@@ -16,6 +16,7 @@ var Module = modus.Module = function (name, factory, options) {
     namespace: false,
     moduleName: null,
     throwErrors: true,
+    pub: false,
     amd: false,
     wait: false
   }, options);
@@ -159,15 +160,13 @@ Module.prototype.enable = function() {
         _ensureModuleIsEnabled(dep, next, error);
       } else {
         // Try to find the module.
-        nextTick(function () {
-          if (moduleExists(dep)) {
+        if (moduleExists(dep)) {
+          _ensureModuleIsEnabled(dep, next, error);
+        } else {
+          loader.load(dep, function () {
             _ensureModuleIsEnabled(dep, next, error);
-          } else {
-            loader.load(dep, function () {
-              _ensureModuleIsEnabled(dep, next, error);
-            }, error);
-          }
-        });
+          }, error);
+        }
       }
     },
     onFinal: onFinal,

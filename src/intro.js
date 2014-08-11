@@ -19,12 +19,13 @@
 
 (function (factory) {
 
-  if (typeof module === "object" && typeof module.exports === "object") {
+  if ('undefined' !== typeof __root) {
+    factory(__root);
+  } else if (typeof module === "object" && typeof module.exports === "object") {
     // For CommonJS environments.
-    var root = global || {}; // If this is nodejs, we want modus to be global.
-    factory(root);
-    module.exports = root.modus;
-  } else if (typeof window !== "undefined") {
+    factory(global);
+    module.exports = global.modus;
+  } else if ('undefined' !== typeof window) {
     factory(window);
   }
 
@@ -33,7 +34,13 @@
 "use strict"
 
 // The main modus namespace
-var modus = root.modus = {};
+var modus = {};
 
 // Save the current version.
 modus.VERSION = '@VERSION';
+
+// If modus is defined, save it.
+var _previousModus = root.modus;
+
+// export modus
+root.modus = modus;

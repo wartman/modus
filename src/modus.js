@@ -14,6 +14,12 @@ modus.options = {
   namespaceMaps: {}
 };
 
+// Return modus to its last owner
+modus.noConflict = function () {
+  root.modus = _previousModus;
+  return modus;
+};
+
 // Set or get a modus config option.
 modus.config = function (key, val) {
   if ( "object" === typeof key ) {
@@ -164,6 +170,7 @@ var getLastModule = modus.getLastModule = function () {
 function _enableModule(name, mod) {
   if (typeof name === 'string') { 
     // Enable now.
+    // mod.enable();
     nextTick(bind(mod.enable, mod));
   } else {
     // Anon module: wait for the script to load.
@@ -210,6 +217,13 @@ modus.namespace = function (namespace, factory) {
 
 // Shortcut to export a single value as a module.
 modus.publish = function (name, value, options) {
+  options = options || {};
+  options.pub = true;
+  if (arguments.length <= 1) {
+    options = value;
+    value = name;
+    name = false;
+  }
   return modus.module(name, function () {
     this.default = value;
   }, options);

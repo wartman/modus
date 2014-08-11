@@ -21,13 +21,13 @@ describe('modus.Build', function () {
   describe('#start', function () {
 
     it('compiles a project', function (done) {
-      var build = modus.Build.getInstance();
       var factory = Function(compiled);
-      var testRoot = {};
-      factory.call(testRoot);
-      var main = testRoot.modus.getModule('fixtures.build.main');
+      var base = {};
+      factory.call(base);
+      var main = base.modus.getModule('fixtures.build.main');
       main.once('done', function () {
         expect(main.getEnv().foo).to.equal('foo');
+        expect(main.getEnv().anon).to.equal('anon');
         expect(main.getEnv().fileload).to.equal('file loaded');
         expect(main.getEnv()._).to.be.a('function');
         done();
@@ -45,10 +45,10 @@ describe('modus.Build', function () {
       build.once('output.done', function () {
         build.fs.readFile(process.cwd() + '/test/tmp/compiled.js', 'utf-8', function (err, data) {
           if (err) throw err;
-          var factory = Function('modus', data);
-          var testRoot = {};
-          factory.apply(testRoot);
-          var main = testRoot.modus.getModule('fixtures.build.main');
+          var factory = Function(data);
+          var base = {};
+          factory.call(base);
+          var main = base.modus.getModule('fixtures.build.main');
           main.once('done', function () {
             expect(main.getEnv().foo).to.equal('foo');
             expect(main.getEnv().fileload).to.equal('file loaded');

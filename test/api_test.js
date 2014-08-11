@@ -101,10 +101,22 @@ describe('modus', function () {
       expect(mod).to.be.an.instanceOf(modus.Module);
     });
 
-    it('imports an external module', function (done) {
+    it('imports modules', function (done) {
       modus.module('tests.real', function () {
-        this.imports('importTest').from('fixtures.importTest');
-        expect(this.importTest.test).to.equal('importTest');
+        this.imports(['foo']).from('fixtures.basic.named');
+        this.imports(['bar']).from('fixtures.basic.anon');
+        expect(this.foo).to.equal('foo');
+        expect(this.bar).to.equal('bar');
+        done();
+      });
+    });
+
+    it('imports published modules', function (done) {
+      modus.module('tests.realPub', function () {
+        this.imports('named').from('fixtures.publish.named');
+        this.imports('anon').from('fixtures.publish.anon');
+        expect(this.named).to.equal('named');
+        expect(this.anon).to.equal('anon');
         done();
       });
     });

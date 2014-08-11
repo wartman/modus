@@ -9,22 +9,23 @@
   \\\\   \\\   \\\\     \\\\\\     \\\\\\\\      \\\\\\\\    \\\\\\\\\
 
 
-  Modus 0.1.3
+  Modus 0.1.4
   
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-10T21:32Z
+  Date: 2014-08-11T16:55Z
 */
 
 (function (factory) {
 
-  if (typeof module === "object" && typeof module.exports === "object") {
+  if ('undefined' !== typeof __root) {
+    factory(__root);
+  } else if (typeof module === "object" && typeof module.exports === "object") {
     // For CommonJS environments.
-    var root = global || {}; // If this is nodejs, we want modus to be global.
-    factory(root);
-    module.exports = root.modus;
-  } else if (typeof window !== "undefined") {
+    factory(global);
+    module.exports = global.modus;
+  } else if ('undefined' !== typeof window) {
     factory(window);
   }
 
@@ -33,10 +34,16 @@
 "use strict"
 
 // The main modus namespace
-var modus = root.modus = {};
+var modus = {};
 
 // Save the current version.
-modus.VERSION = '0.1.3';
+modus.VERSION = '0.1.4';
+
+// If modus is defined, save it.
+var _previousModus = root.modus;
+
+// export modus
+root.modus = modus;
 
 // Helpers
 // -------
@@ -200,6 +207,12 @@ modus.options = {
   namespaceMaps: {}
 };
 
+// Return modus to its last owner
+modus.noConflict = function () {
+  root.modus = _previousModus;
+  return modus;
+};
+
 // Set or get a modus config option.
 modus.config = function (key, val) {
   if ( "object" === typeof key ) {
@@ -350,6 +363,7 @@ var getLastModule = modus.getLastModule = function () {
 function _enableModule(name, mod) {
   if (typeof name === 'string') { 
     // Enable now.
+    // mod.enable();
     nextTick(bind(mod.enable, mod));
   } else {
     // Anon module: wait for the script to load.
@@ -396,6 +410,13 @@ modus.namespace = function (namespace, factory) {
 
 // Shortcut to export a single value as a module.
 modus.publish = function (name, value, options) {
+  options = options || {};
+  options.pub = true;
+  if (arguments.length <= 1) {
+    options = value;
+    value = name;
+    name = false;
+  }
   return modus.module(name, function () {
     this.default = value;
   }, options);
@@ -687,7 +708,7 @@ var Module = modus.Module = function (name, factory, options) {
   var self = this;
 
   // Allow for anon modules.
-  if(typeof name === 'function') {
+  if('function' === typeof name) {
     options = factory;
     factory = name;
     name = false;
@@ -697,6 +718,7 @@ var Module = modus.Module = function (name, factory, options) {
     namespace: false,
     moduleName: null,
     throwErrors: true,
+    pub: false,
     amd: false,
     wait: false
   }, options);
@@ -840,15 +862,13 @@ Module.prototype.enable = function() {
         _ensureModuleIsEnabled(dep, next, error);
       } else {
         // Try to find the module.
-        nextTick(function () {
-          if (moduleExists(dep)) {
+        if (moduleExists(dep)) {
+          _ensureModuleIsEnabled(dep, next, error);
+        } else {
+          loader.load(dep, function () {
             _ensureModuleIsEnabled(dep, next, error);
-          } else {
-            loader.load(dep, function () {
-              _ensureModuleIsEnabled(dep, next, error);
-            }, error);
-          }
-        });
+          }, error);
+        }
       }
     },
     onFinal: onFinal,
@@ -933,7 +953,6 @@ Module.prototype._runFactory = function () {
   this.once('done', function () {
     delete self._env.imports;
     delete self._factory;
-    delete self._deps;
   });
 };
 
@@ -960,7 +979,6 @@ Module.prototype._runFactoryAMD = function () {
     this._factory.apply(this, mods)
   this.once('done', function () {
     delete self._factory;
-    delete self._deps;
   });
 };
 
