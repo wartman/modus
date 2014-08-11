@@ -1,0 +1,1 @@
+modus.publish('fixtures.publish.named', 'named');

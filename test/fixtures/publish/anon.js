@@ -1,0 +1,1 @@
+modus.publish('anon');
