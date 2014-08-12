@@ -1,8 +1,8 @@
 // modus.Module
 // ------------
 // The core of modus, Modules allow you to spread code across
-// several files.
-var Module = modus.Module = function (name, factory, options) {
+// several files (private).
+var Module = function (name, factory, options) {
   var self = this;
 
   // Allow for anon modules.
@@ -188,13 +188,13 @@ Module.prototype.disable = function (reason) {
   }
 };
 
-// Create an instance of `modus.Import`. Arguments passed here
-// will be passed to `modus.Import#imports`.
+// Create an instance of `Import`. Arguments passed here
+// will be passed to `Import#imports`.
 //
 //    this.imports(['Bar', 'Bin']).from('app.bar');
 //
 Module.prototype.imports = function (componets) {
-  var imp = new modus.Import(this);
+  var imp = new Import(this);
   imp.imports(componets);
   return imp;
 };
@@ -218,6 +218,7 @@ var _findDeps = /\.from\([\'|\"]([\s\S]+?)[\'|\"]\)/g;
 // Use RegExp to find any imports this module needs, then add
 // them to the imports stack.
 Module.prototype._investigate = function () {
+  if (!this._factory) return;
   var factory = this._factory.toString();
   var self = this;
   factory.replace(_findDeps, function (matches, dep) {

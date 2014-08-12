@@ -1,39 +1,43 @@
 if (modus.isServer()) var expect = require('chai').expect;
 
-describe('modus.Module', function () {
+describe('mod', function () {
 
   beforeEach(function () {
     modus.config('root', '');
   });
 
+  it('is an alias for modus.module', function () {
+    expect(mod).to.deep.equal(modus.module);
+  })
+
   describe('#init', function () {
 
     it('sets up correctly', function () {
       var opts = {namespace: 'tests'};
-      var modTest = new modus.Module('moduleName', function () {}, opts);
+      var modTest = mod('moduleName', function () {}, opts);
       opts.moduleName = 'moduleName';
       expect(modTest.options).to.deep.equal(opts);
     });
 
     it('registers itself with modus.env', function () {
-      var module = new modus.Module('tests.isRegistered');
-      expect(module).to.deep.equal(modus.env['tests.isRegistered']);
+      var modTest = mod('tests.isRegistered');
+      expect(modTest).to.deep.equal(modus.env['tests.isRegistered']);
     });
 
   });
 
   describe('#getName / #getFullName', function () {
     it('returns the name', function () {
-      var mod = new modus.Module('tests.name.test');
-      expect(mod.getName()).to.equal('test');
-      expect(mod.getFullName()).to.equal('tests.name.test');
+      var modTest = mod('tests.name.test');
+      expect(modTest.getName()).to.equal('test');
+      expect(modTest.getFullName()).to.equal('tests.name.test');
     });
   });
 
   describe('#enable', function () {
 
-    it('will wait for a "done" event to be emited if a second arg is passed', function (done) {
-      modus.module('tests.wait.target', function (moduleDone) {
+    it('will wait for a "done" event to be emited if an arg is passed', function (done) {
+      mod('tests.wait.target', function (moduleDone) {
         var self = this;
         this.foo = 'didn\'t wait';
         setTimeout(function () {
@@ -41,7 +45,7 @@ describe('modus.Module', function () {
           moduleDone();
         }, 10);
       });
-      modus.module('tests.wait.tester', function () {
+      mod('tests.wait.tester', function () {
         this.imports(['foo']).from('.target');
         expect(this.foo).to.equal('waited');
         done();
@@ -53,42 +57,39 @@ describe('modus.Module', function () {
   describe('#imports', function () {
 
     it('imports `default` string is passed', function (done) {
-      var mod = new modus.Module('tests.import.stringTarget', function () {
+      mod('tests.import.stringTarget', function () {
         this.default = 'String Target';
       });
-      var mod = new modus.Module('tests.import.string', function () {
+      mod('tests.import.string', function () {
         this.imports('target').from('.stringTarget');
         expect(this.target).to.equal('String Target');
         done();
       });
-      mod.enable();
     });
 
     it('imports an entire module if `default` is not set and a string is passed', function (done) {
-      var mod = new modus.Module('tests.import.stringAllTarget', function () {
+      mod('tests.import.stringAllTarget', function () {
         this.foo = 'foo';
         this.bar = 'bar';
       });
-      var mod = new modus.Module('tests.import.stringAll', function () {
+      mod('tests.import.stringAll', function () {
         this.imports('target').from('.stringAllTarget');
         expect(this.target).to.deep.equal({foo:'foo', bar:'bar'});
         done();
       });
-      mod.enable();
     });
 
     it('imports components if array is passed', function (done) {
-      var mod = new modus.Module('tests.import.stringArrayTarget', function () {
+      mod('tests.import.stringArrayTarget', function () {
         this.foo = 'foo';
         this.bar = 'bar';
       });
-      var mod = new modus.Module('tests.import.stringArray', function () {
+      mod('tests.import.stringArray', function () {
         this.imports(['foo', 'bar']).from('.stringArrayTarget');
         expect(this.foo).to.equal('foo');
         expect(this.bar).to.equal('bar');
         done();
       });
-      mod.enable();
     });
 
   });

@@ -97,8 +97,8 @@ describe('modus', function () {
   describe('#module', function () {
 
     it('creates a new module', function () {
-      var mod = modus.module('tests.create', function () {});
-      expect(mod).to.be.an.instanceOf(modus.Module);
+      var curMod = modus.module('tests.create', function () {});
+      expect(curMod).to.deep.equal(modus.getModule('tests.create'))
     });
 
     it('imports modules', function (done) {

@@ -1,3 +1,3 @@
-modus.module('fixtures.basic.named', function () {
+mod('fixtures.basic.named', function () {
   this.foo = 'foo';
 });

@@ -1,3 +1,3 @@
-modus.module(function () {
+mod(function () {
   this.bar = 'bar';
 });

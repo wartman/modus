@@ -5,7 +5,7 @@ require('../dist/Modus');
 require('../lib/build');
 
 program
-  .version('0.0.1')
+  .version(modus.VERSION)
   .usage('<options> [commands]')
   .option('-m, --minify', 'Minify the compiled script (using UglifyJs)')
   .option('-r, --root <root>', "Set the root path for the module.\n"

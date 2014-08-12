@@ -1,4 +1,4 @@
-modus.module('fixtures.stress.one', function () {
+mod('fixtures.stress.one', function () {
   this.imports(['bar']).from('.two');
   this.imports(['bax']).from('.three');
   this.foo = 'one';

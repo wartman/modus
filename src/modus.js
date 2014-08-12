@@ -186,7 +186,7 @@ function _enableModule(name, mod) {
 //
 modus.module = function (name, factory, options) {
   options = options || {};
-  var mod = new modus.Module(name, factory, options);
+  var mod = new Module(name, factory, options);
   _enableModule(name, mod);
   return mod;
 };
@@ -242,7 +242,7 @@ root.define = modus.define = function (name, deps, factory) {
     factory = deps;
     deps = [];
   }
-  var mod = new modus.Module(name, factory, {amd: true});
+  var mod = new Module(name, factory, {amd: true});
   mod.addDependency(deps);
   _enableModule(name, mod);
   return mod;
@@ -252,3 +252,7 @@ root.define = modus.define = function (name, deps, factory) {
 root.define.amd = {
   jQuery: true
 };
+
+// Shortcut for `modus.module`. `mod` is the preferred way to define
+// modules.
+root.mod = modus.module;

@@ -2,7 +2,7 @@
 // ------------
 // Import does what you expect: it handles all imports for 
 // modus namespaces and modus modules.
-var Import = modus.Import = function (parent) {
+var Import = function (parent) {
   this._listeners = {};
   this._parent = parent;
   this._components = [];

@@ -39,7 +39,7 @@ var modus = {};
 // Save the current version.
 modus.VERSION = '@VERSION';
 
-// If modus is defined, save it.
+// Save the previous value of root.modus
 var _previousModus = root.modus;
 
 // export modus

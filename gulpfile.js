@@ -9,11 +9,11 @@ gulp.task('build', function() {
   return gulp.src([
       './src/intro.js',
       './src/helpers.js',
-      './src/Modus.js',
       './src/EventEmitter.js',
       './src/Loader.js',
       './src/Import.js',
       './src/Module.js',
+      './src/modus.js',
       './src/outro.js',
     ])
     .pipe(concat('modus.js'))
