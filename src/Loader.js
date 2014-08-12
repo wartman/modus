@@ -5,6 +5,10 @@ var Loader = modus.Loader = function () {
   this._visited = {};
 };
 
+var _catchError = function (e) {
+  throw e;
+};
+
 // Used to store a singleton of Loader.
 var _loaderInstance = null;
 
@@ -59,6 +63,8 @@ Loader.prototype.insertScript = function (script, next) {
 // Start loading a module. This method will detect the environment
 // (server or client) and act appropriately.
 Loader.prototype.load = function (moduleName, next, error) {
+  next = next || function () {};
+  error = error || _catchError;
   var self = this;
   if (moduleName instanceof Array) {
     eachAsync(moduleName, {

@@ -25,6 +25,16 @@ mod(function () {
 });
 ```
 
+Getting Started
+---------------
+
+In your HTML file, add a script tag pointing at Modus and a 'data-main' attribute
+for the main module in your project.
+
+```html
+<script src="dir/where/you/put/Modus.js" data-main='path.to.main.module'></script>
+```
+
 API
 ---
 

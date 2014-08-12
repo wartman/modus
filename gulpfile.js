@@ -14,7 +14,8 @@ gulp.task('build', function() {
       './src/Import.js',
       './src/Module.js',
       './src/modus.js',
-      './src/outro.js',
+      './src/start.js',
+      './src/outro.js'
     ])
     .pipe(concat('modus.js'))
     .pipe(replace(/@VERSION/g, meta.version))

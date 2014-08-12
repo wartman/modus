@@ -9,12 +9,12 @@
   \\\\   \\\   \\\\     \\\\\\     \\\\\\\\      \\\\\\\\    \\\\\\\\\
 
 
-  Modus 0.1.5
+  Modus 0.1.6
   
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-12T15:45Z
+  Date: 2014-08-12T16:24Z
 */
 
 (function (factory) {
@@ -37,7 +37,7 @@
 var modus = {};
 
 // Save the current version.
-modus.VERSION = '0.1.5';
+modus.VERSION = '0.1.6';
 
 // Save the previous value of root.modus
 var _previousModus = root.modus;
@@ -262,6 +262,10 @@ var Loader = modus.Loader = function () {
   this._visited = {};
 };
 
+var _catchError = function (e) {
+  throw e;
+};
+
 // Used to store a singleton of Loader.
 var _loaderInstance = null;
 
@@ -316,6 +320,8 @@ Loader.prototype.insertScript = function (script, next) {
 // Start loading a module. This method will detect the environment
 // (server or client) and act appropriately.
 Loader.prototype.load = function (moduleName, next, error) {
+  next = next || function () {};
+  error = error || _catchError;
   var self = this;
   if (moduleName instanceof Array) {
     eachAsync(moduleName, {
@@ -853,6 +859,10 @@ var getMappedPath = modus.getMappedPath = function (module, root) {
   root = root || modus.config('root');
   var src = _getMappedModulePath(module);
   src = _getMappedNamespacePath(src);
+  // Some modules may start with a dot. Make sure we don't end up
+  // with an ugly URI by dropping it.
+  if (!isPath(src) && src.indexOf('.') === 0)
+    src = src.substring(1);
   src = (!isPath(src))? src.replace(/\./g, '/') : src;
   src = (src.indexOf('.js') < 0 && !isServer())
     ? root + src + '.js'
@@ -987,5 +997,34 @@ root.define.amd = {
 // Shortcut for `modus.module`. `mod` is the preferred way to define
 // modules.
 root.mod = modus.module;
+
+// Start a script by loading a main file. With modus.start, modus will 
+// try to parse the root path from the provided path, which often is 
+// all the configuration you need.
+modus.start = function (mainPath, done) {
+  mainPath = modus.normalizeModuleName(mainPath);
+  var lastSegment = (mainPath.lastIndexOf('.') + 1);
+  var root = mainPath.substring(0, lastSegment);
+  var main = mainPath.substring(lastSegment);
+  var loader = modus.Loader.getInstance();
+  modus.config('root', root.replace(/\./g, '/'));
+  modus.config('main', main);
+  loader.load(main, done);
+};
+
+// If this script tag has 'data-main' attribute, we can
+// autostart without the need to explicitly call 'modus.start'.
+function _autostart() {
+  var scripts = document.getElementsByTagName( 'script' );
+  var script = scripts[ scripts.length - 1 ];
+  if (script) {
+    var main = script.getAttribute('data-main');
+    if (main)
+      modus.start(main);
+  }
+};
+
+if (typeof document !== 'undefined')
+  _autostart();
 
 }));

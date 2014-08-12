@@ -122,6 +122,10 @@ var getMappedPath = modus.getMappedPath = function (module, root) {
   root = root || modus.config('root');
   var src = _getMappedModulePath(module);
   src = _getMappedNamespacePath(src);
+  // Some modules may start with a dot. Make sure we don't end up
+  // with an ugly URI by dropping it.
+  if (!isPath(src) && src.indexOf('.') === 0)
+    src = src.substring(1);
   src = (!isPath(src))? src.replace(/\./g, '/') : src;
   src = (src.indexOf('.js') < 0 && !isServer())
     ? root + src + '.js'
