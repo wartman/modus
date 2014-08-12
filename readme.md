@@ -268,7 +268,7 @@ mod('loadfile', function () {
 });
 
 // The following will be run for every imported module:
-modus.on('build', function (moduleName, raw) {
+modus.events.on('build', function (moduleName, raw) {
     // investigate the module for any 'loadfile' calls
     var _checkFiles = /loadfile\(([\s\S]+?)\)/g;
     var build = modus.Build.getInstance();
