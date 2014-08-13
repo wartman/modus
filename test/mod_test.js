@@ -19,9 +19,9 @@ describe('mod', function () {
       expect(modTest.options).to.deep.equal(opts);
     });
 
-    it('registers itself with modus.env', function () {
+    it('registers itself with modus', function () {
       var modTest = mod('tests.isRegistered');
-      expect(modTest).to.deep.equal(modus.env['tests.isRegistered']);
+      expect(modTest).to.deep.equal(modus.getModule('tests.isRegistered'));
     });
 
   });
@@ -48,46 +48,6 @@ describe('mod', function () {
       mod('tests.wait.tester', function () {
         this.imports(['foo']).from('.target');
         expect(this.foo).to.equal('waited');
-        done();
-      });
-    });
-
-  });
-
-  describe('#imports', function () {
-
-    it('imports `default` string is passed', function (done) {
-      mod('tests.import.stringTarget', function () {
-        this.default = 'String Target';
-      });
-      mod('tests.import.string', function () {
-        this.imports('target').from('.stringTarget');
-        expect(this.target).to.equal('String Target');
-        done();
-      });
-    });
-
-    it('imports an entire module if `default` is not set and a string is passed', function (done) {
-      mod('tests.import.stringAllTarget', function () {
-        this.foo = 'foo';
-        this.bar = 'bar';
-      });
-      mod('tests.import.stringAll', function () {
-        this.imports('target').from('.stringAllTarget');
-        expect(this.target).to.deep.equal({foo:'foo', bar:'bar'});
-        done();
-      });
-    });
-
-    it('imports components if array is passed', function (done) {
-      mod('tests.import.stringArrayTarget', function () {
-        this.foo = 'foo';
-        this.bar = 'bar';
-      });
-      mod('tests.import.stringArray', function () {
-        this.imports(['foo', 'bar']).from('.stringArrayTarget');
-        expect(this.foo).to.equal('foo');
-        expect(this.bar).to.equal('bar');
         done();
       });
     });

@@ -34,7 +34,7 @@ var Module = function (name, factory, options) {
     });
   }
 
-  this._env = {};
+  this._env = null;
   this._isDisabled = false;
   this._isEnabled = false;
   this._isEnabling = false;
@@ -57,7 +57,7 @@ Module.prototype.register = function (name) {
     this._isAnon = false;
     this._parseName(name);
     // Register with modus
-    modus.env[this.getFullName()] = this;
+    modus.addModule(this.getFullName(), this);
   }
 };
 
@@ -103,7 +103,9 @@ Module.prototype.getFactory = function () {
 
 // API method to get the module's environment.
 Module.prototype.getEnv = function () {
-  return this._env || {};
+  if (this._isAnon)
+    throw new Error('Cannot get environment from anonymous module');
+  return this._env || new Environment(this.getFullName());
 };
 
 // Make sure a module is enabled and add event listeners.
@@ -188,32 +190,19 @@ Module.prototype.disable = function (reason) {
   }
 };
 
-// Create an instance of `Import`. Arguments passed here
-// will be passed to `Import#imports`.
-//
-//    this.imports(['Bar', 'Bin']).from('app.bar');
-//
-Module.prototype.imports = function (componets) {
-  var imp = new Import(this);
-  imp.imports(componets);
-  return imp;
-};
-
 // Parse a string into a module name and namespace.
 Module.prototype._parseName = function (name) {
   var namespace = this.options.namespace || '';
-  name = normalizeModuleName(name);
-  if (name.indexOf('.') > 0) {
-    if (namespace.length) namespace += '.';
-    namespace += name.substring(0, name.lastIndexOf('.'));
-    name = name.substring(name.lastIndexOf('.') + 1);
-  }
-  this.options.moduleName = name;
-  this.options.namespace = namespace;
+  var segments = modus.parseName(name, namespace);
+  this.options.moduleName = segments.name;
+  this.options.namespace = segments.namespace;
 };
 
-// RegExp to find imports.
-var _findDeps = /\.from\([\'|\"]([\s\S]+?)[\'|\"]\)/g;
+// RegExps to find imports.
+var _finders = [
+  /\.from\([\'|\"]([\s\S]+?)[\'|\"]\)/g,
+  /\.imports\([\'|\"]([\s\S]+?)[\'|\"]\)\.as\([\s\S]+?\)/g
+];
 
 // Use RegExp to find any imports this module needs, then add
 // them to the imports stack.
@@ -221,11 +210,14 @@ Module.prototype._investigate = function () {
   if (!this._factory) return;
   var factory = this._factory.toString();
   var self = this;
-  factory.replace(_findDeps, function (matches, dep) {
+  var addDep = function (matches, dep) {
     // Check if this is using a namespace shortcut
     if (dep.indexOf('.') === 0)
       dep = self.options.namespace + dep;
     self.addDependency(dep);
+  };
+  each(_finders, function (re) {
+    factory.replace(re, addDep);
   });
   this.emit('investigate', this);
   modus.events.emit('module.investigate', this);
@@ -235,8 +227,8 @@ Module.prototype._investigate = function () {
 Module.prototype._runFactory = function () {
   if (!this._factory) return;
   var self = this;
-  // Bind helpers to the env.
-  this._env.imports = bind(this.imports, this);
+  // Create or get the current env.
+  this._env = this.getEnv();
   // Run the factory.
   if (this._factory.length <= 0) {
     this._factory.call(this._env);
@@ -248,11 +240,8 @@ Module.prototype._runFactory = function () {
         self.emit('done', null, self);
     });
   }
-  // Cleanup the env.
-  this.once('done', function () {
-    delete self._env.imports;
-    delete self._factory;
-  });
+  // Cleanup.
+  delete this._factory;
 };
 
 // Run an AMD-style factory
@@ -262,21 +251,34 @@ Module.prototype._runFactoryAMD = function () {
   var deps = this.getDependencies();
   var mods = [];
   var usingExports = false;
+  var amdEnv = {};
+  // Create or get the current env.
   each(deps, function (dep) {
     if (dep === 'exports') {
-      mods.push(self._env);
+      mods.push(amdEnv);
       usingExports = true;
     } else {
       dep = normalizeModuleName(dep);
-      if (moduleExists(dep)) 
-        mods.push(getModule(dep).getEnv());
+      if (envExists(dep)) {
+        var env = getEnv(dep);
+        if (env.hasOwnProperty('default'))
+          mods.push(env['default']);
+        else
+          mods.push(env);
+      }
     }
   });
   if (!usingExports) 
-    this._env = this._factory.apply(this, mods) || {};
+    amdEnv = this._factory.apply(this, mods) || {};
   else 
-    this._factory.apply(this, mods)
-  this.once('done', function () {
-    delete self._factory;
-  });
+    this._factory.apply(this, mods);
+
+  // Export the env
+  if (typeof amdEnv === 'function')
+    amdEnv['default'] = amdEnv;
+  this._env = amdEnv;
+  modus.addEnv(this.getFullName(), amdEnv);
+
+  // Cleanup.
+  delete this._factory;
 };

@@ -4,8 +4,11 @@
 // Environment helpers
 // -------------------
 
-// 'env' holds modules.
+// 'env' holds the actual data used by Modus.
 modus.env = {};
+
+// 'modules' holds references to modus.Modules.
+modus.modules = {};
 
 // Config options for modus.
 modus.options = {
@@ -145,25 +148,73 @@ var normalizeModuleName = modus.normalizeModuleName = function (name) {
   return name;
 };
 
-// Check if a module has been loaded.
-var moduleExists = modus.moduleExists = function (name) {
+// Get components from a moduleName
+var parseName = modus.parseName = function (name, namespace) {
+  namespace = namespace || '';
   name = normalizeModuleName(name);
-  if (modus.env.hasOwnProperty(name)) return true;
-  return false;
+  if (name.indexOf('.') >= 0) {
+    namespace += name.substring(0, name.lastIndexOf('.'));
+    name = name.substring(name.lastIndexOf('.') + 1);
+  }
+  return {
+    name: name,
+    namespace: namespace,
+    fullName: (namespace.length)? namespace + '.' + name : name
+  };
 };
 
-// Get a module from the env.
-var getModule = modus.getModule = function (name) {
-  if (!name) return modus.env;
+function _existsInRegistry (type, name) {
+  var env = modus[type];
   name = normalizeModuleName(name);
-  return modus.env[name] || false;
-}
+  return env.hasOwnProperty(name);
+};
 
+function _getFromRegistry (type, name) {
+  var env = modus[type];
+  if (!name) return env;
+  name = normalizeModuleName(name);
+  return env[name] || false;
+};
+
+function _addToRegistry (type, name, data) {
+  var env = modus[type];
+  env[name] = data;
+};
+
+// Check if a module has been loaded.
+var moduleExists = modus.moduleExists = function (name) {
+  return _existsInRegistry('modules', name);
+};
+
+// Get a module from the modules registry.
+var getModule = modus.getModule = function (name) {
+  return _getFromRegistry('modules', name);
+};
+
+// Add a module to the modules registry.
+var addModule = modus.addModule = function (name, mod) {
+  return _addToRegistry('modules', name, mod);
+};
+
+// Return the last module added. This is used to find
+// anonymous modules and give them names.
 var _lastModule = null;
 var getLastModule = modus.getLastModule = function () {
   var mod = _lastModule;
   _lastModule = null;
   return mod;
+};
+
+var envExists = modus.envExists = function (name) {
+  return _existsInRegistry('env', name);
+};
+
+var getEnv = modus.getEnv = function (name) {
+  return _getFromRegistry('env', name);
+};
+
+var addEnv = modus.addEnv = function (name, env) {
+  return _addToRegistry('env', name, env);
 };
 
 // Primary API

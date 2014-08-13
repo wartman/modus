@@ -6,7 +6,7 @@ var keys = function(obj) {
   if ("object" !== typeof obj) return [];
   if (Object.keys) return Object.keys(obj);
   var keys = [];
-  for (var key in obj) if (_.has(obj, key)) keys.push(key);
+  for (var key in obj) if (obj.hasOwnProperty(key)) keys.push(key);
   return keys;
 };
 
@@ -37,6 +37,14 @@ var extend = function (obj){
     }
   });
   return obj;
+};
+
+var omit = function(obj, blacklist) {
+  var copy = extend({}, obj);
+  each(blacklist, function (key) {
+    if (copy.hasOwnProperty(key)) delete copy[key];
+  });
+  return copy;
 };
 
 // A simple shim for `Function#bind`
