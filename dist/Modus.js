@@ -9,12 +9,12 @@
   \\\\   \\\   \\\\     \\\\\\     \\\\\\\\      \\\\\\\\    \\\\\\\\\
 
 
-  Modus 0.1.6
+  Modus 0.1.7
   
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-13T17:12Z
+  Date: 2014-08-14T16:15Z
 */
 
 (function (factory) {
@@ -37,7 +37,7 @@
 var modus = {};
 
 // Save the current version.
-modus.VERSION = '0.1.6';
+modus.VERSION = '0.1.7';
 
 // Save the previous value of root.modus
 var _previousModus = root.modus;
@@ -84,14 +84,6 @@ var extend = function (obj){
     }
   });
   return obj;
-};
-
-var omit = function(obj, blacklist) {
-  var copy = extend({}, obj);
-  each(blacklist, function (key) {
-    if (copy.hasOwnProperty(key)) delete copy[key];
-  });
-  return copy;
 };
 
 // A simple shim for `Function#bind`
@@ -145,6 +137,42 @@ var eachAsync = function (obj, options) {
   });
 };
 
+// Shim for Array.prototype.indexOf
+var nativeIndexOf = Array.prototype.indexOf;
+var inArray = function(arr, check) {
+  // Prefer native indexOf, if available.
+  if (nativeIndexOf && arr.indexOf === nativeIndexOf)
+    return arr.indexOf(check);
+  var index = -1;
+  each(arr, function (key, i) {
+    if (key === check) index = i;
+  });
+  return index;
+};
+
+// Filter shim.
+var nativeFilter = Array.prototype.filter;
+var filter = function (obj, predicate, context) {
+  var results = [];
+  if (obj == null) return results;
+  if (nativeFilter && obj.filter === nativeFilter)
+    return obj.filter(predicate, context);
+  each(obj, function(value, index, list) {
+    if (predicate.call(context, value, index, list)) results.push(value);
+  });
+  return results;
+};
+
+// Return an object, minus any blacklisted items.
+var omit = function(obj, blacklist) {
+  var copy = {}
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key) && (inArray(blacklist, key) < 0))
+      copy[key] = obj[key];
+  }
+  return copy;
+};
+
 // Enxure things are loaded async.
 var nextTick = ( function () {
   var fns = [];
@@ -181,18 +209,6 @@ var nextTick = ( function () {
     return function (fn, ctx) { enqueueFn(fn, ctx) && root.postMessage(msg, '*'); };
   }
 })();
-
-// Filter shim.
-var nativeFilter = Array.prototype.filter;
-var filter = function (obj, predicate, context) {
-  var results = [];
-  if (obj == null) return results;
-  if (nativeFilter && obj.filter === nativeFilter) return obj.filter(predicate, context);
-  each(obj, function(value, index, list) {
-    if (predicate.call(context, value, index, list)) results.push(value);
-  });
-  return results;
-};
 
 // Check if this is a path or an object name
 var isPath = function (obj) {
@@ -451,7 +467,7 @@ Environment.prototype.imports = function (props) {
       if (dep.indexOf('.') === 0)
         dep = modus.parseName(dep, self.__namespace).fullName;
       if (modus.envExists(dep)) {
-        depEnv = modus.getEnv(dep);
+        var depEnv = modus.getEnv(dep);
         _applyToEnvironment(alias, depEnv, self, false);
       }
     }
@@ -503,7 +519,7 @@ var Module = function (name, factory, options) {
   this._isAnon = true;
   
   this.setFactory(factory);
-  this.register(name)
+  this.register(name);
 };
 
 // Extend the event emitter.
@@ -673,14 +689,16 @@ Module.prototype._investigate = function () {
   var addDep = function (matches, dep) {
     // Check if this is using a namespace shortcut
     if (dep.indexOf('.') === 0)
-      dep = self.options.namespace + dep;
+      dep = (self.options.namespace.length > 0)
+        ? self.options.namespace + dep
+        : dep.substring(dep.indexOf('.') + 1);
     self.addDependency(dep);
   };
   each(_finders, function (re) {
     factory.replace(re, addDep);
   });
-  this.emit('investigate', this);
-  modus.events.emit('module.investigate', this);
+  this.emit('investigate', this, factory);
+  modus.events.emit('investigate', this, factory);
 };
 
 // Run the registered factory.
@@ -738,7 +756,6 @@ Module.prototype._runFactoryAMD = function () {
     amdEnv['default'] = amdEnv;
   this._env = amdEnv;
   modus.addEnv(this.getFullName(), amdEnv);
-
   // Cleanup.
   delete this._factory;
 };
@@ -989,30 +1006,6 @@ modus.module = function (name, factory, options) {
   var mod = new Module(name, factory, options);
   _enableModule(name, mod);
   return mod;
-};
-
-// Syntactic sugar for namespaces.
-//
-//    modus.namespace('foo.bin', function () {
-//      this.module('bin', function () {...});
-//    });
-//
-//    //Or:
-//    modus.namespace('foo.bar').module('bin', function () { ... });
-//
-modus.namespace = function (namespace, factory) {
-  var options = {namespace: namespace};
-  var ns = {
-    module: function (name, factory) {
-      return modus.module(name, factory, options);
-    },
-    publish: function (name, value) {
-      return modus.publish(name, value, options);
-    }
-  };
-  if (factory)
-    factory.call(ns);
-  return ns;
 };
 
 // Shortcut to export a single value as a module.

@@ -57,7 +57,7 @@ Environment.prototype.imports = function (props) {
       if (dep.indexOf('.') === 0)
         dep = modus.parseName(dep, self.__namespace).fullName;
       if (modus.envExists(dep)) {
-        depEnv = modus.getEnv(dep);
+        var depEnv = modus.getEnv(dep);
         _applyToEnvironment(alias, depEnv, self, false);
       }
     }

@@ -43,7 +43,7 @@ var Module = function (name, factory, options) {
   this._isAnon = true;
   
   this.setFactory(factory);
-  this.register(name)
+  this.register(name);
 };
 
 // Extend the event emitter.
@@ -213,14 +213,16 @@ Module.prototype._investigate = function () {
   var addDep = function (matches, dep) {
     // Check if this is using a namespace shortcut
     if (dep.indexOf('.') === 0)
-      dep = self.options.namespace + dep;
+      dep = (self.options.namespace.length > 0)
+        ? self.options.namespace + dep
+        : dep.substring(dep.indexOf('.') + 1);
     self.addDependency(dep);
   };
   each(_finders, function (re) {
     factory.replace(re, addDep);
   });
-  this.emit('investigate', this);
-  modus.events.emit('module.investigate', this);
+  this.emit('investigate', this, factory);
+  modus.events.emit('investigate', this, factory);
 };
 
 // Run the registered factory.
@@ -278,7 +280,6 @@ Module.prototype._runFactoryAMD = function () {
     amdEnv['default'] = amdEnv;
   this._env = amdEnv;
   modus.addEnv(this.getFullName(), amdEnv);
-
   // Cleanup.
   delete this._factory;
 };

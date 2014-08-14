@@ -22,6 +22,14 @@ describe('modus.Environment', function () {
       expect(actual.target).to.equal('String Target');
     });
 
+    it('uses `as` to alias imports', function () {
+      var target = new modus.Environment('tests.importAs.stringTarget');
+      target['default'] = 'String Target';
+      var actual = new modus.Environment('tests.importAs.string');
+      actual.imports('.stringTarget').as('foo');
+      expect(actual.foo).to.equal('String Target');
+    });
+
     it('imports an entire module if `default` is not set and a string is passed', function () {
       var target = new modus.Environment('tests.import.stringAllTarget');
       target.foo = 'foo';

@@ -246,30 +246,6 @@ modus.module = function (name, factory, options) {
   return mod;
 };
 
-// Syntactic sugar for namespaces.
-//
-//    modus.namespace('foo.bin', function () {
-//      this.module('bin', function () {...});
-//    });
-//
-//    //Or:
-//    modus.namespace('foo.bar').module('bin', function () { ... });
-//
-modus.namespace = function (namespace, factory) {
-  var options = {namespace: namespace};
-  var ns = {
-    module: function (name, factory) {
-      return modus.module(name, factory, options);
-    },
-    publish: function (name, value) {
-      return modus.publish(name, value, options);
-    }
-  };
-  if (factory)
-    factory.call(ns);
-  return ns;
-};
-
 // Shortcut to export a single value as a module.
 modus.publish = function (name, value, options) {
   options = options || {};

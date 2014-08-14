@@ -39,14 +39,6 @@ var extend = function (obj){
   return obj;
 };
 
-var omit = function(obj, blacklist) {
-  var copy = extend({}, obj);
-  each(blacklist, function (key) {
-    if (copy.hasOwnProperty(key)) delete copy[key];
-  });
-  return copy;
-};
-
 // A simple shim for `Function#bind`
 var bind = function (func, ctx) {
   if (Function.prototype.bind && func.bind) return func.bind(ctx);
@@ -98,6 +90,42 @@ var eachAsync = function (obj, options) {
   });
 };
 
+// Shim for Array.prototype.indexOf
+var nativeIndexOf = Array.prototype.indexOf;
+var inArray = function(arr, check) {
+  // Prefer native indexOf, if available.
+  if (nativeIndexOf && arr.indexOf === nativeIndexOf)
+    return arr.indexOf(check);
+  var index = -1;
+  each(arr, function (key, i) {
+    if (key === check) index = i;
+  });
+  return index;
+};
+
+// Filter shim.
+var nativeFilter = Array.prototype.filter;
+var filter = function (obj, predicate, context) {
+  var results = [];
+  if (obj == null) return results;
+  if (nativeFilter && obj.filter === nativeFilter)
+    return obj.filter(predicate, context);
+  each(obj, function(value, index, list) {
+    if (predicate.call(context, value, index, list)) results.push(value);
+  });
+  return results;
+};
+
+// Return an object, minus any blacklisted items.
+var omit = function(obj, blacklist) {
+  var copy = {}
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key) && (inArray(blacklist, key) < 0))
+      copy[key] = obj[key];
+  }
+  return copy;
+};
+
 // Enxure things are loaded async.
 var nextTick = ( function () {
   var fns = [];
@@ -134,18 +162,6 @@ var nextTick = ( function () {
     return function (fn, ctx) { enqueueFn(fn, ctx) && root.postMessage(msg, '*'); };
   }
 })();
-
-// Filter shim.
-var nativeFilter = Array.prototype.filter;
-var filter = function (obj, predicate, context) {
-  var results = [];
-  if (obj == null) return results;
-  if (nativeFilter && obj.filter === nativeFilter) return obj.filter(predicate, context);
-  each(obj, function(value, index, list) {
-    if (predicate.call(context, value, index, list)) results.push(value);
-  });
-  return results;
-};
 
 // Check if this is a path or an object name
 var isPath = function (obj) {

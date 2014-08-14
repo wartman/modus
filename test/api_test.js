@@ -82,30 +82,6 @@ describe('modus', function () {
 
   });
 
-  // describe('#namespace', function () {
-
-  //   it('defines modules using provided namespace', function (done) {
-  //     modus.namespace('tests.namespace', function () {
-  //       this.module('foo', function () {
-  //         this.foo = 'foo';
-  //       });
-  //       this.module('bar', function () {
-  //         this.bar = 'bar';
-  //       });
-  //     });
-  //     modus.module('tests.namespace.import', function () {
-  //       this.imports(['foo']).from('.foo');
-  //       this.imports(['bar']).from('.bar');
-  //       expect(modus.moduleExists('tests.namespace.foo')).to.be.true;
-  //       expect(modus.moduleExists('tests.namespace.bar')).to.be.true;
-  //       expect(this.foo).to.equal('foo');
-  //       expect(this.bar).to.equal('bar');
-  //       done();
-  //     })
-  //   });
-
-  // });
-
   describe('#module', function () {
 
     it('creates a new module', function () {
@@ -188,7 +164,6 @@ describe('modus', function () {
       modus.publish('tests.publish', 'published');
       modus.module('tests.publish.import', function () {
         this.imports('publish').from('tests.publish');
-        console.log('PUB', this);
         expect(this.publish).to.equal('published');
         done();
       });
