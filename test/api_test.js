@@ -60,6 +60,15 @@ describe('modus', function () {
       expect(mod).to.equal('is.already.a.module.name');
     });
 
+    it('appends context if starts with a dot', function () {
+      var rootLevel = modus.normalizeModuleName('.foo', '');
+      expect(rootLevel).to.equal('foo');
+      var inContext = modus.normalizeModuleName('.foo', 'foo.bin.bar');
+      expect(inContext).to.equal('foo.bin.foo');
+      var noAppend = modus.normalizeModuleName('foo.bar', 'foo.bin.bar');
+      expect(noAppend).to.equal('foo.bar');
+    })
+
   });
 
   describe('#moduleExists', function () {
@@ -74,7 +83,7 @@ describe('modus', function () {
 
   });
 
-  describe('#getEnv', function () {
+  describe('#getNamespace', function () {
 
   });
 
@@ -101,8 +110,8 @@ describe('modus', function () {
 
     it('imports published modules', function (done) {
       modus.module('tests.realPub', function () {
-        this.imports('named').from('fixtures.publish.named');
-        this.imports('anon').from('fixtures.publish.anon');
+        this.imports('fixtures.publish.named').as('named');
+        this.imports('fixtures.publish.anon').as('anon');
         expect(this.named).to.equal('named');
         expect(this.anon).to.equal('anon');
         done();
@@ -111,7 +120,7 @@ describe('modus', function () {
 
     it('imports modules recursivly', function (done) {
       modus.module('tests.stress', function () {
-        this.imports(['foo', 'bar', 'bax']).from('fixtures.stress.one');
+        this.imports('foo', 'bar', 'bax').from('fixtures.stress.one');
         expect(this.foo + this.bar + this.bax).to.equal('onetwothree');
         done();
       });
@@ -119,7 +128,7 @@ describe('modus', function () {
 
     it('imports a shimmed global', function (done) {
       modus.module('tests.global', function () {
-        this.imports(['target']).from('fixtures.global.shim');
+        this.imports('target').from('fixtures.global.shim');
         expect(this.target).to.equal('target');
         done();
       });
@@ -127,7 +136,7 @@ describe('modus', function () {
 
     it('imports anon modules', function (done) {
       modus.module('tests.anon', function () {
-        this.imports('basic').from('fixtures.anon.basic');
+        this.imports('fixtures.anon.basic').as('basic');
         expect(this.basic).to.deep.equal({foo:'foo', bar:'bar'});
         done();
       });
@@ -135,7 +144,7 @@ describe('modus', function () {
 
     it('imports anon modules recursivly', function (done) {
       modus.module('tests.anonRecursive', function () {
-        this.imports('hasDeps').from('fixtures.anon.hasDeps');
+        this.imports('fixtures.anon.hasDeps').as('hasDeps');
         expect(this.hasDeps).to.deep.equal({one:'one', two:'two', hasDeps: 'hasDeps'});
         done();
       })
@@ -143,7 +152,7 @@ describe('modus', function () {
 
     it('imports external, anon AMD modules', function (done) {
       modus.module('tests.importAmd', function () {
-        this.imports('basic').from('fixtures.amd.basic');
+        this.imports('fixtures.amd.basic').as('basic');
         expect(this.basic).to.deep.equal({foo:'foo', bar:'bar'});
         done();
       });
@@ -151,7 +160,7 @@ describe('modus', function () {
 
     it('imports external, anon AMD modules recursivly', function (done) {
       modus.module('tests.importAmdRecursive', function () {
-        this.imports('hasDeps').from('fixtures.amd.hasDeps');
+        this.imports('fixtures.amd.hasDeps').as('hasDeps');
         expect(this.hasDeps).to.deep.equal({one:'one', two:'two', hasDeps: 'hasDeps'});
         done();
       });
@@ -163,7 +172,7 @@ describe('modus', function () {
     it('publishes a value', function (done) {
       modus.publish('tests.publish', 'published');
       modus.module('tests.publish.import', function () {
-        this.imports('publish').from('tests.publish');
+        this.imports('tests.publish').as('publish');
         expect(this.publish).to.equal('published');
         done();
       });
@@ -177,7 +186,7 @@ describe('modus', function () {
         return {foo: 'foo'};
       });
       mod.once('done', function () {
-        expect(mod.getEnv().foo).to.equal('foo');
+        expect(mod.getNamespace().foo).to.equal('foo');
         done();
       });
       mod.enable();
@@ -201,7 +210,7 @@ describe('modus', function () {
         };
       });
       modus.module('tests.amd.import', function () {
-        this.imports(['foo', 'bar']).from('tests/amd/targetTwo');
+        this.imports('foo', 'bar').from('tests/amd/targetTwo');
         expect(this.foo).to.equal('foo');
         expect(this.bar).to.equal('bar');
         done();

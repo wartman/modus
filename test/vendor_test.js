@@ -15,7 +15,7 @@ describe('Vendor', function () {
   describe('jquery', function () {
     it('gets imported', function (done) {
       modus.module('tests.jQuery', function () {
-        this.imports('$').from('jquery');
+        this.imports('jquery').as('$');
         expect(this.$).to.be.a('function');
         expect(this.$).to.deep.equal($);
         done();
@@ -27,7 +27,7 @@ describe('Vendor', function () {
 
     it('gets imported', function (done) {
       modus.module('tests.underscore', function () {
-        this.imports('_').from('underscore');
+        this.imports('underscore').as('_');
         expect(this._).to.be.a('function');
         expect(this._).to.deep.equal(_);
         done();
@@ -40,7 +40,7 @@ describe('Vendor', function () {
 
     it('gets imported', function (done) {
       modus.module('tests.backbone', function () {
-        this.imports('Backbone').from('backbone');
+        this.imports('backbone').as('Backbone');
         expect(this.Backbone).to.be.an('object');
         expect(this.Backbone).to.deep.equal(Backbone);
         done();
@@ -49,7 +49,7 @@ describe('Vendor', function () {
 
     it('imports components', function (done) {
       modus.module('tests.backboneComponents', function () {
-        this.imports(['View', 'Model']).from('backbone');
+        this.imports('View', 'Model').from('backbone');
         expect(this.View).to.be.a('function');
         expect(this.View).to.deep.equal(Backbone.View);
         expect(this.Model).to.be.a('function');

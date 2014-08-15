@@ -26,11 +26,10 @@ describe('mod', function () {
 
   });
 
-  describe('#getName / #getFullName', function () {
+  describe('#getModuleName', function () {
     it('returns the name', function () {
       var modTest = mod('tests.name.test');
-      expect(modTest.getName()).to.equal('test');
-      expect(modTest.getFullName()).to.equal('tests.name.test');
+      expect(modTest.getModuleName()).to.equal('tests.name.test');
     });
   });
 

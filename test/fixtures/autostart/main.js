@@ -5,6 +5,6 @@ modus.config({
 });
 
 mod('main', function () {
-  this.imports('test').from('.tester');
+  this.imports('.tester').as('test');
   this.test();
 });

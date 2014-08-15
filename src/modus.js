@@ -4,11 +4,8 @@
 // Environment helpers
 // -------------------
 
-// 'env' holds the actual data used by Modus.
+// Modus' env, where modules hang out.
 modus.env = {};
-
-// 'modules' holds references to modus.Modules.
-modus.modules = {};
 
 // Config options for modus.
 modus.options = {
@@ -137,63 +134,46 @@ var getMappedPath = modus.getMappedPath = function (module, root) {
 };
 
 // Make sure all names are correct.
-var normalizeModuleName = modus.normalizeModuleName = function (name) {
-  if(isPath(name)) {
+var normalizeModuleName = modus.normalizeModuleName = function (moduleName, context) {
+  context = context || '';
+  if(isPath(moduleName)) {
     // Strip extensions
-    if (name.indexOf('.js') > 0) {
-      name = name.substring(0, name.indexOf('.js'));
+    if (moduleName.indexOf('.js') > 0) {
+      moduleName = moduleName.substring(0, moduleName.indexOf('.js'));
     }
   }
-  name = name.replace(/\/|\\/g, '.');
-  return name;
-};
-
-// Get components from a moduleName
-var parseName = modus.parseName = function (name, namespace) {
-  namespace = namespace || '';
-  name = normalizeModuleName(name);
-  if (name.indexOf('.') >= 0) {
-    namespace += name.substring(0, name.lastIndexOf('.'));
-    name = name.substring(name.lastIndexOf('.') + 1);
+  moduleName = moduleName.replace(/\/|\\/g, '.');
+  // If this starts with a dot, make sure it's a fully qualified module name
+  // by checking the module's context and assuming its coming from the same place.
+  if (moduleName.indexOf('.') === 0) {
+    context = context.substring(0, context.lastIndexOf('.'));
+    if (context.length)
+      moduleName = context + moduleName;
+    else {
+      moduleName = moduleName.substring(1);
+    }
   }
-  return {
-    name: name,
-    namespace: namespace,
-    fullName: (namespace.length)? namespace + '.' + name : name
-  };
-};
-
-function _existsInRegistry (type, name) {
-  var env = modus[type];
-  name = normalizeModuleName(name);
-  return env.hasOwnProperty(name);
-};
-
-function _getFromRegistry (type, name) {
-  var env = modus[type];
-  if (!name) return env;
-  name = normalizeModuleName(name);
-  return env[name] || false;
-};
-
-function _addToRegistry (type, name, data) {
-  var env = modus[type];
-  env[name] = data;
+  return moduleName;
 };
 
 // Check if a module has been loaded.
 var moduleExists = modus.moduleExists = function (name) {
-  return _existsInRegistry('modules', name);
+  name = normalizeModuleName(name);
+  return modus.env.hasOwnProperty(name);
 };
 
 // Get a module from the modules registry.
 var getModule = modus.getModule = function (name) {
-  return _getFromRegistry('modules', name);
+  if (!name) return modus.env;
+  name = normalizeModuleName(name);
+  return modus.env[name] || false;
 };
 
 // Add a module to the modules registry.
 var addModule = modus.addModule = function (name, mod) {
-  return _addToRegistry('modules', name, mod);
+  if (! (mod instanceof Module)) 
+    throw new TypeError('Must be a Module: ' + typeof mod);
+  modus.env[name] = mod;
 };
 
 // Return the last module added. This is used to find
@@ -205,16 +185,11 @@ var getLastModule = modus.getLastModule = function () {
   return mod;
 };
 
-var envExists = modus.envExists = function (name) {
-  return _existsInRegistry('env', name);
-};
-
-var getEnv = modus.getEnv = function (name) {
-  return _getFromRegistry('env', name);
-};
-
-var addEnv = modus.addEnv = function (name, env) {
-  return _addToRegistry('env', name, env);
+// Get a namespace from a module
+var getNamespace = modus.getNamespace = function (name) {
+  if (!moduleExists(name)) 
+    return false;
+  return getModule(name).getNamespace();
 };
 
 // Primary API

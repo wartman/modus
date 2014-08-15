@@ -26,10 +26,10 @@ describe('modus.Build', function () {
       factory.call(base);
       var main = base.modus.getModule('fixtures.build.main');
       main.once('done', function () {
-        expect(main.getEnv().foo).to.equal('foo');
-        expect(main.getEnv().anon).to.equal('anon');
-        expect(main.getEnv().fileload).to.equal('file loaded');
-        expect(main.getEnv()._).to.be.a('function');
+        expect(main.getNamespace().foo).to.equal('foo');
+        expect(main.getNamespace().anon).to.equal('anon');
+        expect(main.getNamespace().fileload).to.equal('file loaded');
+        expect(main.getNamespace()._).to.be.a('function');
         done();
       });
       main.enable();
@@ -50,8 +50,8 @@ describe('modus.Build', function () {
           factory.call(base);
           var main = base.modus.getModule('fixtures.build.main');
           main.once('done', function () {
-            expect(main.getEnv().foo).to.equal('foo');
-            expect(main.getEnv().fileload).to.equal('file loaded');
+            expect(main.getNamespace().foo).to.equal('foo');
+            expect(main.getNamespace().fileload).to.equal('file loaded');
             done();
           });
           main.enable();

@@ -19,10 +19,10 @@ describe('modus.Build', function () {
     it('project was compiled correctly', function (done) {
       main = builtModus.getModule('fixtures.build.main');
       main.once('done', function () {
-        expect(main.getEnv().foo).to.equal('foo');
-        expect(main.getEnv().anon).to.equal('anon');
-        expect(main.getEnv().fileload).to.equal('file loaded');
-        expect(main.getEnv()._).to.be.a('function');
+        expect(main.getNamespace().foo).to.equal('foo');
+        expect(main.getNamespace().anon).to.equal('anon');
+        expect(main.getNamespace().fileload).to.equal('file loaded');
+        expect(main.getNamespace()._).to.be.a('function');
         done();
       });
       main.enable();

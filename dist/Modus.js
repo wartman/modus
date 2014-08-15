@@ -14,7 +14,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-14T16:15Z
+  Date: 2014-08-15T21:24Z
 */
 
 (function (factory) {
@@ -408,30 +408,30 @@ Loader.prototype.loadServer = function (moduleName, next, error) {
   } 
 };
 
-// modus.Environment
+// modus.Namespace
 // ---------------
-// Environments are simply objects that have access to an 'imports' 
+// Namespaces are simply objects that have access to an 'imports' 
 // method which can be used to collect properties from other
 // environments.
 //
-//    var ns = new modus.Environment('foo.bar.bin');
-//    ns.imports(['bax', 'bin']).from('.bix');
+//    var ns = new modus.Namespace('foo.bar.bin');
+//    ns.imports('bax', 'bin').from('.bix');
 //    ns.imports('foo.bin.bar').as('bar');
 //    ns.foo = 'foo';
 //
-var Environment = modus.Environment = function (name) {
-  var nameInfo = modus.parseName(name);
-  this.__name = nameInfo.fullName;
-  this.__namespace = nameInfo.namespace;
-  // Register with modus
-  if (this.__name)
-    modus.addEnv(this.__name, this);
+var Namespace = modus.Namespace = function (moduleName) {
+  this.moduleName = moduleName;
+  // Ensure that this namespace is associated with a module.
+  if (!modus.moduleExists(moduleName)) {
+    var ensuredMod = modus.module(moduleName, false);
+    ensuredMod.setNamespace(this);
+  }
 };
 
-function _applyToEnvironment (props, dep, env, many) {
+function _applyToNamespace (props, dep, env, many) {
   if (props instanceof Array) {
     each(props, function (prop) {
-      _applyToEnvironment(prop, dep, env, true);
+      _applyToNamespace(prop, dep, env, true);
     });
   } else if ('object' === typeof props) {
     each(props, function (alias, actual) {
@@ -446,29 +446,55 @@ function _applyToEnvironment (props, dep, env, many) {
       if (dep.hasOwnProperty('default'))
         env[props] = dep['default']
       else
-        env[props] = omit(dep, ['imports', '__name', '__namespace']);
+        env[props] = omit(dep, ['imports', 'moduleName']);
     }
   }
 };
 
-Environment.prototype.imports = function (props) {
+// Start an import chain. You can import specific properties from a module
+// by using 'imports(<properties>).from(<moduleName>)'. For example:
+//
+//    var ns = new modus.Namespace('test');
+//    // Pass an arbitrary number of arguments:
+//    ns.imports('Foo', 'Bar').from('some.module');
+//    // Or use an array:
+//    ns.imports(['Foo', 'Bar']).from('some.module');
+//    // Now all imported items are available in the current namespace:
+//    console.log(ns.Foo, ns.Bar);
+//
+// If you want to import everything from a module (or import the 'default'
+// export, if it is set) use 'imports(<moduleName>).as(<alias>)'. For example:
+//
+//    ns.imports('some.module').as('Module');
+//    // The module is now available in the current namespace:
+//    console.log(ns.Module.Foo, ns.Module.Bar);
+//
+// In both cases, '<moduleName>' will be parsed by modus and used to define
+// a dependency for the current module. See 'Module#_investigate' for more on
+// what's going on here.
+Namespace.prototype.imports = function (/* args */) {
   var self = this;
+  var args = Array.prototype.slice.call(arguments, 0);
+  var props = [];
+  if (args[0] instanceof Array) {
+    props = args[0];
+  } else {
+    props = props.concat(args);
+  }
   return {
     from: function (dep) {
-      if (dep.indexOf('.') === 0)
-        dep = modus.parseName(dep, self.__namespace).fullName;
-      if (modus.envExists(dep)) {
-        var depEnv = modus.getEnv(dep);
-        _applyToEnvironment(props, depEnv, self, false);
+      dep = normalizeModuleName(dep, self.moduleName);
+      if (modus.moduleExists(dep)) {
+        var depEnv = modus.getNamespace(dep);
+        _applyToNamespace(props, depEnv, self, false);
       }
     },
     as: function (alias) {
-      var dep = props;
-      if (dep.indexOf('.') === 0)
-        dep = modus.parseName(dep, self.__namespace).fullName;
-      if (modus.envExists(dep)) {
-        var depEnv = modus.getEnv(dep);
-        _applyToEnvironment(alias, depEnv, self, false);
+      var dep = props[0];
+      dep = normalizeModuleName(dep, self.moduleName);
+      if (modus.moduleExists(dep)) {
+        var depEnv = modus.getNamespace(dep);
+        _applyToNamespace(alias, depEnv, self, false);
       }
     }
   };
@@ -489,7 +515,6 @@ var Module = function (name, factory, options) {
   }
 
   this.options = defaults({
-    namespace: false,
     moduleName: null,
     throwErrors: true,
     pub: false,
@@ -510,7 +535,7 @@ var Module = function (name, factory, options) {
     });
   }
 
-  this._env = null;
+  this._namespace = null;
   this._isDisabled = false;
   this._isEnabled = false;
   this._isEnabling = false;
@@ -533,33 +558,27 @@ Module.prototype.register = function (name) {
     this._isAnon = false;
     this._parseName(name);
     // Register with modus
-    modus.addModule(this.getFullName(), this);
+    modus.addModule(this.getModuleName(), this);
   }
 };
 
 // Get the name of the module, excluding the namespace.
-Module.prototype.getName = function () {
+Module.prototype.getModuleName = function () {
   return this.options.moduleName;
-};
-
-// Get the module's namespace
-Module.prototype.getNamespace = function () {
-  return this.options.namespace;
-};
-
-// Get the full name of the module, including the namespace.
-Module.prototype.getFullName = function () {
-  if(!this.options.namespace || !this.options.namespace.length)
-    return this.options.moduleName;
-  return this.options.namespace + '.' + this.options.moduleName;
 };
 
 // API method to add a dependency.
 Module.prototype.addDependency = function (dep) {
-  if (dep instanceof Array)
-    this._deps = this._deps.concat(dep);
-  else
-    this._deps.push(dep);
+  var self = this;
+  if (dep instanceof Array) {
+    each(dep, function (item) {
+      self.addDependency(item);
+    });
+    return;
+  }
+  dep = normalizeModuleName(dep, this.getModuleName());
+  this._deps.push(dep);
+  return dep;
 };
 
 // API method to get all dependencies.
@@ -577,11 +596,18 @@ Module.prototype.getFactory = function () {
   return this._factory || false;
 };
 
-// API method to get the module's environment.
-Module.prototype.getEnv = function () {
+// API method to set this module's namespace.
+Module.prototype.setNamespace = function (namespace) {
+  if (!(namespace instanceof Namespace))
+    throw new TypeError('Namespace must be an instance of [modus.Namespace]: ' + typeof namespace);
+  this._namespace = namespace;
+};
+
+// API method to get the module's namespace.
+Module.prototype.getNamespace = function () {
   if (this._isAnon)
-    throw new Error('Cannot get environment from anonymous module');
-  return this._env || new Environment(this.getFullName());
+    throw new Error('Cannot get namespace from anonymous module');
+  return this._namespace || new Namespace(this.getModuleName());
 };
 
 // Make sure a module is enabled and add event listeners.
@@ -666,12 +692,9 @@ Module.prototype.disable = function (reason) {
   }
 };
 
-// Parse a string into a module name and namespace.
+// Parse a string into a module name.
 Module.prototype._parseName = function (name) {
-  var namespace = this.options.namespace || '';
-  var segments = modus.parseName(name, namespace);
-  this.options.moduleName = segments.name;
-  this.options.namespace = segments.namespace;
+  this.options.moduleName = normalizeModuleName(name);
 };
 
 // RegExps to find imports.
@@ -687,11 +710,6 @@ Module.prototype._investigate = function () {
   var factory = this._factory.toString();
   var self = this;
   var addDep = function (matches, dep) {
-    // Check if this is using a namespace shortcut
-    if (dep.indexOf('.') === 0)
-      dep = (self.options.namespace.length > 0)
-        ? self.options.namespace + dep
-        : dep.substring(dep.indexOf('.') + 1);
     self.addDependency(dep);
   };
   each(_finders, function (re) {
@@ -706,12 +724,12 @@ Module.prototype._runFactory = function () {
   if (!this._factory) return;
   var self = this;
   // Create or get the current env.
-  this._env = this.getEnv();
+  this._namespace = this.getNamespace();
   // Run the factory.
   if (this._factory.length <= 0) {
-    this._factory.call(this._env);
+    this._factory.call(this._namespace);
   } else {
-    this._factory.call(this._env, function (err) {
+    this._factory.call(this._namespace, function (err) {
       if (err)
         self.emit('error', err);
       else
@@ -729,16 +747,16 @@ Module.prototype._runFactoryAMD = function () {
   var deps = this.getDependencies();
   var mods = [];
   var usingExports = false;
-  var amdEnv = {};
+  var amdNamespace = {};
   // Create or get the current env.
   each(deps, function (dep) {
     if (dep === 'exports') {
-      mods.push(amdEnv);
+      mods.push(amdNamespace);
       usingExports = true;
     } else {
       dep = normalizeModuleName(dep);
-      if (envExists(dep)) {
-        var env = getEnv(dep);
+      if (moduleExists(dep)) {
+        var env = getNamespace(dep);
         if (env.hasOwnProperty('default'))
           mods.push(env['default']);
         else
@@ -747,15 +765,14 @@ Module.prototype._runFactoryAMD = function () {
     }
   });
   if (!usingExports) 
-    amdEnv = this._factory.apply(this, mods) || {};
+    amdNamespace = this._factory.apply(this, mods) || {};
   else 
     this._factory.apply(this, mods);
 
   // Export the env
-  if (typeof amdEnv === 'function')
-    amdEnv['default'] = amdEnv;
-  this._env = amdEnv;
-  modus.addEnv(this.getFullName(), amdEnv);
+  if (typeof amdNamespace === 'function')
+    amdNamespace['default'] = amdNamespace;
+  this._namespace = amdNamespace;
   // Cleanup.
   delete this._factory;
 };
@@ -766,11 +783,8 @@ Module.prototype._runFactoryAMD = function () {
 // Environment helpers
 // -------------------
 
-// 'env' holds the actual data used by Modus.
+// Modus' env, where modules hang out.
 modus.env = {};
-
-// 'modules' holds references to modus.Modules.
-modus.modules = {};
 
 // Config options for modus.
 modus.options = {
@@ -899,63 +913,46 @@ var getMappedPath = modus.getMappedPath = function (module, root) {
 };
 
 // Make sure all names are correct.
-var normalizeModuleName = modus.normalizeModuleName = function (name) {
-  if(isPath(name)) {
+var normalizeModuleName = modus.normalizeModuleName = function (moduleName, context) {
+  context = context || '';
+  if(isPath(moduleName)) {
     // Strip extensions
-    if (name.indexOf('.js') > 0) {
-      name = name.substring(0, name.indexOf('.js'));
+    if (moduleName.indexOf('.js') > 0) {
+      moduleName = moduleName.substring(0, moduleName.indexOf('.js'));
     }
   }
-  name = name.replace(/\/|\\/g, '.');
-  return name;
-};
-
-// Get components from a moduleName
-var parseName = modus.parseName = function (name, namespace) {
-  namespace = namespace || '';
-  name = normalizeModuleName(name);
-  if (name.indexOf('.') >= 0) {
-    namespace += name.substring(0, name.lastIndexOf('.'));
-    name = name.substring(name.lastIndexOf('.') + 1);
+  moduleName = moduleName.replace(/\/|\\/g, '.');
+  // If this starts with a dot, make sure it's a fully qualified module name
+  // by checking the module's context and assuming its coming from the same place.
+  if (moduleName.indexOf('.') === 0) {
+    context = context.substring(0, context.lastIndexOf('.'));
+    if (context.length)
+      moduleName = context + moduleName;
+    else {
+      moduleName = moduleName.substring(1);
+    }
   }
-  return {
-    name: name,
-    namespace: namespace,
-    fullName: (namespace.length)? namespace + '.' + name : name
-  };
-};
-
-function _existsInRegistry (type, name) {
-  var env = modus[type];
-  name = normalizeModuleName(name);
-  return env.hasOwnProperty(name);
-};
-
-function _getFromRegistry (type, name) {
-  var env = modus[type];
-  if (!name) return env;
-  name = normalizeModuleName(name);
-  return env[name] || false;
-};
-
-function _addToRegistry (type, name, data) {
-  var env = modus[type];
-  env[name] = data;
+  return moduleName;
 };
 
 // Check if a module has been loaded.
 var moduleExists = modus.moduleExists = function (name) {
-  return _existsInRegistry('modules', name);
+  name = normalizeModuleName(name);
+  return modus.env.hasOwnProperty(name);
 };
 
 // Get a module from the modules registry.
 var getModule = modus.getModule = function (name) {
-  return _getFromRegistry('modules', name);
+  if (!name) return modus.env;
+  name = normalizeModuleName(name);
+  return modus.env[name] || false;
 };
 
 // Add a module to the modules registry.
 var addModule = modus.addModule = function (name, mod) {
-  return _addToRegistry('modules', name, mod);
+  if (! (mod instanceof Module)) 
+    throw new TypeError('Must be a Module: ' + typeof mod);
+  modus.env[name] = mod;
 };
 
 // Return the last module added. This is used to find
@@ -967,16 +964,11 @@ var getLastModule = modus.getLastModule = function () {
   return mod;
 };
 
-var envExists = modus.envExists = function (name) {
-  return _existsInRegistry('env', name);
-};
-
-var getEnv = modus.getEnv = function (name) {
-  return _getFromRegistry('env', name);
-};
-
-var addEnv = modus.addEnv = function (name, env) {
-  return _addToRegistry('env', name, env);
+// Get a namespace from a module
+var getNamespace = modus.getNamespace = function (name) {
+  if (!moduleExists(name)) 
+    return false;
+  return getModule(name).getNamespace();
 };
 
 // Primary API

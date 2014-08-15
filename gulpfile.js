@@ -11,7 +11,7 @@ gulp.task('build', function() {
       './src/helpers.js',
       './src/EventEmitter.js',
       './src/Loader.js',
-      './src/Environment.js',
+      './src/Namespace.js',
       './src/Module.js',
       './src/modus.js',
       './src/start.js',

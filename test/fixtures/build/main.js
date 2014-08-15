@@ -5,8 +5,8 @@ modus.config({
 });
 
 modus.module('fixtures.build.main', function () {
-  this.imports('_').from('underscore');
-  this.imports(['foo', 'bar', 'baz']).from('.one');
-  this.imports('anon').from('.anon');
-  this.imports('fileload').from('.fileload');
+  this.imports('underscore').as('_');
+  this.imports('.anon').as('anon');
+  this.imports('.fileload').as('fileload');
+  this.imports('foo', 'bar', 'baz').from('.one');
 });

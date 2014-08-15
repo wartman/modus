@@ -72,19 +72,19 @@ These imports will then be available as properties in `this`;
 
 ```javascript
 mod('example.otherModule', function () {
-    this.imports(['SomeExport', 'SomeOtherExport']).from('example.module');
+    this.imports('SomeExport', 'SomeOtherExport').from('example.module');
     console.log(this.SomeExport, this.SomeOtherExport); 
     // --> 'foo bar'
 });
 ```
 
-Note how an array was passed to `imports` in the above example, and how this imported several
-exports from the requested module. To import everything from a module, pass a string:
+If you want to import everything from a module (or to import the `default` export), use the
+`imports(/* moduleName */).as('alias');` chain.
 
 ```javascript
 mod('example.otherModule', function () {
     // You can name the import whatever you like. 
-    this.imports('someRandomName').from('example.module');
+    this.imports('example.module').as('someRandomName');
     console.log(this.someRandomName.SomeExport, this.someRandomName.someOtherExport);
     // --> 'foo bar'
 });
@@ -100,7 +100,7 @@ mod('example.hasDefault', function () {
 });
 
 mod('example.otherModule', function () {
-    this.imports('def').from('example.hasDefault');
+    this.imports('example.hasDefault').as('def');
     console.log(this.def, this.def.bar);
     // --> 'foo undefined';
 });
@@ -112,7 +112,7 @@ starting a module name with a dot:
 ```javascript
 mod('example.otherModule', function () {
     // Imports from 'example.module':
-    this.imports(['SomeExport', 'SomeOtherExport']).from('.module');
+    this.imports('SomeExport', 'SomeOtherExport').from('.module');
     console.log(this.SomeExport, this.SomeOtherExport); 
     // --> 'foo bar'
 });
@@ -125,7 +125,7 @@ modules wherever you like:
 // in foo/bar/otherModule.js:
 mod(function () {
     // The following will import 'foo.bar.module':
-    this.imports(['SomeExport', 'SomeOtherExport']).from('.module');
+    this.imports('SomeExport', 'SomeOtherExport').from('.module');
     console.log(this.SomeExport, this.SomeOtherExport); 
     // --> 'foo bar'
 });
@@ -154,7 +154,7 @@ mod('tests.wait', function (done) {
 mod('tests.waiting', function () {
     // This factory won't be run until the following
     // import is enabled:
-    this.imports(['foo']).from('.wait');
+    this.imports('foo').from('.wait');
     console.log(this.foo);
     // --> 'waited'
 });
@@ -190,7 +190,7 @@ Using AMD modules is easy: just import the AMD module like you would anything el
 
 ```javascript
 mod(function () {
-    this.imports('$').from('jquery');
+    this.imports('jquery').as('$');
     this.$('#foo').html('This works!');
     $('#fooBar').html('This too.');
 });
@@ -201,7 +201,7 @@ with Backbone:
 
 ```javascript
 mod(function () {
-    this.imports(['View', 'Model']).from('backbone');
+    this.imports('View', 'Model').from('backbone');
     this.Foo = this.View.extend({
         // code
     });
@@ -232,9 +232,9 @@ modus.config({
 
 modus.module('main', function () {
     // The following will import from 'bower_components/jquery/jquery.min.js':
-    this.imports('$').from('jquery');
+    this.imports('jquery').as('$');
     // The following will import from 'some/long/path/foo.js':
-    this.imports(['bar']).from('foo.bar');
+    this.imports('bar').from('foo.bar');
 });
 ```
 

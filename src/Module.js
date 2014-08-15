@@ -13,7 +13,6 @@ var Module = function (name, factory, options) {
   }
 
   this.options = defaults({
-    namespace: false,
     moduleName: null,
     throwErrors: true,
     pub: false,
@@ -34,7 +33,7 @@ var Module = function (name, factory, options) {
     });
   }
 
-  this._env = null;
+  this._namespace = null;
   this._isDisabled = false;
   this._isEnabled = false;
   this._isEnabling = false;
@@ -57,33 +56,27 @@ Module.prototype.register = function (name) {
     this._isAnon = false;
     this._parseName(name);
     // Register with modus
-    modus.addModule(this.getFullName(), this);
+    modus.addModule(this.getModuleName(), this);
   }
 };
 
 // Get the name of the module, excluding the namespace.
-Module.prototype.getName = function () {
+Module.prototype.getModuleName = function () {
   return this.options.moduleName;
-};
-
-// Get the module's namespace
-Module.prototype.getNamespace = function () {
-  return this.options.namespace;
-};
-
-// Get the full name of the module, including the namespace.
-Module.prototype.getFullName = function () {
-  if(!this.options.namespace || !this.options.namespace.length)
-    return this.options.moduleName;
-  return this.options.namespace + '.' + this.options.moduleName;
 };
 
 // API method to add a dependency.
 Module.prototype.addDependency = function (dep) {
-  if (dep instanceof Array)
-    this._deps = this._deps.concat(dep);
-  else
-    this._deps.push(dep);
+  var self = this;
+  if (dep instanceof Array) {
+    each(dep, function (item) {
+      self.addDependency(item);
+    });
+    return;
+  }
+  dep = normalizeModuleName(dep, this.getModuleName());
+  this._deps.push(dep);
+  return dep;
 };
 
 // API method to get all dependencies.
@@ -101,11 +94,18 @@ Module.prototype.getFactory = function () {
   return this._factory || false;
 };
 
-// API method to get the module's environment.
-Module.prototype.getEnv = function () {
+// API method to set this module's namespace.
+Module.prototype.setNamespace = function (namespace) {
+  if (!(namespace instanceof Namespace))
+    throw new TypeError('Namespace must be an instance of [modus.Namespace]: ' + typeof namespace);
+  this._namespace = namespace;
+};
+
+// API method to get the module's namespace.
+Module.prototype.getNamespace = function () {
   if (this._isAnon)
-    throw new Error('Cannot get environment from anonymous module');
-  return this._env || new Environment(this.getFullName());
+    throw new Error('Cannot get namespace from anonymous module');
+  return this._namespace || new Namespace(this.getModuleName());
 };
 
 // Make sure a module is enabled and add event listeners.
@@ -190,12 +190,9 @@ Module.prototype.disable = function (reason) {
   }
 };
 
-// Parse a string into a module name and namespace.
+// Parse a string into a module name.
 Module.prototype._parseName = function (name) {
-  var namespace = this.options.namespace || '';
-  var segments = modus.parseName(name, namespace);
-  this.options.moduleName = segments.name;
-  this.options.namespace = segments.namespace;
+  this.options.moduleName = normalizeModuleName(name);
 };
 
 // RegExps to find imports.
@@ -211,11 +208,6 @@ Module.prototype._investigate = function () {
   var factory = this._factory.toString();
   var self = this;
   var addDep = function (matches, dep) {
-    // Check if this is using a namespace shortcut
-    if (dep.indexOf('.') === 0)
-      dep = (self.options.namespace.length > 0)
-        ? self.options.namespace + dep
-        : dep.substring(dep.indexOf('.') + 1);
     self.addDependency(dep);
   };
   each(_finders, function (re) {
@@ -230,12 +222,12 @@ Module.prototype._runFactory = function () {
   if (!this._factory) return;
   var self = this;
   // Create or get the current env.
-  this._env = this.getEnv();
+  this._namespace = this.getNamespace();
   // Run the factory.
   if (this._factory.length <= 0) {
-    this._factory.call(this._env);
+    this._factory.call(this._namespace);
   } else {
-    this._factory.call(this._env, function (err) {
+    this._factory.call(this._namespace, function (err) {
       if (err)
         self.emit('error', err);
       else
@@ -253,16 +245,16 @@ Module.prototype._runFactoryAMD = function () {
   var deps = this.getDependencies();
   var mods = [];
   var usingExports = false;
-  var amdEnv = {};
+  var amdNamespace = {};
   // Create or get the current env.
   each(deps, function (dep) {
     if (dep === 'exports') {
-      mods.push(amdEnv);
+      mods.push(amdNamespace);
       usingExports = true;
     } else {
       dep = normalizeModuleName(dep);
-      if (envExists(dep)) {
-        var env = getEnv(dep);
+      if (moduleExists(dep)) {
+        var env = getNamespace(dep);
         if (env.hasOwnProperty('default'))
           mods.push(env['default']);
         else
@@ -271,15 +263,14 @@ Module.prototype._runFactoryAMD = function () {
     }
   });
   if (!usingExports) 
-    amdEnv = this._factory.apply(this, mods) || {};
+    amdNamespace = this._factory.apply(this, mods) || {};
   else 
     this._factory.apply(this, mods);
 
   // Export the env
-  if (typeof amdEnv === 'function')
-    amdEnv['default'] = amdEnv;
-  this._env = amdEnv;
-  modus.addEnv(this.getFullName(), amdEnv);
+  if (typeof amdNamespace === 'function')
+    amdNamespace['default'] = amdNamespace;
+  this._namespace = amdNamespace;
   // Cleanup.
   delete this._factory;
 };
