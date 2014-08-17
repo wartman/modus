@@ -4,6 +4,9 @@ Modus
 **NOTE: Modus is very much in development.**
 The API shouldn't change too much from this point forward, but be warned.
 
+**NOTE:** If you're using a version before 0.2.0, please read the API notes for
+the new way imports work.
+
 Modus is a JavaScript module loader for the web. It uses a Python and 
 ES6 inspired syntax, but can also load AMD modules.
 
@@ -11,8 +14,8 @@ Here's an example of a simple `modus.module`:
 
 ```javascript
 mod(function () {
-    this.imports(['foo', 'bar']).from('.bar');
-    this.imports(['View']).from('backbone');
+    this.imports('foo', 'bar').from('.bar');
+    this.imports('View').from('backbone');
 
     var self = this;
 
