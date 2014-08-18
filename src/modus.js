@@ -101,13 +101,12 @@ modus.err = function (error) {
 
 // Check namespace maps for any matches.
 var _getMappedNamespacePath = function (module) {
-  var ns = module.substring(0, module.lastIndexOf('.'));
-  var modName = module.substring(module.lastIndexOf('.') + 1);
-  ns = modus.normalizeModuleName(ns);
   var maps = modus.config('namespaceMaps');
-  if (maps[ns]) {
-    return modus.normalizeModuleName(maps[ns]) + '.' + modName;
-  }
+  each(maps, function(map, key) {
+    var re = RegExp(escapeRegExp(key), 'g');
+    var norm = map.replace(/\/|\\/g, '.');
+    module = module.replace(re, norm);
+  });
   return module;
 };
 
@@ -124,7 +123,7 @@ var getMappedPath = modus.getMappedPath = function (module, root) {
   src = _getMappedNamespacePath(src);
   // Some modules may start with a dot. Make sure we don't end up
   // with an ugly URI by dropping it.
-  if (!isPath(src) && src.indexOf('.') === 0)
+  if (!isPath(src) && src.charAt('0') === '.')
     src = src.substring(1);
   src = (!isPath(src))? src.replace(/\./g, '/') : src;
   src = (src.indexOf('.js') < 0 && !isServer())
@@ -139,10 +138,10 @@ var getMappedPath = modus.getMappedPath = function (module, root) {
 //    'foo.bar';   // Absolute path
 //    '.foo.bar';  // up one level.
 //    '..foo.bar'; // up two levels.
-//    // ... and so forth.
+//    // and so forth.
 //    
 //    // In practice:
-//    modus.normalizeModuleName('..foo.bar', 'app.bar.bin');
+//    modus.normalizeModuleName('foo.bar', 'app.bar.bin');
 //    // --> 'foo.bar'
 //    modus.normalizeModuleName('..foo.bar', 'app.bar.bin');
 //    // --> 'app.foo.bar'

@@ -167,3 +167,8 @@ var nextTick = ( function () {
 var isPath = function (obj) {
   return obj.indexOf('/') >= 0;
 };
+
+// Excape characters for regular expressions.
+var escapeRegExp = function (str) {
+  return str.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, "\\$&");
+}

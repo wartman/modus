@@ -45,8 +45,12 @@ describe('modus', function () {
 
     it('gets a mapped namespace', function () {
       modus.mapNamespace('foo.bar', 'binable/things');
-      var path = modus.getMappedPath('foo.bar.bix');
-      expect(path).to.equal('binable/things/bix.js');
+      modus.mapNamespace('bax', 'bax.path');
+      modus.mapNamespace('lib', 'some/lib/path');
+      var mapped = modus.getMappedPath;
+      expect(mapped('foo.bar.bix')).to.equal('binable/things/bix.js');
+      expect(mapped('bax.foo')).to.equal('bax/path/foo.js');
+      expect(mapped('lib.thing.etc')).to.equal('some/lib/path/thing/etc.js');
     });
 
   });

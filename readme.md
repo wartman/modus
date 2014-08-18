@@ -162,7 +162,6 @@ mod('app.foo.bar', function () {
 });
 ```
 
-
 #### Asynchronous Modules
 
 If you need to do something asynchronous (and you probably will at some point), you can
