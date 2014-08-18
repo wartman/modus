@@ -67,7 +67,23 @@ describe('modus', function () {
       expect(inContext).to.equal('foo.bin.foo');
       var noAppend = modus.normalizeModuleName('foo.bar', 'foo.bin.bar');
       expect(noAppend).to.equal('foo.bar');
-    })
+    });
+
+    it('goes up levels depending on number of dots', function () {
+      var norm = modus.normalizeModuleName;
+      expect(norm('foo.bar', 'root.namespace.mod')).to.equal('foo.bar');
+      expect(norm('.foo.bar', 'root.namespace.mod')).to.equal('root.namespace.foo.bar');
+      expect(norm('..foo.bar', 'root.namespace.mod')).to.equal('root.foo.bar');
+      expect(norm('...foo.bar', 'root.namespace.mod')).to.equal('foo.bar');
+    });
+
+    it('parses URIs correctly', function () {
+      var norm = modus.normalizeModuleName;
+      expect(norm('foo/bar', 'root.namespace.mod')).to.equal('foo.bar');
+      expect(norm('./foo/bar', 'root.namespace.mod')).to.equal('root.namespace.foo.bar');
+      expect(norm('../foo/bar', 'root.namespace.mod')).to.equal('root.foo.bar');
+      expect(norm('../../foo/bar', 'root.namespace.mod')).to.equal('foo.bar');
+    });
 
   });
 

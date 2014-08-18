@@ -109,8 +109,7 @@ mod('example.otherModule', function () {
 });
 ```
 
-As a handy shortcut, you can import modules from the same namespace by 
-starting a module name with a dot:
+Relative imports can be created by prefixing a module with a dot. For example:
 
 ```javascript
 mod('example.otherModule', function () {
@@ -121,18 +120,48 @@ mod('example.otherModule', function () {
 });
 ```
 
-This can be very powerful in anonymous modules, allowing you to place
-modules wherever you like:
+The number of dots you prefix the module name with will correspond to the number
+of levels you move up, relative to the *current module* (rather then the current namespace).
 
 ```javascript
-// in foo/bar/otherModule.js:
-mod(function () {
-    // The following will import 'foo.bar.module':
-    this.imports('SomeExport', 'SomeOtherExport').from('.module');
-    console.log(this.SomeExport, this.SomeOtherExport); 
-    // --> 'foo bar'
+mod('app.foo.bar', function () {
+    this.imports('SomeExport').from('some.module');
+    // --> resolves to 'some/module.js'
+    this.imports('SomeExport').from('.some.module');
+    // Up one level from the current module:
+    // 'app.foo.<bar>'
+    // --> resolves to 'app/foo/some/module.js'
+    this.imports('SomeExport').from('..some.module');
+    // Up two levels.
+    // 'app.<foo.bar>';
+    // --> resolves to 'app/some/module.js';
+    // and so forth.
 });
 ```
+
+You can also use the URI syntax to load modules, which will work just like you expect. Both
+styles can work side-by-side with no issues.
+
+```javascript
+mod('app.foo.bar', function () {
+    this.imports('SomeExport').from('some/module');
+    // --> resolves to 'some/module.js'
+    this.imports('SomeExport').from('./some/module');
+    // Up one level from the current module:
+    // 'app.foo.<bar>'
+    // --> resolves to 'app/foo/some/module.js'
+    this.imports('SomeExport').from('../some/module');
+    // Up two levels.
+    // 'app.<foo.bar>';
+    // --> resolves to 'app/some/module.js';
+    this.imports('SomeExport').from('../../some/module');
+    // Up three levels.
+    // '<app.foo.bar>';
+    // --> resolves to 'some/module.js';
+    // and so forth.
+});
+```
+
 
 #### Asynchronous Modules
 

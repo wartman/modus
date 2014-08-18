@@ -9,12 +9,12 @@
   \\\\   \\\   \\\\     \\\\\\     \\\\\\\\      \\\\\\\\    \\\\\\\\\
 
 
-  Modus 0.1.7
+  Modus 0.2.1
   
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-17T19:37Z
+  Date: 2014-08-18T16:27Z
 */
 
 (function (factory) {
@@ -37,7 +37,7 @@
 var modus = {};
 
 // Save the current version.
-modus.VERSION = '0.1.7';
+modus.VERSION = '0.2.1';
 
 // Save the previous value of root.modus
 var _previousModus = root.modus;
@@ -912,25 +912,44 @@ var getMappedPath = modus.getMappedPath = function (module, root) {
   return src;
 };
 
-// Make sure all names are correct.
+// Make sure all names are correct. Relative paths are calculated based on the
+// number of dots that prefix a module name. For example:
+//
+//    'foo.bar';   // Absolute path
+//    '.foo.bar';  // up one level.
+//    '..foo.bar'; // up two levels.
+//    // ... and so forth.
+//    
+//    // In practice:
+//    modus.normalizeModuleName('..foo.bar', 'app.bar.bin');
+//    // --> 'foo.bar'
+//    modus.normalizeModuleName('..foo.bar', 'app.bar.bin');
+//    // --> 'app.foo.bar'
+//
 var normalizeModuleName = modus.normalizeModuleName = function (moduleName, context) {
   context = context || '';
+  // Parse paths into module-names.
   if(isPath(moduleName)) {
-    // Strip extensions
-    if (moduleName.indexOf('.js') > 0) {
-      moduleName = moduleName.substring(0, moduleName.indexOf('.js'));
-    }
+    moduleName = moduleName.replace(/\b\.js\b/g, '');
+    // Turn relative-path syntax (like './foo' or '../foo') into
+    // relative-module syntax.
+    if (moduleName.indexOf('../') === 0) moduleName = '../' + moduleName;
+    moduleName = moduleName.replace(/\.\.\//g, '.');
+    if (moduleName.indexOf('./') === 0) moduleName = moduleName.replace('./', '.');
   }
   moduleName = moduleName.replace(/\/|\\/g, '.');
   // If this starts with a dot, make sure it's a fully qualified module name
-  // by checking the module's context and assuming its coming from the same place.
-  if (moduleName.indexOf('.') === 0) {
-    context = context.substring(0, context.lastIndexOf('.'));
-    if (context.length)
-      moduleName = context + moduleName;
-    else {
-      moduleName = moduleName.substring(1);
-    }
+  // by checking the module's context and assuming it's coming from the same place.
+  if (moduleName.charAt(0) === '.') {
+    var contextBase = context.split('.');
+    var modParts = moduleName.split('.');
+    each(modParts, function (part) {
+      if (part.length > 0) 
+        contextBase.push(part);
+      else
+        contextBase.pop();
+    });
+    return contextBase.join('.');
   }
   return moduleName;
 };

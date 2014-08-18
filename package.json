@@ -1,11 +1,11 @@
 {
   "name": "modus",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "keywords": [
     "module",
     "loader"
   ],
-  "description": "A lightweight module loader",
+  "description": "Modules for the web",
   "repository": {
     "type": "git",
     "url": "https://github.com/wartman/modus.git"

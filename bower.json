@@ -1,10 +1,10 @@
 {
   "name": "modus",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "authors": [
     "Peter Wartman"
   ],
-  "description": "A lightweight module loader",
+  "description": "Modules for the web",
   "main": "modus.js",
   "keywords": [
     "module",
