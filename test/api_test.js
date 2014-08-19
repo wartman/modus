@@ -174,6 +174,15 @@ describe('modus', function () {
       });
     });
 
+    it('imports commonJs style AMD module', function (done) {
+      modus.module('tests.importAmdCommonJs', function () {
+        this.imports('three', 'commonJs').from('fixtures.amd.commonJs');
+        expect(this.three).to.equal('three');
+        expect(this.commonJs).to.equal('commonJs');
+        done();
+      });
+    });
+
     it('imports external, anon AMD modules recursivly', function (done) {
       modus.module('tests.importAmdRecursive', function () {
         this.imports('fixtures.amd.hasDeps').as('hasDeps');

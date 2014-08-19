@@ -254,6 +254,9 @@ root.define = modus.define = function (name, deps, factory) {
     factory = deps;
     deps = [];
   }
+  // Might be a commonJs thing:
+  if (deps.length === 0 && factory.length === 1)
+    deps.push('require');
   var mod = new Module(name, factory, {isAmd: true});
   mod.addModuleDependency(deps);
   _enableModule(name, mod);

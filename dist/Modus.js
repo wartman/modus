@@ -14,7 +14,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-19T16:22Z
+  Date: 2014-08-19T17:39Z
 */
 
 (function (factory) {
@@ -458,6 +458,9 @@ var Module = modus.Module = function (name, factory, options) {
   this.registerModule(name);
 };
 
+// A list of props to omit from module imports.
+var _moduleOmit = ['__moduleName', '__moduleFactory', '__moduleEvents', '__moduleMeta', '__moduleDependencies'];
+
 // Private method to add imported properties to a module.
 function _applyToModule (props, dep, many) {
   var env = this;
@@ -478,7 +481,7 @@ function _applyToModule (props, dep, many) {
       if (dep.hasOwnProperty('default'))
         env[props] = dep['default']
       else
-        env[props] = omit(dep, ['__moduleName', '__moduleFactory', '__moduleEvents', '__moduleMeta', '__moduleDependencies']);
+        env[props] = omit(dep, _moduleOmit);
     }
   }
 };
@@ -530,6 +533,20 @@ Module.prototype.imports = function (/* args */) {
       }
     }
   };
+};
+
+// Shim for CommonJs style require calls.
+Module.prototype.require = function (dep) {
+  dep = normalizeModuleName(dep, this.getModuleName());
+  var result = {};
+  if (modus.moduleExists(dep)) {
+    var depEnv = modus.getModule(dep);
+    if (depEnv.hasOwnProperty('default'))
+      result = depEnv['default']
+    else
+      result = omit(depEnv, _moduleOmit);
+  }
+  return result;
 };
 
 // Set the module name and register the module, if a name is
@@ -609,7 +626,8 @@ var _ensureModuleIsEnabled = function (dep, next, error) {
 // RegExps to find imports.
 var _finders = [
   /\.from\([\'|\"]([\s\S]+?)[\'|\"]\)/g,
-  /\.imports\([\'|\"]([\s\S]+?)[\'|\"]\)\.as\([\s\S]+?\)/g
+  /\.imports\([\'|\"]([\s\S]+?)[\'|\"]\)\.as\([\s\S]+?\)/g,
+  /require\([\'|\"]([\s\S]+?)[\'|\"]\)/g
 ];
 
 // Use RegExp to find any imports this module needs, then add
@@ -660,6 +678,8 @@ var _runFactoryAMD = function () {
     if (dep === 'exports') {
       mods.push(amdModule);
       usingExports = true;
+    } else if (dep === 'require') {
+      mods.push(bind(self.require, self));
     } else {
       dep = normalizeModuleName(dep);
       if (moduleExists(dep)) {
@@ -677,6 +697,8 @@ var _runFactoryAMD = function () {
     this.__moduleFactory.apply(this, mods);
 
   // Export the env
+  // @todo: I think I have the following check just to make underscore work. Seems a
+  // little odd? Is it even necessary?
   if (typeof amdModule === 'function')
     amdModule['default'] = amdModule;
   extend(this, amdModule);
@@ -725,7 +747,8 @@ Module.prototype.enableModule = function() {
 
   eachAsync(deps, {
     each: function (dep, next, error) {
-      if (self.getModuleMeta('isAmd') && dep === 'exports') {
+      if (self.getModuleMeta('isAmd') && inArray(['exports', 'require', 'module'], dep) >= 0) {
+        // Skip AMD/CommonJS helpers
         next();
       } else if (moduleExists(dep)) {
         _ensureModuleIsEnabled(dep, next, error);
@@ -1015,6 +1038,9 @@ root.define = modus.define = function (name, deps, factory) {
     factory = deps;
     deps = [];
   }
+  // Might be a commonJs thing:
+  if (deps.length === 0 && factory.length === 1)
+    deps.push('require');
   var mod = new Module(name, factory, {isAmd: true});
   mod.addModuleDependency(deps);
   _enableModule(name, mod);
