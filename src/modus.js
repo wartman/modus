@@ -94,11 +94,6 @@ modus.mapNamespace = function (ns, path) {
   modus.map(ns, path, {type: 'namespaces'});
 };
 
-// Simple error wrapper.
-modus.err = function (error) {
-  throw new Error(error);
-};
-
 // Check namespace maps for any matches.
 var _getMappedNamespacePath = function (module) {
   var maps = modus.config('namespaceMaps');
@@ -189,7 +184,7 @@ var getModule = modus.getModule = function (name) {
 
 // Add a module to the modules registry.
 var addModule = modus.addModule = function (name, mod) {
-  if (! (mod instanceof Module)) 
+  if (!(mod instanceof Module)) 
     throw new TypeError('Must be a Module: ' + typeof mod);
   modus.env[name] = mod;
 };
@@ -203,13 +198,6 @@ var getLastModule = modus.getLastModule = function () {
   return mod;
 };
 
-// Get a namespace from a module
-var getNamespace = modus.getNamespace = function (name) {
-  if (!moduleExists(name)) 
-    return false;
-  return getModule(name).getNamespace();
-};
-
 // Primary API
 // -----------
 
@@ -219,7 +207,7 @@ function _enableModule(name, mod) {
   if (typeof name === 'string') { 
     // Enable now.
     // mod.enable();
-    nextTick(bind(mod.enable, mod));
+    nextTick(bind(mod.enableModule, mod));
   } else {
     // Anon module: wait for the script to load.
     _lastModule = mod;
@@ -242,7 +230,7 @@ modus.module = function (name, factory, options) {
 // Shortcut to export a single value as a module.
 modus.publish = function (name, value, options) {
   options = options || {};
-  options.pub = true;
+  options.isPublished = true;
   if (arguments.length <= 1) {
     options = value;
     value = name;
@@ -266,8 +254,8 @@ root.define = modus.define = function (name, deps, factory) {
     factory = deps;
     deps = [];
   }
-  var mod = new Module(name, factory, {amd: true});
-  mod.addDependency(deps);
+  var mod = new Module(name, factory, {isAmd: true});
+  mod.addModuleDependency(deps);
   _enableModule(name, mod);
   return mod;
 };

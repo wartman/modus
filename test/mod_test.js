@@ -12,25 +12,11 @@ describe('mod', function () {
 
   describe('#init', function () {
 
-    it('sets up correctly', function () {
-      var opts = {namespace: 'tests'};
-      var modTest = mod('moduleName', function () {}, opts);
-      opts.moduleName = 'moduleName';
-      expect(modTest.options).to.deep.equal(opts);
-    });
-
     it('registers itself with modus', function () {
       var modTest = mod('tests.isRegistered');
       expect(modTest).to.deep.equal(modus.getModule('tests.isRegistered'));
     });
 
-  });
-
-  describe('#getModuleName', function () {
-    it('returns the name', function () {
-      var modTest = mod('tests.name.test');
-      expect(modTest.getModuleName()).to.equal('tests.name.test');
-    });
   });
 
   describe('#enable', function () {

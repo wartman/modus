@@ -104,7 +104,7 @@ Loader.prototype.loadClient = function (moduleName, next, error) {
   this.insertScript(script, function () {
     // Handle anon modules.
     var mod = modus.getLastModule();
-    if (mod) mod.register(moduleName);
+    if (mod) mod.registerModule(moduleName);
     visit.emit('done');
   });
 };
@@ -116,7 +116,7 @@ Loader.prototype.loadServer = function (moduleName, next, error) {
     require('./' + src);
     // Handle anon modules.
     var mod = modus.getLastModule();
-    if (mod) mod.register(moduleName);
+    if (mod) mod.registerModule(moduleName);
     nextTick(function () {
       next();
     });

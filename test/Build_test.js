@@ -25,14 +25,14 @@ describe('modus.Build', function () {
       var base = {};
       factory.call(base);
       var main = base.modus.getModule('fixtures.build.main');
-      main.once('done', function () {
-        expect(main.getNamespace().foo).to.equal('foo');
-        expect(main.getNamespace().anon).to.equal('anon');
-        expect(main.getNamespace().fileload).to.equal('file loaded');
-        expect(main.getNamespace()._).to.be.a('function');
+      main.addModuleEventListener('done', function () {
+        expect(main.foo).to.equal('foo');
+        expect(main.anon).to.equal('anon');
+        expect(main.fileload).to.equal('file loaded');
+        expect(main._).to.be.a('function');
         done();
-      });
-      main.enable();
+      }, true);
+      main.enableModule();
     });
 
   });
@@ -49,12 +49,12 @@ describe('modus.Build', function () {
           var base = {};
           factory.call(base);
           var main = base.modus.getModule('fixtures.build.main');
-          main.once('done', function () {
-            expect(main.getNamespace().foo).to.equal('foo');
-            expect(main.getNamespace().fileload).to.equal('file loaded');
+          main.addModuleEventListener('done', function () {
+            expect(main.foo).to.equal('foo');
+            expect(main.fileload).to.equal('file loaded');
             done();
-          });
-          main.enable();
+          }, true);
+          main.enableModule();
         });
       });
     });

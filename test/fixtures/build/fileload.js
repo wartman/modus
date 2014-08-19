@@ -1,6 +1,6 @@
 modus.module('fixtures.build.fileload', function () {
   // Left blank.
-}).on('build', function (moduleName, raw) {
+}).addModuleEventListener('build', function (moduleName, raw) {
   var build = modus.Build.getInstance();
   build.removeOutput(moduleName);
   var file = build.readFile('fixtures/build/txt/file.txt');

@@ -103,10 +103,6 @@ describe('modus', function () {
 
   });
 
-  describe('#getNamespace', function () {
-
-  });
-
   describe('#parseName', function () {
 
   });
@@ -205,11 +201,11 @@ describe('modus', function () {
       var mod = modus.define('tests/amd/basic', function () {
         return {foo: 'foo'};
       });
-      mod.once('done', function () {
-        expect(mod.getNamespace().foo).to.equal('foo');
+      mod.addModuleEventListener('done', function () {
+        expect(mod.foo).to.equal('foo');
         done();
-      });
-      mod.enable();
+      }, true);
+      mod.enableModule();
     });
 
     it('can import other modules', function (done) {
