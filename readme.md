@@ -293,7 +293,7 @@ text files with AJAX, and want to include them when compiling your app.
 _loadedFiles = {};
 
 mod('loadfile', function () {
-    this.imports('$').from('jquery');
+    this.imports('jquery').as('$');
     this.default = function (file, next) {
         if (_loadedFiles.hasOwnProperty(file)) {
             next(_loadedFiles[file]);
@@ -309,7 +309,7 @@ mod('loadfile', function () {
 });
 
 // The following will be run for every imported module:
-modus.events.on('build', function (moduleName, raw) {
+modus.events.on('build', function (currentModule, raw) {
     // investigate the module for any 'loadfile' calls
     var _checkFiles = /loadfile\(([\s\S]+?)\)/g;
     var build = modus.Build.getInstance();
