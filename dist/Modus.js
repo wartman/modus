@@ -9,12 +9,12 @@
   \\\\   \\\   \\\\     \\\\\\     \\\\\\\\      \\\\\\\\    \\\\\\\\\
 
 
-  Modus 0.2.1
+  Modus 0.2.2
   
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-19T16:09Z
+  Date: 2014-08-19T16:22Z
 */
 
 (function (factory) {
@@ -37,7 +37,7 @@
 var modus = {};
 
 // Save the current version.
-modus.VERSION = '0.2.1';
+modus.VERSION = '0.2.2';
 
 // Save the previous value of root.modus
 var _previousModus = root.modus;
@@ -458,6 +458,7 @@ var Module = modus.Module = function (name, factory, options) {
   this.registerModule(name);
 };
 
+// Private method to add imported properties to a module.
 function _applyToModule (props, dep, many) {
   var env = this;
   if (props instanceof Array) {
@@ -485,20 +486,20 @@ function _applyToModule (props, dep, many) {
 // Start an import chain. You can import specific properties from a module
 // by using 'imports(<properties>).from(<moduleName>)'. For example:
 //
-//    var ns = new modus.Namespace('test');
+//    var mod = new modus.Module('test');
 //    // Pass an arbitrary number of arguments:
-//    ns.imports('Foo', 'Bar').from('some.module');
+//    mod.imports('Foo', 'Bar').from('some.module');
 //    // Or use an array:
-//    ns.imports(['Foo', 'Bar']).from('some.module');
-//    // Now all imported items are available in the current namespace:
-//    console.log(ns.Foo, ns.Bar);
+//    mod.imports(['Foo', 'Bar']).from('some.module');
+//    // Now all imported items are available in the current module:
+//    console.log(mod.Foo, mod.Bar);
 //
 // If you want to import everything from a module (or import the 'default'
 // export, if it is set) use 'imports(<moduleName>).as(<alias>)'. For example:
 //
-//    ns.imports('some.module').as('Module');
-//    // The module is now available in the current namespace:
-//    console.log(ns.Module.Foo, ns.Module.Bar);
+//    mod.imports('some.module').as('Module');
+//    // The module is now available in the current module:
+//    console.log(mod.Module.Foo, mod.Module.Bar);
 //
 // In both cases, '<moduleName>' will be parsed by modus and used to define
 // a dependency for the current module. See 'Module#_investigate' for more on
@@ -612,7 +613,7 @@ var _finders = [
 ];
 
 // Use RegExp to find any imports this module needs, then add
-// them to the imports stack.
+// them to the dependency stack.
 var _investigate = function () {
   if (!this.__moduleFactory) return;
   var factory = this.__moduleFactory.toString();
@@ -653,11 +654,11 @@ var _runFactoryAMD = function () {
   var deps = this.getModuleDependencies();
   var mods = [];
   var usingExports = false;
-  var amdNamespace = {};
+  var amdModule = {};
   // Create or get the current env.
   each(deps, function (dep) {
     if (dep === 'exports') {
-      mods.push(amdNamespace);
+      mods.push(amdModule);
       usingExports = true;
     } else {
       dep = normalizeModuleName(dep);
@@ -671,14 +672,14 @@ var _runFactoryAMD = function () {
     }
   });
   if (!usingExports) 
-    amdNamespace = this.__moduleFactory.apply(this, mods) || {};
+    amdModule = this.__moduleFactory.apply(this, mods) || {};
   else 
     this.__moduleFactory.apply(this, mods);
 
   // Export the env
-  if (typeof amdNamespace === 'function')
-    amdNamespace['default'] = amdNamespace;
-  extend(this, amdNamespace);
+  if (typeof amdModule === 'function')
+    amdModule['default'] = amdModule;
+  extend(this, amdModule);
 
   // Cleanup.
   delete this.__moduleFactory;
