@@ -14,7 +14,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-19T17:39Z
+  Date: 2014-08-20T16:42Z
 */
 
 (function (factory) {
@@ -642,8 +642,8 @@ var _investigate = function () {
   each(_finders, function (re) {
     factory.replace(re, addDep);
   });
-  this.emitModuleEvent('investigate', this, factory);
-  modus.events.emit('investigate', this, factory);
+  // this.emitModuleEvent('module:investigate', this, factory);
+  // modus.events.emit('module:investigate', this, factory);
 };
 
 // Run the registered factory.
@@ -735,7 +735,7 @@ Module.prototype.enableModule = function() {
 
   // Ensure we don't try to enable this module twice.
   this.setModuleMeta('isEnabling', true);
-  this.emitModuleEvent('enable.before');
+  // this.emitModuleEvent('module:enableBefore');
   // Find all dependencies.
   _investigate.call(this);
   deps = this.getModuleDependencies();
@@ -896,8 +896,11 @@ var _getMappedModulePath = function (module) {
 };
 
 // Get a mapped path
-var getMappedPath = modus.getMappedPath = function (module, root) {
-  root = root || modus.config('root');
+var getMappedPath = modus.getMappedPath = function (module, options) {
+  options = defaults({
+    ext: 'js',
+    root: modus.config('root')
+  }, options);
   var src = _getMappedModulePath(module);
   src = _getMappedNamespacePath(src);
   // Some modules may start with a dot. Make sure we don't end up
@@ -905,9 +908,13 @@ var getMappedPath = modus.getMappedPath = function (module, root) {
   if (!isPath(src) && src.charAt('0') === '.')
     src = src.substring(1);
   src = (!isPath(src))? src.replace(/\./g, '/') : src;
-  src = (src.indexOf('.js') < 0 && !isServer())
-    ? root + src + '.js'
-    : root + src;
+  if (options.ext === 'js') {
+    src = (src.indexOf('.js') < 0 && !isServer())
+      ? options.root + src + '.js'
+      : options.root + src;
+  } else {
+    src = options.root + src +  '.' + options.ext;
+  }
   return src;
 };
 

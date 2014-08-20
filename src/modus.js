@@ -112,8 +112,11 @@ var _getMappedModulePath = function (module) {
 };
 
 // Get a mapped path
-var getMappedPath = modus.getMappedPath = function (module, root) {
-  root = root || modus.config('root');
+var getMappedPath = modus.getMappedPath = function (module, options) {
+  options = defaults({
+    ext: 'js',
+    root: modus.config('root')
+  }, options);
   var src = _getMappedModulePath(module);
   src = _getMappedNamespacePath(src);
   // Some modules may start with a dot. Make sure we don't end up
@@ -121,9 +124,13 @@ var getMappedPath = modus.getMappedPath = function (module, root) {
   if (!isPath(src) && src.charAt('0') === '.')
     src = src.substring(1);
   src = (!isPath(src))? src.replace(/\./g, '/') : src;
-  src = (src.indexOf('.js') < 0 && !isServer())
-    ? root + src + '.js'
-    : root + src;
+  if (options.ext === 'js') {
+    src = (src.indexOf('.js') < 0 && !isServer())
+      ? options.root + src + '.js'
+      : options.root + src;
+  } else {
+    src = options.root + src +  '.' + options.ext;
+  }
   return src;
 };
 

@@ -227,8 +227,8 @@ var _investigate = function () {
   each(_finders, function (re) {
     factory.replace(re, addDep);
   });
-  this.emitModuleEvent('investigate', this, factory);
-  modus.events.emit('investigate', this, factory);
+  // this.emitModuleEvent('module:investigate', this, factory);
+  // modus.events.emit('module:investigate', this, factory);
 };
 
 // Run the registered factory.
@@ -320,7 +320,7 @@ Module.prototype.enableModule = function() {
 
   // Ensure we don't try to enable this module twice.
   this.setModuleMeta('isEnabling', true);
-  this.emitModuleEvent('enable.before');
+  // this.emitModuleEvent('module:enableBefore');
   // Find all dependencies.
   _investigate.call(this);
   deps = this.getModuleDependencies();

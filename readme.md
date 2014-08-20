@@ -289,19 +289,19 @@ If you need to, you can hook into global modus events. For example, say you're l
 text files with AJAX, and want to include them when compiling your app.
 
 ```javascript
-// Global file store.
-_loadedFiles = {};
-
-mod('loadfile', function () {
+mod(function () {
     this.imports('jquery').as('$');
-    this.default = function (file, next) {
-        if (_loadedFiles.hasOwnProperty(file)) {
-            next(_loadedFiles[file]);
+    this.loadfile = function (file, next) {
+        if (modus.moduleExists(file)) {
+            next(modus.getModule(file)['default']);
         } else {
+            // The following won't actually work: we'd need to
+            // do some checks and parsing of 'file' first. Still,
+            // you get the basic idea.
             $.ajax({
                 url: file
             }).done(function (data) {
-                _loadedFiles[file] = data;
+                modus.publish(file, data);
                 next(data);
             });
         }
@@ -309,22 +309,43 @@ mod('loadfile', function () {
 });
 
 // The following will be run for every imported module:
-modus.events.on('build', function (currentModule, raw) {
-    // investigate the module for any 'loadfile' calls
-    var _checkFiles = /loadfile\(([\s\S]+?)\)/g;
-    var build = modus.Build.getInstance();
-    raw.replace(_checkFiles, function (match, path) {
-        // If a match is found, read each file, then add them to the
-        // compiled file.
-        var file = build.readFile(path);
-        build.output(path, "_loadedFiles['" + path + "'] = '" + file + "')");
-    });
+modus.events.on('build:compileBefore', function (mods, build) {
+    var txtCheck = /\.loadfile\(['|"]([\s\S]+?)['|"]\)/g;
+    for (var modName in mods) {
+        mods[modName].replace(txtCheck, function (match, filepath) {
+            var fileModName = modus.normalizeModuleName(filepath, modName);
+            // modus.Build#readFile has options you can use to load a file
+            // relative to some moduleName:
+            var file = build.readFile(filepath, {ext: 'txt', context: modName});
+            modus.publish(fileModName, file);
+            // Make sure this module is dependent on the file.
+            modus.getModule(modName).addModuleDependency(fileModName);
+            build.output(fileModName, "modus.publish('" + fileModName + "', '" + file + "');");
+        });
+    }
 });
 ```
 
-The above example is just an example to give you an idea of how to use the
-'build' hook: there are far too many issues with it for it to be something you
-should actually use.
+The above example probably should not be used in production, but it hopefully gives you 
+an idea of what you can do.
+
+Current event hooks are:
+- __'build:load'__ (*mod*, *raw*, *build*)
+
+    Runs right after the module is imported. `mod` is the actual module, `raw` is the raw
+    text, and `build` is the current instance of modus.Build.
+    
+- __'build:compileBefore'__ (*output*, *build*)
+
+    Runs after all modules have been loaded. `mods` is an object containing the raw text of
+    all modules, saved in '<moduleName>: <rawText>' pairs. `build` is the current 
+    instance of modus.Build.
+
+- __'build:compileAfter'__ (*compiled*, *build*)
+
+    Runs after compiling is done and modules have been sorted. `compiled` is an array
+    containing all of the output code (including a copy of modus). `build` is the current 
+    instance of modus.Build.
 
 License Junk
 ------------

@@ -30,6 +30,13 @@ describe('modus.Build', function () {
         expect(main.anon).to.equal('anon');
         expect(main.fileload).to.equal('file loaded');
         expect(main._).to.be.a('function');
+
+        // Check the file-loader
+        var files = modus.getModule('fixtures.build.txt.file2');
+        expect(files['default']).to.equal('File two.');
+        files = modus.getModule('fixtures.build.txt.file3');
+        expect(files['default']).to.equal('File three.');
+
         done();
       }, true);
       main.enableModule();
