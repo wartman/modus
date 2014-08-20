@@ -24,7 +24,7 @@ describe('modus.Build', function () {
       var factory = Function(compiled);
       var base = {};
       factory.call(base);
-      var main = base.modus.getModule('fixtures.build.main');
+      var main = base.modus.getModule(base.modus.config('main'));
       main.addModuleEventListener('done', function () {
         expect(main.foo).to.equal('foo');
         expect(main.anon).to.equal('anon');
@@ -55,7 +55,7 @@ describe('modus.Build', function () {
           var factory = Function(data);
           var base = {};
           factory.call(base);
-          var main = base.modus.getModule('fixtures.build.main');
+          var main = base.modus.getModule(base.modus.config('main'));
           main.addModuleEventListener('done', function () {
             expect(main.foo).to.equal('foo');
             expect(main.fileload).to.equal('file loaded');

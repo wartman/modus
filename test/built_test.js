@@ -17,7 +17,7 @@ describe('modus.Build', function () {
   describe('#start', function () {
 
     it('project was compiled correctly', function (done) {
-      main = builtModus.getModule('fixtures.build.main');
+      main = builtModus.getModule('main');
       main.addModuleEventListener('done', function () {
         expect(main.foo).to.equal('foo');
         expect(main.anon).to.equal('anon');

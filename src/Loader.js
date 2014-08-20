@@ -85,7 +85,7 @@ Loader.prototype.load = function (moduleName, next, error) {
 // Load a module when in a browser context.
 Loader.prototype.loadClient = function (moduleName, next, error) {
   var self = this;
-  var src = getMappedPath(moduleName, modus.config('root'));
+  var src = getMappedPath(moduleName);
   var visit = this.getVisit(src);
   var script;
 
@@ -111,7 +111,7 @@ Loader.prototype.loadClient = function (moduleName, next, error) {
 
 // Load a module when in a Nodejs context.
 Loader.prototype.loadServer = function (moduleName, next, error) {
-  var src = getMappedPath(moduleName, modus.config('root'));
+  var src = getMappedPath(moduleName);
   try {
     require('./' + src);
     // Handle anon modules.
