@@ -5,8 +5,25 @@ describe('modus.Module', function () {
   describe('#constructor', function () {
 
     it('parses name', function () {
-      var actual = new modus.Module('tests.env.constructor');
-      expect(actual.getModuleName()).to.equal('tests.env.constructor');
+      var actual = new modus.Module('tests.Module.constructor');
+      expect(actual.getModuleName()).to.equal('tests.Module.constructor');
+    });
+
+    it('registers a factory', function () {
+      var factory = function () {this.registered = 'registered';};
+      var actual = new modus.Module('tests.Module.constructorFactroy', factory);
+      expect(actual.getModuleFactory().toString()).to.equal(factory.toString());
+    })
+
+  });
+
+  describe('#registerModule', function () {
+    
+    it('registers the module with Modus and sets the name', function () {
+      var actual = new modus.Module();
+      actual.registerModule('tests.registerModule');
+      expect(actual.getModuleName()).to.equal('tests.registerModule');
+      expect(modus.getModule('tests.registerModule')).to.deep.equal(actual);
     });
 
   });
@@ -16,6 +33,62 @@ describe('modus.Module', function () {
       var modTest = new modus.Module('tests.name.test');
       expect(modTest.getModuleName()).to.equal('tests.name.test');
     });
+  });
+
+  describe('#setModuleFactory', function () {
+
+    it('registers a factory', function () {
+      var actual = new modus.Module('tests.moduleFactory');
+      var factory = function () {this.registered = 'registered';}
+      actual.setModuleFactory(factory);
+      expect(actual.getModuleFactory().toString()).to.equal(factory.toString());
+    });
+
+    it('will wait for a `done` event if an arg is passed', function (done) {
+      var actual = new modus.Module('tests.registerModule.async');
+      actual.setModuleFactory(function (moduleDone) {
+        var self = this;
+        this.foo = 'didn\'t wait';
+        setTimeout(function () {
+          self.foo = 'waited';
+          moduleDone();
+        }, 200);
+      });
+      expect(actual.getModuleMeta('isAsync')).to.be.true;
+      actual.addModuleEventListener('done', function () {
+        expect(actual.foo).to.equal('waited');
+        done();
+      }, true);
+      actual.enableModule();
+    });
+
+  });
+
+  describe('#findModuleDependencies', function () {
+
+    it('finds deps from various methods', function () {
+      var actual = new modus.Module('tests.findModuleDependencies.basic');
+      actual.setModuleFactory(function () {
+        this.imports('tests.one').as('foo');
+        this.imports('bar', 'baz').from('tests.two');
+        var bin = this.require('tests.three');
+      });
+      actual.findModuleDependencies();
+      expect(actual.getModuleDependencies()).to.have.members(['tests.one', 'tests.two', 'tests.three']);
+    });
+
+    it('ignores commented-out items', function () {
+      var actual = new modus.Module('tests.findModuleDependencies.ignore')
+      actual.setModuleFactory(function () {
+        this.imports('tests.one').as('foo');
+        this.imports('bar', 'baz').from('tests.two');
+        //this.imports('bar', 'baz').from('tests.three');
+        /*this.imports('bar', 'baz').from('tests.four');*/
+      });
+      actual.findModuleDependencies();
+      expect(actual.getModuleDependencies()).to.have.members(['tests.one', 'tests.two']);
+    });
+
   });
 
   describe('#imports', function () {

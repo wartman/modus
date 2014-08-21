@@ -14,7 +14,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-20T17:49Z
+  Date: 2014-08-21T16:51Z
 */
 
 (function (factory) {
@@ -415,10 +415,11 @@ Loader.prototype.loadServer = function (moduleName, next, error) {
 
 // modus.Module
 // ------------
-// The core of modus.
+// The core of modus. Exports are applied directly to each module
+// object, so some effort has been made to reduce the likelihood of 
+// name conflicts (mostly by making method names rather verbose).
 var Module = modus.Module = function (name, factory, options) {
   var self = this;
-
   // Allow for anon modules.
   if('function' === typeof name) {
     options = factory;
@@ -426,6 +427,7 @@ var Module = modus.Module = function (name, factory, options) {
     name = false;
   }
 
+  // Define module information
   this.__moduleEvents = new EventEmitter();
   this.__moduleDependencies = [];
   this.__moduleName = '';
@@ -440,19 +442,6 @@ var Module = modus.Module = function (name, factory, options) {
     isEnabling: false,
     isAnon: true
   }, options);
-
-  // If the factory has more then one argument, this module
-  // depends on some sort of async operation (unless this is an
-  // amd module).
-  if ((factory && factory.length >= 1) && !this.getModuleMeta('isAmd'))
-    this.setModuleMeta('isAsync', true);
-  if (this.getModuleMeta('isAsync')) {
-    // We only want to wait until 'done' is emited, then
-    // return to the usual behavior.
-    this.addModuleEventListener('done', function () {
-      self.setModuleMeta('isAsync', false);
-    }, true);
-  }
   
   this.setModuleFactory(factory);
   this.registerModule(name);
@@ -560,19 +549,25 @@ Module.prototype.registerModule = function (name) {
   }
 };
 
+// Get a meta item from the module, if it exists ('meta items' typically
+// being things like 'isAsync' or 'isEnabled'). Returns `false` if nothing
+// is found.
 Module.prototype.getModuleMeta = function (key) {
   if(!key) return this.__moduleMeta;
   return this.__moduleMeta[key] || false;
 };
 
+// Set a meta item.
 Module.prototype.setModuleMeta = function (key, value) {
   this.__moduleMeta[key] = value;
 };
 
+// Add an event listener.
 Module.prototype.addModuleEventListener = function (name, callback, once) {
   this.__moduleEvents.addEventListener(name, callback, once);
 };
 
+// Emit all registered events under the provided name.
 Module.prototype.emitModuleEvent = function () {
   this.__moduleEvents.emit.apply(this.__moduleEvents, arguments);
 };
@@ -601,8 +596,53 @@ Module.prototype.getModuleDependencies = function () {
   return this.__moduleDependencies || [];
 };
 
+// RegExp to remove comments, ensuring that we don't try to
+// import things that have been commented out.
+var _commentRegExp = /(\/\*([\s\S]*?)\*\/|([^:]|^)\/\/(.*)$)/mg;
+
+// RegExps to find imports.
+var _importRegExp = [
+  /\.from\(\s*["']([^'"\s]+)["']\s*\)/g,
+  /\.imports\(\s*["']([^'"\s]+)["']\s*\)\.as\([\s\S]+?\)/g,
+  /require\s*\(\s*["']([^'"\s]+)["']\s*\)/g
+];
+
+// Use RegExp to find any imports this module needs, then add
+// them to the dependency stack.
+Module.prototype.findModuleDependencies = function () {
+  if (!this.__moduleFactory) return;
+  var self = this;
+  var factory = this.__moduleFactory
+    .toString()
+    .replace(_commentRegExp, '');
+  each(_importRegExp, function (re) {
+    factory.replace(re, function (matches, dep) {
+      self.addModuleDependency(dep);
+    });
+  });
+  // this.emitModuleEvent('module:investigate', this, factory);
+  // modus.events.emit('module:investigate', this, factory);
+};
+
 // API method to set the factory function.
+// If the factory has more then one argument, this module
+// depends on some sort of async operation (unless this is an
+// amd module).
 Module.prototype.setModuleFactory = function (factory) {
+  if ('function' !== typeof factory) return;
+  var self = this;
+
+  if ((factory && factory.length >= 1) && !this.getModuleMeta('isAmd'))
+    this.setModuleMeta('isAsync', true);
+
+  if (this.getModuleMeta('isAsync')) {
+    // We only want to wait until 'done' is emitted, then
+    // return to the usual behavior.
+    this.addModuleEventListener('done', function () {
+      self.setModuleMeta('isAsync', false);
+    }, true);
+  }
+
   this.__moduleFactory = factory;
 };
 
@@ -621,29 +661,6 @@ var _ensureModuleIsEnabled = function (dep, next, error) {
   } else {
     error('Could not load dependency: ' + dep);
   }
-};
-
-// RegExps to find imports.
-var _finders = [
-  /\.from\([\'|\"]([\s\S]+?)[\'|\"]\)/g,
-  /\.imports\([\'|\"]([\s\S]+?)[\'|\"]\)\.as\([\s\S]+?\)/g,
-  /require\([\'|\"]([\s\S]+?)[\'|\"]\)/g
-];
-
-// Use RegExp to find any imports this module needs, then add
-// them to the dependency stack.
-var _investigate = function () {
-  if (!this.__moduleFactory) return;
-  var factory = this.__moduleFactory.toString();
-  var self = this;
-  var addDep = function (matches, dep) {
-    self.addModuleDependency(dep);
-  };
-  each(_finders, function (re) {
-    factory.replace(re, addDep);
-  });
-  // this.emitModuleEvent('module:investigate', this, factory);
-  // modus.events.emit('module:investigate', this, factory);
 };
 
 // Run the registered factory.
@@ -672,10 +689,13 @@ var _runFactoryAMD = function () {
   var deps = this.getModuleDependencies();
   var mods = [];
   var usingExports = false;
-  var amdModule = {};
+  var amdModule = {exports: {}};
   // Create or get the current env.
   each(deps, function (dep) {
     if (dep === 'exports') {
+      mods.push(amdModule.exports);
+      usingExports = true;
+    } else if (dep === 'module') {
       mods.push(amdModule);
       usingExports = true;
     } else if (dep === 'require') {
@@ -692,16 +712,16 @@ var _runFactoryAMD = function () {
     }
   });
   if (!usingExports) 
-    amdModule = this.__moduleFactory.apply(this, mods) || {};
+    amdModule.exports = this.__moduleFactory.apply(this, mods) || {};
   else 
     this.__moduleFactory.apply(this, mods);
 
   // Export the env
   // @todo: I think I have the following check just to make underscore work. Seems a
   // little odd? Is it even necessary?
-  if (typeof amdModule === 'function')
-    amdModule['default'] = amdModule;
-  extend(this, amdModule);
+  if (typeof amdModule.exports === 'function')
+    amdModule.exports['default'] = amdModule.exports;
+  extend(this, amdModule.exports);
 
   // Cleanup.
   delete this.__moduleFactory;
@@ -736,8 +756,7 @@ Module.prototype.enableModule = function() {
   // Ensure we don't try to enable this module twice.
   this.setModuleMeta('isEnabling', true);
   // this.emitModuleEvent('module:enableBefore');
-  // Find all dependencies.
-  _investigate.call(this);
+  this.findModuleDependencies();
   deps = this.getModuleDependencies();
 
   if (deps.length <= 0) {
@@ -1046,8 +1065,8 @@ root.define = modus.define = function (name, deps, factory) {
     deps = [];
   }
   // Might be a commonJs thing:
-  if (deps.length === 0 && factory.length === 1)
-    deps.push('require');
+  if (deps.length === 0 && factory.length > 0)
+    deps = (factory.length === 1 ? ['require'] : ['require', 'exports', 'module']).concat(deps);
   var mod = new Module(name, factory, {isAmd: true});
   mod.addModuleDependency(deps);
   _enableModule(name, mod);

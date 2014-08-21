@@ -99,14 +99,6 @@ describe('modus', function () {
 
   });
 
-  describe('#envExists', function () {
-
-  });
-
-  describe('#parseName', function () {
-
-  });
-
   describe('#module', function () {
 
     it('creates a new module', function () {
@@ -158,7 +150,7 @@ describe('modus', function () {
       });
     });
 
-    it('imports anon modules recursivly', function (done) {
+    it('imports anon modules recursively', function (done) {
       modus.module('tests.anonRecursive', function () {
         this.imports('fixtures.anon.hasDeps').as('hasDeps');
         expect(this.hasDeps).to.deep.equal({one:'one', two:'two', hasDeps: 'hasDeps'});
@@ -174,7 +166,15 @@ describe('modus', function () {
       });
     });
 
-    it('imports commonJs style AMD module', function (done) {
+    it('imports external, anon AMD modules recursively', function (done) {
+      modus.module('tests.importAmdRecursive', function () {
+        this.imports('fixtures.amd.hasDeps').as('hasDeps');
+        expect(this.hasDeps).to.deep.equal({one:'one', two:'two', hasDeps: 'hasDeps'});
+        done();
+      });
+    });
+
+    it('imports AMD modules using a \'(require)\' signature', function (done) {
       modus.module('tests.importAmdCommonJs', function () {
         this.imports('three', 'commonJs').from('fixtures.amd.commonJs');
         expect(this.three).to.equal('three');
@@ -183,10 +183,11 @@ describe('modus', function () {
       });
     });
 
-    it('imports external, anon AMD modules recursivly', function (done) {
-      modus.module('tests.importAmdRecursive', function () {
-        this.imports('fixtures.amd.hasDeps').as('hasDeps');
-        expect(this.hasDeps).to.deep.equal({one:'one', two:'two', hasDeps: 'hasDeps'});
+    it('imports AMD modules using a \'(require, exports, module)\' signature ', function (done) {
+      modus.module('tests.importAmdCommonJsFull', function () {
+        this.imports('fixtures.amd.commonJsFull').as('commonJsFull');
+        expect(this.commonJsFull.check).to.equal('commonJsFull');
+        expect(this.commonJsFull.four).to.equal('four');
         done();
       });
     });
