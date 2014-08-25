@@ -9,9 +9,7 @@ gulp.task('build', function() {
   return gulp.src([
       './src/intro.js',
       './src/helpers.js',
-      './src/EventEmitter.js',
       './src/Loader.js',
-      // './src/Namespace.js',
       './src/Module.js',
       './src/modus.js',
       './src/start.js',

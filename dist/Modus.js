@@ -14,7 +14,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-08-21T16:51Z
+  Date: 2014-08-25T16:17Z
 */
 
 (function (factory) {
@@ -48,20 +48,22 @@ root.modus = modus;
 // Helpers
 // -------
 
-// Get all keys from an object
-var keys = function(obj) {
-  if ("object" !== typeof obj) return [];
-  if (Object.keys) return Object.keys(obj);
-  var keys = [];
-  for (var key in obj) if (obj.hasOwnProperty(key)) keys.push(key);
-  return keys;
-};
+// ONLY USED IN ONE PLACE
+    // Get all keys from an object
+    var keys = function(obj) {
+      if ("object" !== typeof obj) return [];
+      if (Object.keys) return Object.keys(obj);
+      var keys = [];
+      for (var key in obj) if (obj.hasOwnProperty(key)) keys.push(key);
+      return keys;
+    };
 
-// Get the size of an object
-var size = function (obj) {
-  if (obj == null) return 0;
-  return (obj.length === +obj.length) ? obj.length : keys(obj).length;
-};
+// ONLY USED RARELY
+    // Get the size of an object
+    var size = function (obj) {
+      if (obj == null) return 0;
+      return (obj.length === +obj.length) ? obj.length : keys(obj).length;
+    };
 
 // Apply defaults to an object.
 var defaults = function(defaults, options){
@@ -116,25 +118,6 @@ var each = function (obj, callback, context) {
     }
   }
   return obj;
-};
-
-// Run through all items in an object, then trigger
-// a callback on the last item.
-var eachAsync = function (obj, options) {
-  var remaining = size(obj);
-  options = defaults({
-    each: function(){},
-    onFinal: function(){},
-    onError: function(){}
-  }, options);
-  var context = options.context || this;
-  each(obj, function (item) {
-    options.each(item, function () {
-      remaining -= 1;
-      if (remaining <= 0) 
-        options.onFinal.call(context);
-    }, options.onError);
-  });
 };
 
 // Shim for Array.prototype.indexOf
@@ -210,6 +193,79 @@ var nextTick = ( function () {
   }
 })();
 
+// A super stripped down promise-like thing. This is most definitely
+// NOT promises/A+ compliant, but its enough for our needs.
+var when = function (resolver) {
+  var context = this;
+  var _state = false;
+  var _readyFns = [];
+  var _failedFns = [];
+  var _value = null;
+  var _dispatch = function (fns, value, ctx) {
+    if (!fns.length) return;
+    _value = (value || _value);
+    ctx = (ctx || this);
+    var fn;
+    while (fn = fns.pop()) { fn.call(ctx, _value); }
+  };
+  var _resolve = function (value, ctx) {
+    context = ctx || context;
+    _state = 1;
+    _dispatch(_readyFns, value, ctx)
+  };
+  var _reject = function (value, ctx) {
+    context = ctx || context;
+    _state = -1;
+    _dispatch(_failedFns, value, ctx)
+  };
+
+  // Run the resolver
+  if (resolver)
+    resolver(_resolve, _reject);
+
+  return {
+    then: function (onReady, onFailed) {
+      nextTick(function () {
+        if(onReady && ( "function" === typeof onReady)){
+          (_state === 1)
+            ? onReady.call(context, _value)
+            : _readyFns.push(onReady);
+        }
+        if(onFailed && ( "function" === typeof onFailed)){
+          (_state === -1)
+            ? onFailed.call(context, _value)
+            : _failedFns.push(onFailed);
+        }
+      });
+      return this;
+    },
+    fail: function (onFailed) {
+      return this.then(null, onFailed);
+    },
+    resolve: _resolve,
+    reject: _reject
+  };
+};
+
+// Run a callback on an array of items, then resolve
+// the promise when complete.
+var whenAll = function (obj, cb, ctx) {
+  ctx = ctx || this;
+  var remaining = size(obj);
+  return when(function (res, rej) {
+    each(obj, function (arg) {
+      when(function (res, rej) {
+        cb.call(ctx, arg, res, rej)
+      }).then(function () {
+        remaining -= 1;
+        if (remaining <= 0) res(null, ctx);
+      }).fail(function (reason) {
+        rej(reason);
+      });
+    });
+  });
+};
+
 // Check if this is a path or an object name
 var isPath = function (obj) {
   return obj.indexOf('/') >= 0;
@@ -219,70 +275,6 @@ var isPath = function (obj) {
 var escapeRegExp = function (str) {
   return str.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, "\\$&");
 }
-
-// modus.EventEmitter
-// ------------------
-// A simple event emitter, used internally for hooks.
-
-var EventEmitter = modus.EventEmitter = function () {
-  this._listeners = {};
-};
-
-EventEmitter.prototype.addEventListener = function (name, callback, once) {
-  var self = this;
-  if (typeof name === 'object') {
-    each(name, function (val, key) {
-      self.addEventListener(key, val, once);
-    });
-    return this;
-  }
-  if (typeof callback !== 'function')
-    throw new TypeError('Listener must be a function: ' + typeof callback);
-  if (!this._listeners[name]) this._listeners[name] = [];
-  this._listeners[name].push({
-    once: once,
-    cb: callback
-  }); 
-  return this;
-};
-
-EventEmitter.prototype.removeEventListener = function (name) {
-  if (name) {
-    delete this._listeners[name];
-    return this;
-  }
-  for (var e in this._listeners) delete this._listeners[e];
-  return this;
-};
-
-EventEmitter.prototype.emit = function (name) {
-  var evs = this._listeners[name];
-  var self = this;
-  var args = Array.prototype.slice.call(arguments, 1);
-  if (!evs) return this;
-  each(evs, function(ev, index) {
-    ev.cb.apply(self, args);
-  });
-  var filtered = filter(evs, function(ev) {
-    return (ev.once === false);
-  });
-  if (filtered.length <= 0) 
-    this.removeEventListener(name);
-  else
-    this._listeners[name] = filtered;
-  return this;
-};
-
-EventEmitter.prototype.on = function (name, callback) {
-  return this.addEventListener(name, callback, false);
-};
-
-EventEmitter.prototype.once = function (name, callback) {
-  return this.addEventListener(name, callback, true);
-};
-
-// Set up global event handler
-modus.events = new EventEmitter();
 
 // modus.Loader
 // ------------
@@ -311,8 +303,8 @@ Loader.prototype.getVisit = function (src) {
 };
 
 // Add a new visit.
-Loader.prototype.addVisit = function (src) {
-  this._visited[src] = new EventEmitter();
+Loader.prototype.addVisit = function (src, resolver) {
+  this._visited[src] = when(resolver);
   return this._visited[src];
 };
 
@@ -352,65 +344,62 @@ Loader.prototype.load = function (moduleName, next, error) {
   next = next || function () {};
   error = error || _catchError;
   var self = this;
+  var promise;
   if (moduleName instanceof Array) {
-    eachAsync(moduleName, {
-      each: function (item, next, error) {
-        self.load(item, next, error);
-      },
-      onFinal: next,
-      onError: error
+    promise = whenEach(moduleName, function (item, res, rej) {
+      self.load(item).then(res, rej);
     });
-    return;
+  } else if (isServer()) {
+    promise = this.loadServer(moduleName);
+  } else {
+    promise = this.loadClient(moduleName);
   }
-  if (isClient())
-    this.loadClient(moduleName, next, error);
-  else
-    this.loadServer(moduleName, next, error);
-}
+  if (next) promise.then(next, error);
+  return promise;
+};
 
 // Load a module when in a browser context.
-Loader.prototype.loadClient = function (moduleName, next, error) {
+Loader.prototype.loadClient = function (moduleName) {
   var self = this;
   var src = getMappedPath(moduleName);
   var visit = this.getVisit(src);
   var script;
 
-  if (visit) {
-    visit.once('done', next);
-    visit.once('error', error);
-    return;
+  if (!visit) {
+    script = this.newScript(moduleName, src);
+    visit = this.addVisit(src, function (res, rej) {
+      self.insertScript(script, function () {
+        // Handle anon modules.
+        var mod = modus.getLastModule();
+        if (mod) mod.registerModule(moduleName);
+        res();
+      });
+    });
   }
 
-  script = this.newScript(moduleName, src);
-  visit = this.addVisit(src);
-  
-  visit.once('done', next);
-  visit.once('error', error);
-
-  this.insertScript(script, function () {
-    // Handle anon modules.
-    var mod = modus.getLastModule();
-    if (mod) mod.registerModule(moduleName);
-    visit.emit('done');
-  });
+  return visit;
 };
 
 // Load a module when in a Nodejs context.
-Loader.prototype.loadServer = function (moduleName, next, error) {
+Loader.prototype.loadServer = function (moduleName) {
   var src = getMappedPath(moduleName);
-  try {
-    require('./' + src);
-    // Handle anon modules.
-    var mod = modus.getLastModule();
-    if (mod) mod.registerModule(moduleName);
-    nextTick(function () {
-      next();
+  var visit = this.getVisit(src);
+
+  if (!visit) {
+    visit = this.addVisit(src, function (res, rej) {
+      try {
+        require('./' + src);
+        // Handle anon modules.
+        var mod = modus.getLastModule();
+        if (mod) mod.registerModule(moduleName);
+        res();
+      } catch(e) {
+        rej(e);
+      } 
     });
-  } catch(e) {
-    nextTick(function () {
-      error(e);
-    });
-  } 
+  }
+
+  return visit;
 };
 
 // modus.Module
@@ -428,7 +417,7 @@ var Module = modus.Module = function (name, factory, options) {
   }
 
   // Define module information
-  this.__moduleEvents = new EventEmitter();
+  this.__modulePromise = when();
   this.__moduleDependencies = [];
   this.__moduleName = '';
   this.__moduleFactory = null;
@@ -448,7 +437,7 @@ var Module = modus.Module = function (name, factory, options) {
 };
 
 // A list of props to omit from module imports.
-var _moduleOmit = ['__moduleName', '__moduleFactory', '__moduleEvents', '__moduleMeta', '__moduleDependencies'];
+var _moduleOmit = ['__moduleName', '__moduleFactory', '__modulePromise', '__moduleMeta', '__moduleDependencies'];
 
 // Private method to add imported properties to a module.
 function _applyToModule (props, dep, many) {
@@ -562,14 +551,11 @@ Module.prototype.setModuleMeta = function (key, value) {
   this.__moduleMeta[key] = value;
 };
 
-// Add an event listener.
-Module.prototype.addModuleEventListener = function (name, callback, once) {
-  this.__moduleEvents.addEventListener(name, callback, once);
-};
-
-// Emit all registered events under the provided name.
-Module.prototype.emitModuleEvent = function () {
-  this.__moduleEvents.emit.apply(this.__moduleEvents, arguments);
+// Use a promise
+Module.prototype.onModuleReady = function(onReady, onFail) {
+  if (arguments.length)
+    this.__modulePromise.then(onReady, onFail);
+  return this.__modulePromise;
 };
 
 // Get the name of the module, excluding the namespace.
@@ -630,19 +616,8 @@ Module.prototype.findModuleDependencies = function () {
 // amd module).
 Module.prototype.setModuleFactory = function (factory) {
   if ('function' !== typeof factory) return;
-  var self = this;
-
   if ((factory && factory.length >= 1) && !this.getModuleMeta('isAmd'))
     this.setModuleMeta('isAsync', true);
-
-  if (this.getModuleMeta('isAsync')) {
-    // We only want to wait until 'done' is emitted, then
-    // return to the usual behavior.
-    this.addModuleEventListener('done', function () {
-      self.setModuleMeta('isAsync', false);
-    }, true);
-  }
-
   this.__moduleFactory = factory;
 };
 
@@ -655,9 +630,7 @@ Module.prototype.getModuleFactory = function () {
 var _ensureModuleIsEnabled = function (dep, next, error) {
   if (moduleExists(dep)) {
     var mod = getModule(dep);
-    mod.addModuleEventListener('done', function () { nextTick(next) }, true);
-    mod.addModuleEventListener('error', function () { nextTick(error) }, true);
-    mod.enableModule();
+    mod.enableModule().then(next, error);
   } else {
     error('Could not load dependency: ' + dep);
   }
@@ -673,9 +646,9 @@ var _runFactory = function () {
   } else {
     this.__moduleFactory.call(this, function (err) {
       if (err)
-        self.emitModuleEvent('error', err);
+        self.__modulePromise.reject(err, self);
       else
-        self.emitModuleEvent('done', null, self);
+        self.__modulePromise.resolve(self, self);
     });
   }
   // Cleanup.
@@ -729,13 +702,10 @@ var _runFactoryAMD = function () {
 
 // Enable this module.
 Module.prototype.enableModule = function() {
-  if (this.getModuleMeta('isDisabled') || this.getModuleMeta('isEnabling')) 
-    return;
-  if (this.getModuleMeta('isEnabled')) {
-    if (!this.getModuleMeta('isAsync')) 
-      this.emitModuleEvent('done');
-    return;
-  }
+  if (this.getModuleMeta('isDisabled') 
+      || this.getModuleMeta('isEnabling')
+      || this.getModuleMeta('isEnabled')) 
+    return this.__modulePromise;
 
   var self = this;
   var loader = modus.Loader.getInstance();
@@ -750,7 +720,7 @@ Module.prototype.enableModule = function() {
         _runFactory.call(self);
     }
     if(!self.getModuleMeta('isAsync'))
-      self.emitModuleEvent('done');
+      self.__modulePromise.resolve(null, self);
   };
 
   // Ensure we don't try to enable this module twice.
@@ -761,32 +731,30 @@ Module.prototype.enableModule = function() {
 
   if (deps.length <= 0) {
     onFinal();
-    return;
+    return this.__modulePromise;
   }
 
-  eachAsync(deps, {
-    each: function (dep, next, error) {
-      if (self.getModuleMeta('isAmd') && inArray(['exports', 'require', 'module'], dep) >= 0) {
-        // Skip AMD/CommonJS helpers
-        next();
-      } else if (moduleExists(dep)) {
+  whenAll(deps, function (dep, next, error) {
+    if (self.getModuleMeta('isAmd') && inArray(['exports', 'require', 'module'], dep) >= 0) {
+      // Skip AMD/CommonJS helpers
+      next();
+    } else if (moduleExists(dep)) {
+      _ensureModuleIsEnabled(dep, next, error);
+    } else {
+      // Try to find the module.
+      if (moduleExists(dep)) {
         _ensureModuleIsEnabled(dep, next, error);
       } else {
-        // Try to find the module.
-        if (moduleExists(dep)) {
-          _ensureModuleIsEnabled(dep, next, error);
-        } else {
-          loader.load(dep, function () {
+        loader
+          .load(dep)
+          .then(function () {
             _ensureModuleIsEnabled(dep, next, error);
           }, error);
-        }
       }
-    },
-    onFinal: onFinal,
-    onError: function (reason) {
-      self.disableModule(reason);
     }
-  });
+  }).then(onFinal, bind(this.disableModule, this));
+
+  return this.__modulePromise;
 };
 
 // Disable this module and run any error hooks. Once a 
@@ -799,6 +767,7 @@ Module.prototype.disableModule = function (reason) {
   } else if (this.getModuleMeta('throwErrors')) {
     throw new Error(reason);
   }
+  return reason;
 };
 
 // modus

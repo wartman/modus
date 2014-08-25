@@ -26,7 +26,7 @@ Loader.prototype.getVisit = function (src) {
 
 // Add a new visit.
 Loader.prototype.addVisit = function (src, resolver) {
-  this._visited[src] = wait(resolver);
+  this._visited[src] = when(resolver);
   return this._visited[src];
 };
 
@@ -120,6 +120,6 @@ Loader.prototype.loadServer = function (moduleName) {
       } 
     });
   }
-  
+
   return visit;
 };

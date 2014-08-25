@@ -33,7 +33,7 @@ var Module = modus.Module = function (name, factory, options) {
 };
 
 // A list of props to omit from module imports.
-var _moduleOmit = ['__moduleName', '__moduleFactory', '__moduleEvents', '__moduleMeta', '__moduleDependencies'];
+var _moduleOmit = ['__moduleName', '__moduleFactory', '__modulePromise', '__moduleMeta', '__moduleDependencies'];
 
 // Private method to add imported properties to a module.
 function _applyToModule (props, dep, many) {
@@ -306,10 +306,7 @@ Module.prototype.enableModule = function() {
   var self = this;
   var loader = modus.Loader.getInstance();
   var deps = [];
-  var modulePromise = this.__modulePromise;
-
-  // Default bindings
-  modulePromise.then(function () {
+  var onFinal = function () {
     self.setModuleMeta('isEnabling', false);
     self.setModuleMeta('isEnabled', true);
     if(!modus.isBuilding) {
@@ -319,9 +316,8 @@ Module.prototype.enableModule = function() {
         _runFactory.call(self);
     }
     if(!self.getModuleMeta('isAsync'))
-      modulePromise.resolve(null, self);
-  });
-  modulePromise.fail(bind(this.disableModule, this));
+      self.__modulePromise.resolve(null, self);
+  };
 
   // Ensure we don't try to enable this module twice.
   this.setModuleMeta('isEnabling', true);
@@ -330,8 +326,8 @@ Module.prototype.enableModule = function() {
   deps = this.getModuleDependencies();
 
   if (deps.length <= 0) {
-    modulePromise.resolve();
-    return modulePromise;
+    onFinal();
+    return this.__modulePromise;
   }
 
   whenAll(deps, function (dep, next, error) {
@@ -352,13 +348,9 @@ Module.prototype.enableModule = function() {
           }, error);
       }
     }
-  }).then(function () {
-    modulePromise.resolve();
-  }).fail(function (reason) {
-    modulePromise.reject(reason);
-  });
+  }).then(onFinal, bind(this.disableModule, this));
 
-  return modulePromise;
+  return this.__modulePromise;
 };
 
 // Disable this module and run any error hooks. Once a 
