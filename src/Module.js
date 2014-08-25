@@ -13,7 +13,7 @@ var Module = modus.Module = function (name, factory, options) {
   }
 
   // Define module information
-  this.__moduleEvents = new EventEmitter();
+  this.__modulePromise = when();
   this.__moduleDependencies = [];
   this.__moduleName = '';
   this.__moduleFactory = null;
@@ -147,14 +147,11 @@ Module.prototype.setModuleMeta = function (key, value) {
   this.__moduleMeta[key] = value;
 };
 
-// Add an event listener.
-Module.prototype.addModuleEventListener = function (name, callback, once) {
-  this.__moduleEvents.addEventListener(name, callback, once);
-};
-
-// Emit all registered events under the provided name.
-Module.prototype.emitModuleEvent = function () {
-  this.__moduleEvents.emit.apply(this.__moduleEvents, arguments);
+// Use a promise
+Module.prototype.onModuleReady = function(onReady, onFail) {
+  if (arguments.length)
+    this.__modulePromise.then(onReady, onFail);
+  return this.__modulePromise;
 };
 
 // Get the name of the module, excluding the namespace.
@@ -215,19 +212,8 @@ Module.prototype.findModuleDependencies = function () {
 // amd module).
 Module.prototype.setModuleFactory = function (factory) {
   if ('function' !== typeof factory) return;
-  var self = this;
-
   if ((factory && factory.length >= 1) && !this.getModuleMeta('isAmd'))
     this.setModuleMeta('isAsync', true);
-
-  if (this.getModuleMeta('isAsync')) {
-    // We only want to wait until 'done' is emitted, then
-    // return to the usual behavior.
-    this.addModuleEventListener('done', function () {
-      self.setModuleMeta('isAsync', false);
-    }, true);
-  }
-
   this.__moduleFactory = factory;
 };
 
@@ -240,9 +226,7 @@ Module.prototype.getModuleFactory = function () {
 var _ensureModuleIsEnabled = function (dep, next, error) {
   if (moduleExists(dep)) {
     var mod = getModule(dep);
-    mod.addModuleEventListener('done', function () { nextTick(next) }, true);
-    mod.addModuleEventListener('error', function () { nextTick(error) }, true);
-    mod.enableModule();
+    mod.enableModule().then(next, error);
   } else {
     error('Could not load dependency: ' + dep);
   }
@@ -258,9 +242,9 @@ var _runFactory = function () {
   } else {
     this.__moduleFactory.call(this, function (err) {
       if (err)
-        self.emitModuleEvent('error', err);
+        self.__modulePromise.reject(err, self);
       else
-        self.emitModuleEvent('done', null, self);
+        self.__modulePromise.resolve(self, self);
     });
   }
   // Cleanup.
@@ -314,18 +298,18 @@ var _runFactoryAMD = function () {
 
 // Enable this module.
 Module.prototype.enableModule = function() {
-  if (this.getModuleMeta('isDisabled') || this.getModuleMeta('isEnabling')) 
-    return;
-  if (this.getModuleMeta('isEnabled')) {
-    if (!this.getModuleMeta('isAsync')) 
-      this.emitModuleEvent('done');
-    return;
-  }
+  if (this.getModuleMeta('isDisabled') 
+      || this.getModuleMeta('isEnabling')
+      || this.getModuleMeta('isEnabled')) 
+    return this.__modulePromise;
 
   var self = this;
   var loader = modus.Loader.getInstance();
   var deps = [];
-  var onFinal = function () {
+  var modulePromise = this.__modulePromise;
+
+  // Default bindings
+  modulePromise.then(function () {
     self.setModuleMeta('isEnabling', false);
     self.setModuleMeta('isEnabled', true);
     if(!modus.isBuilding) {
@@ -335,8 +319,9 @@ Module.prototype.enableModule = function() {
         _runFactory.call(self);
     }
     if(!self.getModuleMeta('isAsync'))
-      self.emitModuleEvent('done');
-  };
+      modulePromise.resolve(null, self);
+  });
+  modulePromise.fail(bind(this.disableModule, this));
 
   // Ensure we don't try to enable this module twice.
   this.setModuleMeta('isEnabling', true);
@@ -345,33 +330,35 @@ Module.prototype.enableModule = function() {
   deps = this.getModuleDependencies();
 
   if (deps.length <= 0) {
-    onFinal();
-    return;
+    modulePromise.resolve();
+    return modulePromise;
   }
 
-  eachAsync(deps, {
-    each: function (dep, next, error) {
-      if (self.getModuleMeta('isAmd') && inArray(['exports', 'require', 'module'], dep) >= 0) {
-        // Skip AMD/CommonJS helpers
-        next();
-      } else if (moduleExists(dep)) {
+  whenAll(deps, function (dep, next, error) {
+    if (self.getModuleMeta('isAmd') && inArray(['exports', 'require', 'module'], dep) >= 0) {
+      // Skip AMD/CommonJS helpers
+      next();
+    } else if (moduleExists(dep)) {
+      _ensureModuleIsEnabled(dep, next, error);
+    } else {
+      // Try to find the module.
+      if (moduleExists(dep)) {
         _ensureModuleIsEnabled(dep, next, error);
       } else {
-        // Try to find the module.
-        if (moduleExists(dep)) {
-          _ensureModuleIsEnabled(dep, next, error);
-        } else {
-          loader.load(dep, function () {
+        loader
+          .load(dep)
+          .then(function () {
             _ensureModuleIsEnabled(dep, next, error);
           }, error);
-        }
       }
-    },
-    onFinal: onFinal,
-    onError: function (reason) {
-      self.disableModule(reason);
     }
+  }).then(function () {
+    modulePromise.resolve();
+  }).fail(function (reason) {
+    modulePromise.reject(reason);
   });
+
+  return modulePromise;
 };
 
 // Disable this module and run any error hooks. Once a 
@@ -384,4 +371,5 @@ Module.prototype.disableModule = function (reason) {
   } else if (this.getModuleMeta('throwErrors')) {
     throw new Error(reason);
   }
+  return reason;
 };

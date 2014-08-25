@@ -1,20 +1,22 @@
 // Helpers
 // -------
 
-// Get all keys from an object
-var keys = function(obj) {
-  if ("object" !== typeof obj) return [];
-  if (Object.keys) return Object.keys(obj);
-  var keys = [];
-  for (var key in obj) if (obj.hasOwnProperty(key)) keys.push(key);
-  return keys;
-};
+// ONLY USED IN ONE PLACE
+    // Get all keys from an object
+    var keys = function(obj) {
+      if ("object" !== typeof obj) return [];
+      if (Object.keys) return Object.keys(obj);
+      var keys = [];
+      for (var key in obj) if (obj.hasOwnProperty(key)) keys.push(key);
+      return keys;
+    };
 
-// Get the size of an object
-var size = function (obj) {
-  if (obj == null) return 0;
-  return (obj.length === +obj.length) ? obj.length : keys(obj).length;
-};
+// ONLY USED RARELY
+    // Get the size of an object
+    var size = function (obj) {
+      if (obj == null) return 0;
+      return (obj.length === +obj.length) ? obj.length : keys(obj).length;
+    };
 
 // Apply defaults to an object.
 var defaults = function(defaults, options){
@@ -69,25 +71,6 @@ var each = function (obj, callback, context) {
     }
   }
   return obj;
-};
-
-// Run through all items in an object, then trigger
-// a callback on the last item.
-var eachAsync = function (obj, options) {
-  var remaining = size(obj);
-  options = defaults({
-    each: function(){},
-    onFinal: function(){},
-    onError: function(){}
-  }, options);
-  var context = options.context || this;
-  each(obj, function (item) {
-    options.each(item, function () {
-      remaining -= 1;
-      if (remaining <= 0) 
-        options.onFinal.call(context);
-    }, options.onError);
-  });
 };
 
 // Shim for Array.prototype.indexOf
@@ -162,6 +145,79 @@ var nextTick = ( function () {
     return function (fn, ctx) { enqueueFn(fn, ctx) && root.postMessage(msg, '*'); };
   }
 })();
+
+// A super stripped down promise-like thing. This is most definitely
+// NOT promises/A+ compliant, but its enough for our needs.
+var when = function (resolver) {
+  var context = this;
+  var _state = false;
+  var _readyFns = [];
+  var _failedFns = [];
+  var _value = null;
+  var _dispatch = function (fns, value, ctx) {
+    if (!fns.length) return;
+    _value = (value || _value);
+    ctx = (ctx || this);
+    var fn;
+    while (fn = fns.pop()) { fn.call(ctx, _value); }
+  };
+  var _resolve = function (value, ctx) {
+    context = ctx || context;
+    _state = 1;
+    _dispatch(_readyFns, value, ctx)
+  };
+  var _reject = function (value, ctx) {
+    context = ctx || context;
+    _state = -1;
+    _dispatch(_failedFns, value, ctx)
+  };
+
+  // Run the resolver
+  if (resolver)
+    resolver(_resolve, _reject);
+
+  return {
+    then: function (onReady, onFailed) {
+      nextTick(function () {
+        if(onReady && ( "function" === typeof onReady)){
+          (_state === 1)
+            ? onReady.call(context, _value)
+            : _readyFns.push(onReady);
+        }
+        if(onFailed && ( "function" === typeof onFailed)){
+          (_state === -1)
+            ? onFailed.call(context, _value)
+            : _failedFns.push(onFailed);
+        }
+      });
+      return this;
+    },
+    fail: function (onFailed) {
+      return this.then(null, onFailed);
+    },
+    resolve: _resolve,
+    reject: _reject
+  };
+};
+
+// Run a callback on an array of items, then resolve
+// the promise when complete.
+var whenAll = function (obj, cb, ctx) {
+  ctx = ctx || this;
+  var remaining = size(obj);
+  return when(function (res, rej) {
+    each(obj, function (arg) {
+      when(function (res, rej) {
+        cb.call(ctx, arg, res, rej)
+      }).then(function () {
+        remaining -= 1;
+        if (remaining <= 0) res(null, ctx);
+      }).fail(function (reason) {
+        rej(reason);
+      });
+    });
+  });
+};
 
 // Check if this is a path or an object name
 var isPath = function (obj) {

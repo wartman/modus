@@ -21,7 +21,7 @@ describe('mod', function () {
 
   describe('#enable', function () {
 
-    it('will wait for a "done" event to be emited if an arg is passed', function (done) {
+    it('will be async if an argument is passed', function (done) {
       mod('tests.wait.target', function (moduleDone) {
         var self = this;
         this.foo = 'didn\'t wait';

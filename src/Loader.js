@@ -25,8 +25,8 @@ Loader.prototype.getVisit = function (src) {
 };
 
 // Add a new visit.
-Loader.prototype.addVisit = function (src) {
-  this._visited[src] = new EventEmitter();
+Loader.prototype.addVisit = function (src, resolver) {
+  this._visited[src] = wait(resolver);
   return this._visited[src];
 };
 
@@ -66,63 +66,60 @@ Loader.prototype.load = function (moduleName, next, error) {
   next = next || function () {};
   error = error || _catchError;
   var self = this;
+  var promise;
   if (moduleName instanceof Array) {
-    eachAsync(moduleName, {
-      each: function (item, next, error) {
-        self.load(item, next, error);
-      },
-      onFinal: next,
-      onError: error
+    promise = whenEach(moduleName, function (item, res, rej) {
+      self.load(item).then(res, rej);
     });
-    return;
+  } else if (isServer()) {
+    promise = this.loadServer(moduleName);
+  } else {
+    promise = this.loadClient(moduleName);
   }
-  if (isClient())
-    this.loadClient(moduleName, next, error);
-  else
-    this.loadServer(moduleName, next, error);
-}
+  if (next) promise.then(next, error);
+  return promise;
+};
 
 // Load a module when in a browser context.
-Loader.prototype.loadClient = function (moduleName, next, error) {
+Loader.prototype.loadClient = function (moduleName) {
   var self = this;
   var src = getMappedPath(moduleName);
   var visit = this.getVisit(src);
   var script;
 
-  if (visit) {
-    visit.once('done', next);
-    visit.once('error', error);
-    return;
+  if (!visit) {
+    script = this.newScript(moduleName, src);
+    visit = this.addVisit(src, function (res, rej) {
+      self.insertScript(script, function () {
+        // Handle anon modules.
+        var mod = modus.getLastModule();
+        if (mod) mod.registerModule(moduleName);
+        res();
+      });
+    });
   }
 
-  script = this.newScript(moduleName, src);
-  visit = this.addVisit(src);
-  
-  visit.once('done', next);
-  visit.once('error', error);
-
-  this.insertScript(script, function () {
-    // Handle anon modules.
-    var mod = modus.getLastModule();
-    if (mod) mod.registerModule(moduleName);
-    visit.emit('done');
-  });
+  return visit;
 };
 
 // Load a module when in a Nodejs context.
-Loader.prototype.loadServer = function (moduleName, next, error) {
+Loader.prototype.loadServer = function (moduleName) {
   var src = getMappedPath(moduleName);
-  try {
-    require('./' + src);
-    // Handle anon modules.
-    var mod = modus.getLastModule();
-    if (mod) mod.registerModule(moduleName);
-    nextTick(function () {
-      next();
+  var visit = this.getVisit(src);
+
+  if (!visit) {
+    visit = this.addVisit(src, function (res, rej) {
+      try {
+        require('./' + src);
+        // Handle anon modules.
+        var mod = modus.getLastModule();
+        if (mod) mod.registerModule(moduleName);
+        res();
+      } catch(e) {
+        rej(e);
+      } 
     });
-  } catch(e) {
-    nextTick(function () {
-      error(e);
-    });
-  } 
+  }
+  
+  return visit;
 };

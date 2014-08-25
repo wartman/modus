@@ -44,7 +44,7 @@ describe('modus.Module', function () {
       expect(actual.getModuleFactory().toString()).to.equal(factory.toString());
     });
 
-    it('will wait for a `done` event if an arg is passed', function (done) {
+    it('will run async if an argument is passed.', function (done) {
       var actual = new modus.Module('tests.registerModule.async');
       actual.setModuleFactory(function (moduleDone) {
         var self = this;
@@ -55,11 +55,10 @@ describe('modus.Module', function () {
         }, 200);
       });
       expect(actual.getModuleMeta('isAsync')).to.be.true;
-      actual.addModuleEventListener('done', function () {
+      actual.enableModule().then(function () {
         expect(actual.foo).to.equal('waited');
         done();
-      }, true);
-      actual.enableModule();
+      });
     });
 
   });
