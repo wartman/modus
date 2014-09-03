@@ -33,8 +33,10 @@ program
     };
 
     var build = modus.Build.getInstance();
-    build.start(settings).once('done', function (compiled) {
-      if (dest) build.writeOutput(dest);
+    build.start(settings, function (compiled) {
+      if (dest) build.writeOutput(dest, function () {
+        console.log('Compiled to ', dest);
+      });
     });
 
   })

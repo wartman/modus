@@ -356,7 +356,7 @@ Module.prototype.enableModule = function() {
 // Disable this module and run any error hooks. Once a 
 // module is disabled it cannot transition to an 'enabled' state.
 Module.prototype.disableModule = function (reason) {
-  this.getModuleMeta('isDisabled', true);
+  this.setModuleMeta('isDisabled', true);
   this.emitModuleEvent('error', reason);
   if (this.getModuleMeta('throwErrors') && reason instanceof Error) {
     throw reason;

@@ -1,22 +1,20 @@
 // Helpers
 // -------
 
-// ONLY USED IN ONE PLACE
-    // Get all keys from an object
-    var keys = function(obj) {
-      if ("object" !== typeof obj) return [];
-      if (Object.keys) return Object.keys(obj);
-      var keys = [];
-      for (var key in obj) if (obj.hasOwnProperty(key)) keys.push(key);
-      return keys;
-    };
+// Get all keys from an object
+var keys = function(obj) {
+  if ("object" !== typeof obj) return [];
+  if (Object.keys) return Object.keys(obj);
+  var keys = [];
+  for (var key in obj) if (obj.hasOwnProperty(key)) keys.push(key);
+  return keys;
+};
 
-// ONLY USED RARELY
-    // Get the size of an object
-    var size = function (obj) {
-      if (obj == null) return 0;
-      return (obj.length === +obj.length) ? obj.length : keys(obj).length;
-    };
+// Get the size of an object
+var size = function (obj) {
+  if (obj == null) return 0;
+  return (obj.length === +obj.length) ? obj.length : keys(obj).length;
+};
 
 // Apply defaults to an object.
 var defaults = function(defaults, options){

@@ -6,10 +6,10 @@ mod(function () {
   };
 });
 
-modus.events.on('build:compileBefore', function (mods, build) {
+modus.addBuildEvent(function (mods, output, build) {
   var txtCheck = /\.textloader\(['|"]([\s\S]+?)['|"]\)/g;
-  for (var modName in mods) {
-    mods[modName].replace(txtCheck, function (match, filepath) {
+  for (var modName in output) {
+    output[modName].replace(txtCheck, function (match, filepath) {
       var fileModName = modus.normalizeModuleName(filepath, modName);
       var file = build.readFile(filepath, {ext: 'txt', context: modName});
       modus.publish(fileModName, file);

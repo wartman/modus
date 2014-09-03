@@ -18,14 +18,13 @@ describe('modus.Build', function () {
 
     it('project was compiled correctly', function (done) {
       main = builtModus.getModule('main');
-      main.addModuleEventListener('done', function () {
+      main.enableModule().then(function () {
         expect(main.foo).to.equal('foo');
         expect(main.anon).to.equal('anon');
         expect(main.fileload).to.equal('file loaded');
         expect(main._).to.be.a('function');
         done();
       }, true);
-      main.enableModule();
     });
 
   });

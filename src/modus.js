@@ -9,9 +9,14 @@ modus.env = {};
 
 // Config options for modus.
 modus.options = {
-  root: '',
-  maps: {},
-  namespaceMaps: {}
+  root: '',  maps: {},
+  namespaceMaps: {},
+  main: 'main',
+  // A modusfile can be used to customize a compiled project.
+  // This should be a module name or URI to a modusfile document
+  // (or set to 'false')
+  // See `modus.addBuildEvent` for more.
+  modusfile: false
 };
 
 // Return modus to its last owner
@@ -189,6 +194,11 @@ var getModule = modus.getModule = function (name) {
   return modus.env[name] || false;
 };
 
+// Sugar for getting all modules.
+var getAllModules = modus.getAllModules = function () {
+  return getModule();
+};
+
 // Add a module to the modules registry.
 var addModule = modus.addModule = function (name, mod) {
   if (!(mod instanceof Module)) 
@@ -278,3 +288,50 @@ root.define.amd = {
 // Shortcut for `modus.module`. `mod` is the preferred way to define
 // modules.
 root.mod = modus.module;
+
+// Build API
+// ---------
+
+var _moduleBuildEvents = {};
+var _globalBuildEvents = [];
+
+// Add a build event. This can be limited to a specific module
+// (by passing a module name as the first argument), or can be
+// run globally by omitting the first argument.
+//
+//    // Running on a single module:
+//    modus.addBuildEvent('foo.bar', function (mod, build) {
+//      // `mod` is the current module and `build` is the current
+//      // instance of `modus.Build`.
+//      build.output(mod.getModuleName(), 'this will replace the module');
+//    });
+//
+//    // Running globally:
+//    modus.addBuildEvent(function (mods, build) {
+//      // `mods` is an array containing all the modules in the app.
+//      mods.forEach(function (mod) {
+//        build.output(mod.getModuleName(), 'Do something here.');
+//      });
+//    });
+//
+modus.addBuildEvent = function (moduleName, callback) {
+  // Only register build events if this is building.
+  if (!modus.isBuilding) return;
+  if ('undefined' === typeof callback) {
+    callback = moduleName;
+    moduleName = false;
+  }
+  if (!moduleName) {
+    // then this is a global build event
+    _globalBuildEvents.push(callback);
+  } else {
+    moduleName = normalizeModuleName(moduleName);
+    _moduleBuildEvents[moduleName] = callback;
+  }
+};
+
+// Used by modus.Build to get build events.
+modus.getBuildEvent = function (moduleName) {
+  if (!moduleName) return _globalBuildEvents;
+  return _moduleBuildEvents[moduleName] || false;
+};

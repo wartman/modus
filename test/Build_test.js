@@ -12,7 +12,7 @@ describe('modus.Build', function () {
       root: process.cwd() + '/',
       main: 'fixtures.build.main',
       dest: 'tmp/compiled.js'
-    }).once('done', function (data) {
+    }, function (data) {
       compiled = data;
       done(); 
     });
@@ -25,7 +25,7 @@ describe('modus.Build', function () {
       var base = {};
       factory.call(base);
       var main = base.modus.getModule(base.modus.config('main'));
-      main.addModuleEventListener('done', function () {
+      main.enableModule().then(function () {
         expect(main.foo).to.equal('foo');
         expect(main.anon).to.equal('anon');
         expect(main.fileload).to.equal('file loaded');
@@ -38,8 +38,7 @@ describe('modus.Build', function () {
         expect(files['default']).to.equal('File three.');
 
         done();
-      }, true);
-      main.enableModule();
+      });
     });
 
   });
@@ -48,20 +47,18 @@ describe('modus.Build', function () {
 
     it('writes to a destination', function (done) {
       var build = modus.Build.getInstance();
-      build.writeOutput();
-      build.once('output.done', function () {
+      build.writeOutput(function () {
         build.fs.readFile(process.cwd() + '/test/tmp/compiled.js', 'utf-8', function (err, data) {
           if (err) throw err;
           var factory = Function(data);
           var base = {};
           factory.call(base);
           var main = base.modus.getModule(base.modus.config('main'));
-          main.addModuleEventListener('done', function () {
+          main.enableModule().then(function () {
             expect(main.foo).to.equal('foo');
             expect(main.fileload).to.equal('file loaded');
             done();
-          }, true);
-          main.enableModule();
+          });
         });
       });
     });
