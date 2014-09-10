@@ -44,9 +44,21 @@ describe('modus.Module', function () {
       expect(actual.getModuleFactory().toString()).to.equal(factory.toString());
     });
 
-    it('will run async if an argument is passed.', function (done) {
+    it('passes module as first argument', function (done) {
+      var actual = new modus.Module('tests.registerModule.sync');
+      actual.setModuleFactory(function (mod) {
+        mod.foo = 'foo';
+      });
+      expect(actual.getModuleMeta('isAsync')).to.be.false;
+      actual.enableModule().then(function () {
+        expect(actual.foo).to.equal('foo');
+        done();
+      });
+    });
+
+    it('will run async if a second argument is passed.', function (done) {
       var actual = new modus.Module('tests.registerModule.async');
-      actual.setModuleFactory(function (moduleDone) {
+      actual.setModuleFactory(function (mod, moduleDone) {
         var self = this;
         this.foo = 'didn\'t wait';
         setTimeout(function () {

@@ -202,8 +202,6 @@ Module.prototype.findModuleDependencies = function () {
       self.addModuleDependency(dep);
     });
   });
-  // this.emitModuleEvent('module:investigate', this, factory);
-  // modus.events.emit('module:investigate', this, factory);
 };
 
 // API method to set the factory function.
@@ -212,7 +210,7 @@ Module.prototype.findModuleDependencies = function () {
 // amd module).
 Module.prototype.setModuleFactory = function (factory) {
   if ('function' !== typeof factory) return;
-  if ((factory && factory.length >= 1) && !this.getModuleMeta('isAmd'))
+  if ((factory && factory.length >= 2) && !this.getModuleMeta('isAmd'))
     this.setModuleMeta('isAsync', true);
   this.__moduleFactory = factory;
 };
@@ -237,10 +235,10 @@ var _runFactory = function () {
   if (!this.__moduleFactory) return;
   var self = this;
   // Run the factory.
-  if (this.__moduleFactory.length <= 0) {
-    this.__moduleFactory.call(this);
+  if (this.__moduleFactory.length <= 1) {
+    this.__moduleFactory.call(this, this);
   } else {
-    this.__moduleFactory.call(this, function (err) {
+    this.__moduleFactory.call(this, this, function (err) {
       if (err)
         self.__modulePromise.reject(err, self);
       else

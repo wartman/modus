@@ -194,6 +194,33 @@ describe('modus', function () {
 
   });
 
+  describe('#main', function () {
+
+    it('can set config', function (done) {
+      modus.main({
+        main: 'tests.mainOne',
+        mainFoo: 'bar'
+      }, function () {
+        expect(modus.config('mainFoo')).to.equal('bar');
+        done();
+      });
+    });
+
+    it('registers a module with `modus.config(\'main\')` as the name', function (done) {
+      modus.config('main', 'tests.mainTwo');
+      modus.main(function () {
+        expect(this.getModuleName()).to.equal('tests.mainTwo');
+        done();
+      });
+    });
+
+    after(function () {
+      // Reset `main` to the default value.
+      modus.config('main', 'main');
+    });
+
+  });
+
   describe('#publish', function () {
     it('publishes a value', function (done) {
       modus.publish('tests.publish', 'published');
@@ -223,6 +250,15 @@ describe('modus', function () {
       });
       modus.define('tests/amd/importing', ['tests/amd/targetOne'], function (targetOne) {
         expect(targetOne.foo).to.equal('foo');
+        done();
+      });
+    });
+
+    it('can handle things other then functions', function (done) {
+      modus.define('tests/amd/nonFunction/obj', {testsObj:'foo'});
+      modus.module('tests.amd.nonFunction.loader', function () {
+        this.imports('testsObj').from('.obj');
+        expect(this.testsObj).to.equal('foo');
         done();
       });
     });

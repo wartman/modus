@@ -4,25 +4,20 @@ Modus
 **NOTE: Modus is very much in development.**
 The API shouldn't change too much from this point forward, but be warned.
 
-**NOTE:** If you're using a version before 0.2.0, please read the API notes for
-the new way imports work.
-
 Modus is a JavaScript module loader for the web. It uses a Python and 
 ES6 inspired syntax, but can also load AMD modules.
 
 Here's an example of a simple `modus.module`:
 
 ```javascript
-mod(function () {
-    this.imports('foo', 'bar').from('.bar');
-    this.imports('View').from('backbone');
+mod(function (mod) {
+    mod.imports('foo', 'bar').from('.bar');
+    mod.imports('View').from('backbone');
 
-    var self = this;
-
-    this.MyView = this.View.extend({
+    mod.MyView = mod.View.extend({
         init: function () {
-            this.foo = self.foo;
-            this.bar = self.bar;
+            this.foo = mod.foo;
+            this.bar = mod.bar;
         }
     });
 });
@@ -55,6 +50,18 @@ Defining exports is as simple as assigning a property to `this`:
 modus.module('example.module', function () {
     this.SomeExport = 'foo';
     this.SomeOtherExport = 'bar';
+});
+```
+
+The first argument passed to the callback will also be bound to the current module, which
+is handy if you need to define something in another scope.
+
+```javascript
+modus.module('example.module', function (mod) {
+    mod.SomeExport = 'foo';
+    (function () {
+        mod.SomeOtherExport = 'bar';
+    })();
 });
 ```
 
@@ -166,16 +173,15 @@ mod('app.foo.bar', function () {
 
 If you need to do something asynchronous (and you probably will at some point), you can
 tell modus to wait until your operation has completed before continuing along the module stack.
-All you need to do is pass an argument to the module factory (typically called "done", although this
+All you need to do is pass a second argument to the module factory (typically called "done", although this
 can be whatever you'd like). If you've used a testing framework like Mocha, this should be a
 familiar pattern.
 
 ```javascript
-mod('tests.wait', function (done) {
-    var self = this;
-    this.foo = 'didn\'t wait';
+mod('tests.wait', function (mod, done) {
+    mod.foo = 'didn\'t wait';
     setTimeout(function () {
-        self.foo = 'waited';
+        mod.foo = 'waited';
         // Enable this module, and continue enabling
         // all dependent modules.
         done();
@@ -188,30 +194,6 @@ mod('tests.waiting', function () {
     this.imports('foo').from('.wait');
     console.log(this.foo);
     // --> 'waited'
-});
-```
-
-#### Events
-
-Each module has an event emitter you can hook into. Right now, the only
-event that has much effect is the 'build' event, run when compiling
-a module. Here's an example:
-
-```javascript
-mod(function (done) {
-    this.imports('$').from('jquery');
-    var self = this;
-    $.ajax({
-        url: 'some/txt/file.txt'
-    }).done(function (data) {
-        self.default = data;
-        done();
-    });
-}).on('build', function (moduleName, raw) {
-    // When compiled, the following will replace the module:
-    var build = modus.Build.getInstance();
-    var file = build.readFile('some/txt/file.txt');
-    build.output(moduleName, "modus.publish('" + moduleName + "', '" + file + "' )" );
 });
 ```
 
@@ -269,6 +251,25 @@ modus.module('main', function () {
 });
 ```
 
+### modus.__main__(*config*, *factory*)
+
+'modus.main' is a shortcut for defining a main module. It will automatically register
+a module with `modus.config('main')` as the module name, and you can set config options
+by passing an object as the first argument. This method should be used in the file that
+`data-main` points to.
+
+```javascript
+modus.main({
+    root: 'foo/bar',
+    maps: {
+        'foo': 'bar'
+    }
+}, function () {
+    this.imports('App').from('foo.app');
+    this.App.start(); // or whatever you need.
+});
+```
+
 ### modus.__Build__()
 
 **Note**: This area is probably the most unstable part of Modus at the moment.
@@ -283,69 +284,30 @@ $ modus [src] [dest] <options>
 This allows you to compile a modus project into a single file. For more, type
 `$ modus --help` in your console.
 
-### modus.__events__
+### modus.__addBuildEvent__(*moduleName*, *callback*)
 
-If you need to, you can hook into global modus events. For example, say you're loading
-text files with AJAX, and want to include them when compiling your app.
+There may be cases where you need to add some custom behavior when building a modus
+app. `addBuildEvent` can register an event that will be run for a single module or
+an event that will parse all of them. 
 
 ```javascript
-mod(function () {
-    this.imports('jquery').as('$');
-    this.loadfile = function (file, next) {
-        if (modus.moduleExists(file)) {
-            next(modus.getModule(file)['default']);
-        } else {
-            // The following won't actually work: we'd need to
-            // do some checks and parsing of 'file' first. Still,
-            // you get the basic idea.
-            $.ajax({
-                url: file
-            }).done(function (data) {
-                modus.publish(file, data);
-                next(data);
-            });
-        }
-    };
-});
+// This is the global event
+modus.addBuildEvent(function (mods, output, build) {
+    // mods == an object containing all current `modus.Modules`.
+    // output == an object containing raw strings off all `modus.Modules`.
+    // build == the current instance of `modus.Build`
 
-// The following will be run for every imported module:
-modus.events.on('build:compileBefore', function (mods, build) {
-    var txtCheck = /\.loadfile\(['|"]([\s\S]+?)['|"]\)/g;
-    for (var modName in mods) {
-        mods[modName].replace(txtCheck, function (match, filepath) {
-            var fileModName = modus.normalizeModuleName(filepath, modName);
-            // modus.Build#readFile has options you can use to load a file
-            // relative to some moduleName:
-            var file = build.readFile(filepath, {ext: 'txt', context: modName});
-            modus.publish(fileModName, file);
-            // Make sure this module is dependent on the file.
-            modus.getModule(modName).addModuleDependency(fileModName);
-            build.output(fileModName, "modus.publish('" + fileModName + "', '" + file + "');");
-        });
+    // So, you could do something like this:
+    for (var modName in output) {
+        var modRaw = output(modName);
+        modRaw += '/n/*this will be appended to the end*//n';
+        // Replace the previous output for 'modName'.
+        build.output(modName, modRaw);
     }
 });
 ```
 
-The above example probably should not be used in production, but it hopefully gives you 
-an idea of what you can do.
-
-Current event hooks are:
-- __'build:load'__ (*mod*, *raw*, *build*)
-
-    Runs right after the module is imported. `mod` is the actual module, `raw` is the raw
-    text, and `build` is the current instance of modus.Build.
-    
-- __'build:compileBefore'__ (*output*, *build*)
-
-    Runs after all modules have been loaded. `mods` is an object containing the raw text of
-    all modules, saved in '<moduleName>: <rawText>' pairs. `build` is the current 
-    instance of modus.Build.
-
-- __'build:compileAfter'__ (*compiled*, *build*)
-
-    Runs after compiling is done and modules have been sorted. `compiled` is an array
-    containing all of the output code (including a copy of modus). `build` is the current 
-    instance of modus.Build.
+I'm still working this build thing out, more info is coming.
 
 License Junk
 ------------

@@ -48,6 +48,7 @@ Loader.prototype.insertScript = function (script, next) {
   if (next) {
     // If a callback is provided, use an event listener.
     var done = false;
+    // @todo: look into adding interactive-script stuff for IE
     script.onload = script.onreadystatechange = function() {
       if (!done && (!this.readyState ||
           this.readyState === "loaded" || this.readyState === "complete") ) {

@@ -244,6 +244,28 @@ modus.module = function (name, factory, options) {
   return mod;
 };
 
+// A shortcut for creating a `main` module. You can also
+// set config options by passing them as the first argument.
+//
+//    modus.main({
+//      root: 'foo/bar',
+//      maps: {
+//        'foo': 'bar/'
+//      }
+//    }, function () {
+//      this.imports('foo.app').as('app');
+//      this.app.start();
+//    });
+// 
+modus.main = function (config, factory) {
+  if (arguments.length >= 2)
+    modus.config(config);
+  else
+    factory = config;
+  var moduleName = modus.config('main') || 'main';
+  return modus.module(moduleName, factory);
+};
+
 // Shortcut to export a single value as a module.
 modus.publish = function (name, value, options) {
   options = options || {};
@@ -262,7 +284,7 @@ modus.publish = function (name, value, options) {
 // namespace so non-modus modules can be natively imported
 // with a simple `define` call.
 root.define = modus.define = function (name, deps, factory) {
-  if (typeof name !== 'string') {
+  if ('string' !== typeof name) {
     factory = deps;
     deps = name;
     name = false;
@@ -270,6 +292,11 @@ root.define = modus.define = function (name, deps, factory) {
   if (!(deps instanceof Array)) {
     factory = deps;
     deps = [];
+  }
+  if('function' !== typeof factory) {
+    var val = factory;
+    factory = function () { return val; };
+    console.log(factory);
   }
   // Might be a commonJs thing:
   if (deps.length === 0 && factory.length > 0)
@@ -291,7 +318,6 @@ root.mod = modus.module;
 
 // Build API
 // ---------
-
 var _moduleBuildEvents = {};
 var _globalBuildEvents = [];
 
@@ -300,15 +326,12 @@ var _globalBuildEvents = [];
 // run globally by omitting the first argument.
 //
 //    // Running on a single module:
-//    modus.addBuildEvent('foo.bar', function (mod, build) {
-//      // `mod` is the current module and `build` is the current
-//      // instance of `modus.Build`.
+//    modus.addBuildEvent('foo.bar', function (mod, output, build) {
 //      build.output(mod.getModuleName(), 'this will replace the module');
 //    });
 //
 //    // Running globally:
-//    modus.addBuildEvent(function (mods, build) {
-//      // `mods` is an array containing all the modules in the app.
+//    modus.addBuildEvent(function (mods, output, build) {
 //      mods.forEach(function (mod) {
 //        build.output(mod.getModuleName(), 'Do something here.');
 //      });

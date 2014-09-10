@@ -1,11 +1,9 @@
-modus.config({
+modus.main({
   main: 'main',
   maps: {
     'underscore': '../node_modules/underscore/underscore-min'
   } 
-});
-
-modus.module('main', function () {
+}, function () {
   this.imports('underscore').as('_');
   this.imports('fixtures.build.anon').as('anon');
   this.imports('fixtures.build.moduleBuildEvent').as('fileload');
