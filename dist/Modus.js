@@ -9,12 +9,12 @@
   \\\\   \\\   \\\\     \\\\\\     \\\\\\\\      \\\\\\\\    \\\\\\\\\
 
 
-  Modus 0.2.3
+  Modus 0.3.0
   
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-09-10T15:55Z
+  Date: 2014-09-18T17:08Z
 */
 
 (function (factory) {
@@ -37,7 +37,7 @@
 var modus = {};
 
 // Save the current version.
-modus.VERSION = '0.2.3';
+modus.VERSION = '0.3.0';
 
 // Save the previous value of root.modus
 var _previousModus = root.modus;
@@ -1049,6 +1049,8 @@ modus.publish = function (name, value, options) {
   }, options);
 };
 
+var _lastRootDefine = root.define;
+
 // Define an AMD module. This is exported to the root
 // namespace so non-modus modules can be natively imported
 // with a simple `define` call.
@@ -1081,9 +1083,25 @@ root.define.amd = {
   jQuery: true
 };
 
+// Give define back to the previous owner.
+root.define.noConflict = function () {
+  var ret = root.define;
+  root.define = _lastRootModule;
+  return ret;
+};
+
+var _lastRootModule = root.module;
+
 // Shortcut for `modus.module`. `mod` is the preferred way to define
 // modules.
-root.mod = modus.module;
+root.module = modus.module;
+
+// Give module back to the previous owner.
+root.module.noConflict = function () {
+  var ret = root.module;
+  root.module = _lastRootModule;
+  return ret;
+};
 
 // Build API
 // ---------

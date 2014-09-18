@@ -280,6 +280,8 @@ modus.publish = function (name, value, options) {
   }, options);
 };
 
+var _lastRootDefine = root.define;
+
 // Define an AMD module. This is exported to the root
 // namespace so non-modus modules can be natively imported
 // with a simple `define` call.
@@ -312,9 +314,25 @@ root.define.amd = {
   jQuery: true
 };
 
+// Give define back to the previous owner.
+root.define.noConflict = function () {
+  var ret = root.define;
+  root.define = _lastRootModule;
+  return ret;
+};
+
+var _lastRootModule = root.module;
+
 // Shortcut for `modus.module`. `mod` is the preferred way to define
 // modules.
-root.mod = modus.module;
+root.module = modus.module;
+
+// Give module back to the previous owner.
+root.module.noConflict = function () {
+  var ret = root.module;
+  root.module = _lastRootModule;
+  return ret;
+};
 
 // Build API
 // ---------

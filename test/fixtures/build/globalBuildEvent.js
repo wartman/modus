@@ -1,4 +1,4 @@
-mod(function () {
+module(function () {
   this.textloader = function (txt) {
     // do nothing! This is just a target to test out
     // the compiler, seeing if my little idea about how

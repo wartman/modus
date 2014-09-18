@@ -1,3 +1,3 @@
-mod('fixtures.stress.three', function () {
+module('fixtures.stress.three', function () {
   this.bax = 'three';
 });

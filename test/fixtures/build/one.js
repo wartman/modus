@@ -1,4 +1,4 @@
-mod(function () {
+module(function () {
   this.imports('bar', 'baz').from('.two');
   this.imports('textloader').from('.globalBuildEvent');
   this.foo = 'foo';

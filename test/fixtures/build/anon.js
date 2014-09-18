@@ -1,4 +1,4 @@
 // Also tests the simple API
-mod(function () {
+module(function () {
   this.default = 'anon';
 });

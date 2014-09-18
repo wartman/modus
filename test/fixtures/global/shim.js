@@ -1,7 +1,7 @@
-mod('fixtures.global.shim', function (mod, done) {
+module('fixtures.global.shim', function (module, done) {
   var loader = modus.Loader.getInstance();
   loader.load('fixtures/global/target.js', function () {
-    mod.target = window.target;
+    module.target = window.target;
     done();
   }, done);
 });
