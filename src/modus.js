@@ -12,10 +12,6 @@ modus.options = {
   root: '',  maps: {},
   namespaceMaps: {},
   main: 'main',
-  // A modusfile can be used to customize a compiled project.
-  // This should be a module name or URI to a modusfile document
-  // (or set to 'false')
-  // See `modus.addBuildEvent` for more.
   modusfile: false
 };
 
@@ -280,7 +276,7 @@ modus.publish = function (name, value, options) {
   }, options);
 };
 
-var _lastRootDefine = root.define;
+var _previousDefine = root.define;
 
 // Define an AMD module. This is exported to the root
 // namespace so non-modus modules can be natively imported
@@ -317,11 +313,11 @@ root.define.amd = {
 // Give define back to the previous owner.
 root.define.noConflict = function () {
   var ret = root.define;
-  root.define = _lastRootModule;
+  root.define = _previousDefine;
   return ret;
 };
 
-var _lastRootModule = root.module;
+var _previousModule = root.module;
 
 // Shortcut for `modus.module`. `mod` is the preferred way to define
 // modules.
@@ -330,7 +326,7 @@ root.module = modus.module;
 // Give module back to the previous owner.
 root.module.noConflict = function () {
   var ret = root.module;
-  root.module = _lastRootModule;
+  root.module = _previousModule;
   return ret;
 };
 

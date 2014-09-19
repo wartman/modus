@@ -69,9 +69,11 @@ Loader.prototype.load = function (moduleName, next, error) {
   var self = this;
   var promise;
   if (moduleName instanceof Array) {
-    promise = whenEach(moduleName, function (item, res, rej) {
+    promise = whenAll(moduleName, function (item, res, rej) {
       self.load(item).then(res, rej);
     });
+  } else if (modus.isBuilding && this.loadBuilding) {
+    promise = this.loadBuilding(moduleName);
   } else if (isServer()) {
     promise = this.loadServer(moduleName);
   } else {

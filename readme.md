@@ -10,14 +10,14 @@ ES6 inspired syntax, but can also load AMD modules.
 Here's an example of a simple `modus.module`:
 
 ```javascript
-mod(function (mod) {
-    mod.imports('foo', 'bar').from('.bar');
-    mod.imports('View').from('backbone');
+module(function (module) {
+    module.imports('foo', 'bar').from('.bar');
+    module.imports('View').from('backbone');
 
-    mod.MyView = mod.View.extend({
+    module.MyView = module.View.extend({
         init: function () {
-            this.foo = mod.foo;
-            this.bar = mod.bar;
+            this.foo = module.foo;
+            this.bar = module.bar;
         }
     });
 });
@@ -57,19 +57,19 @@ The first argument passed to the callback will also be bound to the current modu
 is handy if you need to define something in another scope.
 
 ```javascript
-modus.module('example.module', function (mod) {
-    mod.SomeExport = 'foo';
+modus.module('example.module', function (module) {
+    module.SomeExport = 'foo';
     (function () {
-        mod.SomeOtherExport = 'bar';
+        module.SomeOtherExport = 'bar';
     })();
 });
 ```
 
-For brevity, `modus.module` is aliased as `mod`, which is what we'll be using for the
+For brevity, `modus.module` is aliased as `module`, which is what we'll be using for the
 rest of the document.
 
 ```javascript
-mod('example.module', function () {
+module('example.module', function () {
     this.SomeExport = 'foo';
     this.SomeOtherExport = 'bar';
 });
@@ -77,11 +77,11 @@ mod('example.module', function () {
 
 #### Importing
 
-To import something from a module, use the `this.imports(/* items */).from('mod')` chain.
+To import something from a module, use the `this.imports(/* items */).from('module')` chain.
 These imports will then be available as properties in `this`;
 
 ```javascript
-mod('example.otherModule', function () {
+module('example.otherModule', function () {
     this.imports('SomeExport', 'SomeOtherExport').from('example.module');
     console.log(this.SomeExport, this.SomeOtherExport); 
     // --> 'foo bar'
@@ -92,7 +92,7 @@ If you want to import everything from a module (or to import the `default` expor
 `imports(/* moduleName */).as('alias');` chain.
 
 ```javascript
-mod('example.otherModule', function () {
+module('example.otherModule', function () {
     // You can name the import whatever you like. 
     this.imports('example.module').as('someRandomName');
     console.log(this.someRandomName.SomeExport, this.someRandomName.someOtherExport);
@@ -104,12 +104,12 @@ The above example holds unless the requested module has a `default` property, in
 the `default` property will be imported instead.
 
 ```javascript
-mod('example.hasDefault', function () {
+module('example.hasDefault', function () {
     this.bar = 'bar';
     this.default = 'foo';
 });
 
-mod('example.otherModule', function () {
+module('example.otherModule', function () {
     this.imports('example.hasDefault').as('def');
     console.log(this.def, this.def.bar);
     // --> 'foo undefined';
@@ -119,7 +119,7 @@ mod('example.otherModule', function () {
 Relative imports can be created by prefixing a module with a dot. For example:
 
 ```javascript
-mod('example.otherModule', function () {
+module('example.otherModule', function () {
     // Imports from 'example.module':
     this.imports('SomeExport', 'SomeOtherExport').from('.module');
     console.log(this.SomeExport, this.SomeOtherExport); 
@@ -131,7 +131,7 @@ The number of dots you prefix the module name with will correspond to the number
 of levels you move up, relative to the *current module* (rather then the current namespace).
 
 ```javascript
-mod('app.foo.bar', function () {
+module('app.foo.bar', function () {
     this.imports('SomeExport').from('some.module');
     // --> resolves to 'some/module.js'
     this.imports('SomeExport').from('.some.module');
@@ -150,7 +150,7 @@ You can also use the URI syntax to load modules, which will work just like you e
 styles can work side-by-side with no issues.
 
 ```javascript
-mod('app.foo.bar', function () {
+module('app.foo.bar', function () {
     this.imports('SomeExport').from('some/module');
     // --> resolves to 'some/module.js'
     this.imports('SomeExport').from('./some/module');
@@ -178,17 +178,17 @@ can be whatever you'd like). If you've used a testing framework like Mocha, this
 familiar pattern.
 
 ```javascript
-mod('tests.wait', function (mod, done) {
-    mod.foo = 'didn\'t wait';
+module('tests.wait', function (module, done) {
+    module.foo = 'didn\'t wait';
     setTimeout(function () {
-        mod.foo = 'waited';
+        module.foo = 'waited';
         // Enable this module, and continue enabling
         // all dependent modules.
         done();
     }, 10);
 });
 
-mod('tests.waiting', function () {
+module('tests.waiting', function () {
     // This factory won't be run until the following
     // import is enabled:
     this.imports('foo').from('.wait');
@@ -202,7 +202,7 @@ mod('tests.waiting', function () {
 Using AMD modules is easy: just import the AMD module like you would anything else.
 
 ```javascript
-mod(function () {
+module(function () {
     this.imports('jquery').as('$');
     this.$('#foo').html('This works!');
     $('#fooBar').html('This too.');
@@ -213,7 +213,7 @@ You can even import properties from an AMD module. For example, here's what you 
 with Backbone:
 
 ```javascript
-mod(function () {
+module(function () {
     this.imports('View', 'Model').from('backbone');
     this.Foo = this.View.extend({
         // code
@@ -291,15 +291,14 @@ app. `addBuildEvent` can register an event that will be run for a single module 
 an event that will parse all of them. 
 
 ```javascript
-// This is the global event
-modus.addBuildEvent(function (mods, output, build) {
-    // mods == an object containing all current `modus.Modules`.
+modus.addBuildEvent(function (modules, output, build) {
+    // modules == an object containing all current `modus.Modules`.
     // output == an object containing raw strings off all `modus.Modules`.
     // build == the current instance of `modus.Build`
 
     // So, you could do something like this:
     for (var modName in output) {
-        var modRaw = output(modName);
+        var modRaw = output[modName];
         modRaw += '/n/*this will be appended to the end*//n';
         // Replace the previous output for 'modName'.
         build.output(modName, modRaw);
@@ -307,7 +306,24 @@ modus.addBuildEvent(function (mods, output, build) {
 });
 ```
 
-I'm still working this build thing out, more info is coming.
+You can register a build event in the same file as a modus module (so long as you don't place
+it inside the module callback), but a better option is to use build files. Simply register all
+the build events you want in your app's config:
+
+```javascript
+modus.config({
+    buildFiles: 'path/to/build/file'
+});
+// If you have many build files you can use an array of paths:
+modus.config({
+    buildFiles: [
+        'path/to/build/file-one',
+        'path/to/build/file-two'
+    ]
+});
+```
+
+The content of these build files won't be added to the compiled script.
 
 License Junk
 ------------

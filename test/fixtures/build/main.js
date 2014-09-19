@@ -1,5 +1,9 @@
 modus.main({
   main: 'main',
+  buildEvents: [
+    'fixtures/build/events_one',
+    'fixtures/build/events_two'
+  ],
   maps: {
     'underscore': '../node_modules/underscore/underscore-min'
   } 

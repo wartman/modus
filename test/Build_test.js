@@ -37,6 +37,12 @@ describe('modus.Build', function () {
         files = modus.getModule('fixtures.build.txt.file3');
         expect(files['default']).to.equal('File three.');
 
+        // Check to see if external build events were loaded and run.
+        var buildOne = base.modus.getModule('test.fixtures.buildOne');
+        expect(buildOne.foo).to.equal('buildOne');
+        var buildTwo = base.modus.getModule('test.fixtures.buildTwo');
+        expect(buildTwo.foo).to.equal('buildTwo');
+
         done();
       });
     });
