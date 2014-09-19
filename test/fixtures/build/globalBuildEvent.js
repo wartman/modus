@@ -12,9 +12,8 @@ modus.addBuildEvent(function (mods, output, build) {
     output[modName].replace(txtCheck, function (match, filepath) {
       var fileModName = modus.normalizeModuleName(filepath, modName);
       var file = build.readFile(filepath, {ext: 'txt', context: modName});
-      modus.publish(fileModName, file);
       modus.getModule(modName).addModuleDependency(fileModName);
-      build.output(fileModName, "modus.publish('" + fileModName + "', '" + file + "');");
+      build.output(fileModName, "module('" + fileModName + "', '" + file + "');");
     });
   }
 });

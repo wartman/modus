@@ -8,6 +8,8 @@ describe('modus.Build', function () {
     var loader = modus.Loader.getInstance();
     loader.load('tmp/compiled.js', function () {
       builtModus = modus.noConflict();
+      module.noConflict();
+      define.noConflict();
       done();
     }, function () {
       throw Error('Was not compiled. Run `gulp mocha` first.')

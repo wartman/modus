@@ -1,1 +1,1 @@
-modus.publish('fixtures.publish.named', 'named');
+module('fixtures.publish.named', 'named');

@@ -106,6 +106,18 @@ describe('modus', function () {
       expect(curMod).to.deep.equal(modus.getModule('tests.create'))
     });
 
+    it('publishes things that are not functions', function (done) {
+      modus.module('tests.notFunction.obj', {foo: 'foo'});
+      modus.module('tests.notFunction.array', ['foo']);
+      modus.module('tests.notFunction.tester', function () {
+        this.imports('.obj').as('obj');
+        this.imports('.array').as('array');
+        expect(this.obj.foo).to.equal('foo');
+        expect(this.array[0]).to.equal('foo');
+        done();
+      })
+    });
+
     it('imports modules', function (done) {
       modus.module('tests.real', function () {
         this.imports(['foo']).from('fixtures.basic.named');
@@ -121,12 +133,12 @@ describe('modus', function () {
         this.imports('fixtures.publish.named').as('named');
         this.imports('fixtures.publish.anon').as('anon');
         expect(this.named).to.equal('named');
-        expect(this.anon).to.equal('anon');
+        expect(this.anon[0]).to.equal('anon');
         done();
       });
     });
 
-    it('imports modules recursivly', function (done) {
+    it('imports modules recursively', function (done) {
       modus.module('tests.stress', function () {
         this.imports('foo', 'bar', 'bax').from('fixtures.stress.one');
         expect(this.foo + this.bar + this.bax).to.equal('onetwothree');
@@ -219,17 +231,6 @@ describe('modus', function () {
       modus.config('main', 'main');
     });
 
-  });
-
-  describe('#publish', function () {
-    it('publishes a value', function (done) {
-      modus.publish('tests.publish', 'published');
-      modus.module('tests.publish.import', function () {
-        this.imports('tests.publish').as('publish');
-        expect(this.publish).to.equal('published');
-        done();
-      });
-    });
   });
 
   describe('#define', function () {

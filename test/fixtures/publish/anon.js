@@ -1,1 +1,1 @@
-modus.publish('anon');
+module(['anon']);

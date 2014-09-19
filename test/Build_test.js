@@ -32,9 +32,9 @@ describe('modus.Build', function () {
         expect(main._).to.be.a('function');
 
         // Check the file-loader
-        var files = modus.getModule('fixtures.build.txt.file2');
+        var files = base.modus.getModule('fixtures.build.txt.file2');
         expect(files['default']).to.equal('File two.');
-        files = modus.getModule('fixtures.build.txt.file3');
+        files = base.modus.getModule('fixtures.build.txt.file3');
         expect(files['default']).to.equal('File three.');
 
         // Check to see if external build events were loaded and run.
@@ -63,6 +63,7 @@ describe('modus.Build', function () {
           main.enableModule().then(function () {
             expect(main.foo).to.equal('foo');
             expect(main.fileload).to.equal('file loaded');
+
             done();
           });
         });

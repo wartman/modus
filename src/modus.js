@@ -262,20 +262,6 @@ modus.main = function (config, factory) {
   return modus.module(moduleName, factory);
 };
 
-// Shortcut to export a single value as a module.
-modus.publish = function (name, value, options) {
-  options = options || {};
-  options.isPublished = true;
-  if (arguments.length <= 1) {
-    options = value;
-    value = name;
-    name = false;
-  }
-  return modus.module(name, function () {
-    this.default = value;
-  }, options);
-};
-
 var _previousDefine = root.define;
 
 // Define an AMD module. This is exported to the root
@@ -291,16 +277,14 @@ root.define = modus.define = function (name, deps, factory) {
     factory = deps;
     deps = [];
   }
-  if('function' !== typeof factory) {
-    var val = factory;
-    factory = function () { return val; };
-    console.log(factory);
-  }
   // Might be a commonJs thing:
-  if (deps.length === 0 && factory.length > 0)
+  if ('function' === typeof factory
+      && (deps.length === 0 && factory.length > 0) )
     deps = (factory.length === 1 ? ['require'] : ['require', 'exports', 'module']).concat(deps);
-  var mod = new Module(name, factory, {isAmd: true});
+  var mod = new Module(name);
+  mod.setModuleMeta('isAmd', true);
   mod.addModuleDependency(deps);
+  mod.setModuleFactory(factory);
   _enableModule(name, mod);
   return mod;
 };

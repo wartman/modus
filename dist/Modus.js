@@ -4,7 +4,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-09-19T15:51Z
+  Date: 2014-09-19T17:20Z
 */
 
 (function (factory) {
@@ -400,9 +400,10 @@ Loader.prototype.loadServer = function (moduleName) {
 // name conflicts (mostly by making method names rather verbose).
 var Module = modus.Module = function (name, factory, options) {
   var self = this;
+
   // Allow for anon modules.
-  if('function' === typeof name) {
-    options = factory;
+  if('string' !== typeof name && (name !== false)) {
+    // options = factory;
     factory = name;
     name = false;
   }
@@ -415,7 +416,6 @@ var Module = modus.Module = function (name, factory, options) {
   this.__moduleMeta = defaults({
     throwErrors: true,
     isAsync: false,
-    isPublished: false,
     isAmd: false,
     isDisabled: false,
     isEnabled: false,
@@ -525,8 +525,9 @@ Module.prototype.registerModule = function (name) {
     this.setModuleMeta('isAnon', false);
     this.__moduleName = normalizeModuleName(name);
     // Register with modus
-    modus.addModule(this.getModuleName(), this);
   }
+  if (!this.getModuleMeta('isAnon'))
+    modus.addModule(this.getModuleName(), this);
 };
 
 // Get a meta item from the module, if it exists ('meta items' typically
@@ -604,8 +605,17 @@ Module.prototype.findModuleDependencies = function () {
 // depends on some sort of async operation (unless this is an
 // amd module).
 Module.prototype.setModuleFactory = function (factory) {
-  if ('function' !== typeof factory) return;
-  if ((factory && factory.length >= 2) && !this.getModuleMeta('isAmd'))
+  if (!factory) return;
+  // Make sure factory is a function
+  if ('function' !== typeof factory) {
+    var value = factory;
+    if (this.getModuleMeta('isAmd')) {
+      factory = function () { return value; };
+    } else {
+      factory = function () { this['default'] = value; };
+    }
+  };
+  if (factory.length >= 2 && !this.getModuleMeta('isAmd'))
     this.setModuleMeta('isAsync', true);
   this.__moduleFactory = factory;
 };
@@ -1023,20 +1033,6 @@ modus.main = function (config, factory) {
   return modus.module(moduleName, factory);
 };
 
-// Shortcut to export a single value as a module.
-modus.publish = function (name, value, options) {
-  options = options || {};
-  options.isPublished = true;
-  if (arguments.length <= 1) {
-    options = value;
-    value = name;
-    name = false;
-  }
-  return modus.module(name, function () {
-    this.default = value;
-  }, options);
-};
-
 var _previousDefine = root.define;
 
 // Define an AMD module. This is exported to the root
@@ -1052,16 +1048,14 @@ root.define = modus.define = function (name, deps, factory) {
     factory = deps;
     deps = [];
   }
-  if('function' !== typeof factory) {
-    var val = factory;
-    factory = function () { return val; };
-    console.log(factory);
-  }
   // Might be a commonJs thing:
-  if (deps.length === 0 && factory.length > 0)
+  if ('function' === typeof factory
+      && (deps.length === 0 && factory.length > 0) )
     deps = (factory.length === 1 ? ['require'] : ['require', 'exports', 'module']).concat(deps);
-  var mod = new Module(name, factory, {isAmd: true});
+  var mod = new Module(name);
+  mod.setModuleMeta('isAmd', true);
   mod.addModuleDependency(deps);
+  mod.setModuleFactory(factory);
   _enableModule(name, mod);
   return mod;
 };

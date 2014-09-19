@@ -5,9 +5,10 @@
 // name conflicts (mostly by making method names rather verbose).
 var Module = modus.Module = function (name, factory, options) {
   var self = this;
+
   // Allow for anon modules.
-  if('function' === typeof name) {
-    options = factory;
+  if('string' !== typeof name && (name !== false)) {
+    // options = factory;
     factory = name;
     name = false;
   }
@@ -20,7 +21,6 @@ var Module = modus.Module = function (name, factory, options) {
   this.__moduleMeta = defaults({
     throwErrors: true,
     isAsync: false,
-    isPublished: false,
     isAmd: false,
     isDisabled: false,
     isEnabled: false,
@@ -130,8 +130,9 @@ Module.prototype.registerModule = function (name) {
     this.setModuleMeta('isAnon', false);
     this.__moduleName = normalizeModuleName(name);
     // Register with modus
-    modus.addModule(this.getModuleName(), this);
   }
+  if (!this.getModuleMeta('isAnon'))
+    modus.addModule(this.getModuleName(), this);
 };
 
 // Get a meta item from the module, if it exists ('meta items' typically
@@ -209,8 +210,17 @@ Module.prototype.findModuleDependencies = function () {
 // depends on some sort of async operation (unless this is an
 // amd module).
 Module.prototype.setModuleFactory = function (factory) {
-  if ('function' !== typeof factory) return;
-  if ((factory && factory.length >= 2) && !this.getModuleMeta('isAmd'))
+  if (!factory) return;
+  // Make sure factory is a function
+  if ('function' !== typeof factory) {
+    var value = factory;
+    if (this.getModuleMeta('isAmd')) {
+      factory = function () { return value; };
+    } else {
+      factory = function () { this['default'] = value; };
+    }
+  };
+  if (factory.length >= 2 && !this.getModuleMeta('isAmd'))
     this.setModuleMeta('isAsync', true);
   this.__moduleFactory = factory;
 };
