@@ -4,7 +4,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-09-19T17:20Z
+  Date: 2014-09-21T19:26Z
 */
 
 (function (factory) {
@@ -724,7 +724,6 @@ Module.prototype.enableModule = function() {
 
   // Ensure we don't try to enable this module twice.
   this.setModuleMeta('isEnabling', true);
-  // this.emitModuleEvent('module:enableBefore');
   this.findModuleDependencies();
   deps = this.getModuleDependencies();
 
@@ -760,7 +759,7 @@ Module.prototype.enableModule = function() {
 // module is disabled it cannot transition to an 'enabled' state.
 Module.prototype.disableModule = function (reason) {
   this.setModuleMeta('isDisabled', true);
-  this.emitModuleEvent('error', reason);
+  this.__modulePromise.reject(reason);
   if (this.getModuleMeta('throwErrors') && reason instanceof Error) {
     throw reason;
   } else if (this.getModuleMeta('throwErrors')) {
