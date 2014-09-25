@@ -1,10 +1,10 @@
 /*!
-  Modus 0.3.0
+  Modus 0.3.1
   
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-09-21T19:26Z
+  Date: 2014-09-25T16:05Z
 */
 
 (function (factory) {
@@ -27,7 +27,7 @@
 var modus = {};
 
 // Save the current version.
-modus.VERSION = '0.3.0';
+modus.VERSION = '0.3.1';
 
 // Save the previous value of root.modus
 var _previousModus = root.modus;
@@ -1037,7 +1037,7 @@ var _previousDefine = root.define;
 // Define an AMD module. This is exported to the root
 // namespace so non-modus modules can be natively imported
 // with a simple `define` call.
-root.define = modus.define = function (name, deps, factory) {
+modus.define = function (name, deps, factory) {
   if ('string' !== typeof name) {
     factory = deps;
     deps = name;
@@ -1060,29 +1060,24 @@ root.define = modus.define = function (name, deps, factory) {
 };
 
 // Make jQuery happy.
-root.define.amd = {
+modus.define.amd = {
   jQuery: true
 };
 
-// Give define back to the previous owner.
-root.define.noConflict = function () {
-  var ret = root.define;
-  root.define = _previousDefine;
-  return ret;
+// Helper to create root-level functions with a noConflict method.
+var makeRoot = function (name, value) {
+  var prevValue = root[name];
+  var newValue = root[name] = value;
+  newValue.noConflict = function () {
+    root[name] = prevValue;
+    return value;
+  }
 };
 
-var _previousModule = root.module;
-
-// Shortcut for `modus.module`. `mod` is the preferred way to define
-// modules.
-root.module = modus.module;
-
-// Give module back to the previous owner.
-root.module.noConflict = function () {
-  var ret = root.module;
-  root.module = _previousModule;
-  return ret;
-};
+// Export methods to the root.
+makeRoot('mod', modus.module);
+makeRoot('module', modus.module);
+makeRoot('define', modus.define);
 
 // Build API
 // ---------

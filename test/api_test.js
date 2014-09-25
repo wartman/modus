@@ -93,9 +93,23 @@ describe('modus', function () {
 
   describe('#moduleExists', function () {
 
+    it('returns false if no module exists', function () {
+      expect(modus.moduleExists('not.a.real.module')).to.be.false;
+    });
+
+    it('returns true if a module is registered', function () {
+      modus.module('tests.moduleExists');
+      expect(modus.moduleExists('tests.moduleExists')).to.be.true;
+    })
+
   });
 
   describe('#getModule', function () {
+
+    it('gets registered modules', function () {
+      var modTest = modus.module('tests.isRegistered');
+      expect(modTest).to.deep.equal(modus.getModule('tests.isRegistered'));
+    });
 
   });
 
@@ -103,7 +117,8 @@ describe('modus', function () {
 
     it('creates a new module', function () {
       var curMod = modus.module('tests.create', function () {});
-      expect(curMod).to.deep.equal(modus.getModule('tests.create'))
+      expect(curMod).to.deep.equal(modus.getModule('tests.create'));
+      expect(curMod).to.be.an.instanceof(modus.Module);
     });
 
     it('publishes things that are not functions', function (done) {
@@ -204,6 +219,26 @@ describe('modus', function () {
       });
     });
 
+    describe('#enable', function () {
+
+      it('will be async if an argument is passed', function (done) {
+        modus.module('tests.wait.target', function (module, moduleDone) {
+          var self = this;
+          this.foo = 'didn\'t wait';
+          setTimeout(function () {
+            self.foo = 'waited';
+            moduleDone();
+          }, 10);
+        });
+        modus.module('tests.wait.tester', function () {
+          this.imports(['foo']).from('.target');
+          expect(this.foo).to.equal('waited');
+          done();
+        });
+      });
+
+    });
+
   });
 
   describe('#main', function () {
@@ -279,6 +314,31 @@ describe('modus', function () {
       });
     });
 
+  });
+
+});
+
+describe('mod', function () {
+
+  it('is an alias for modus.module', function () {
+    expect(mod).to.deep.equal(modus.module);
+  });
+
+});
+
+describe('module', function () {
+
+  it('is an alias for modus.module', function () {
+    expect(module).to.deep.equal(modus.module);
+  });
+
+});
+
+
+describe('define', function () {
+
+  it('is an alias for modus.define', function () {
+    expect(define).to.deep.equal(modus.define);
   });
 
 });

@@ -36,7 +36,7 @@ for the main module in your project.
 API
 ---
 
-### modus.__module__(*name*, *factory*, *options*) *or* __mod__(*name*, *factory*, *options*)
+### modus.__module__(*name*, *factory*, *options*)
 
 Typically, you'll define a module using `modus.module`. Modules can be
 named, or left anonymous and automatically assigned a name.
@@ -65,14 +65,29 @@ modus.module('example.module', function (module) {
 });
 ```
 
-For brevity, `modus.module` is aliased as `module`, which is what we'll be using for the
-rest of the document.
+For brevity, `modus.module` can be aliased as `module` or `mod`. We'll be using `module`
+for the rest of this document.
 
 ```javascript
 module('example.module', function () {
     this.SomeExport = 'foo';
     this.SomeOtherExport = 'bar';
 });
+```
+
+As a quick note, all of modus' global exports have a `noConflict` method you can use
+if they interfere with your project.
+
+```javascript
+var module = function () {
+    return 'foo';
+};
+
+// modus gets included here, then:
+var modusModule = module.noConflict();
+
+module();
+// --> 'foo'
 ```
 
 #### Importing
