@@ -237,9 +237,9 @@ var escapeRegExp = function (str) {
 // Helper to create root-level functions with a noConflict method.
 var makeRoot = function (name, value) {
   var prevValue = root[name];
-  var newValue = root[name] = value;
-  newValue.noConflict = function () {
+  value.noConflict = function () {
     root[name] = prevValue;
     return value;
-  }
+  };
+  root[name]=value;
 };

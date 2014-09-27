@@ -27,12 +27,12 @@ gulp.task('build', function() {
     .pipe(gulp.dest('./dist/'));
 });
 
-gulp.task('mochaPhantomJs', function () {
+gulp.task('mochaPhantomJs', ['build', 'mocha'], function () {
   return gulp.src('./test/runner.html')
     .pipe(mochaPhantomJs({reporter: 'spec'}));
 });
 
-gulp.task('mocha', function () {
+gulp.task('mocha', ['build'], function () {
   return gulp.src('./test/Build_test.js')
     .pipe(mocha({reporter: 'spec'}));
 });

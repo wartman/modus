@@ -1,10 +1,10 @@
 /*!
-  Modus 0.3.1
+  Modus 0.3.2
   
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-09-27T18:45Z
+  Date: 2014-09-27T19:13Z
 */
 
 (function (factory) {
@@ -262,11 +262,11 @@ var escapeRegExp = function (str) {
 // Helper to create root-level functions with a noConflict method.
 var makeRoot = function (name, value) {
   var prevValue = root[name];
-  var newValue = root[name] = value;
-  newValue.noConflict = function () {
+  value.noConflict = function () {
     root[name] = prevValue;
     return value;
-  }
+  };
+  root[name]=value;
 };
 
 // Start a new context.

@@ -1,5 +1,5 @@
 modus.main({
-  main: 'main',
+  main: 'fixtures.build.main',
   buildEvents: [
     'fixtures/build/events_one',
     'fixtures/build/events_two'
