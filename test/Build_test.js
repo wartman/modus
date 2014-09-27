@@ -52,7 +52,7 @@ describe('modus.Build', function () {
   describe('#writeOutput', function () {
 
     it('writes to a destination', function (done) {
-      var build = modus.Build.getInstance();
+      var build = Build.getInstance();
       build.writeOutput(function () {
         build.fs.readFile(process.cwd() + '/test/tmp/compiled.js', 'utf-8', function (err, data) {
           if (err) throw err;
