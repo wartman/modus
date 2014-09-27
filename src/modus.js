@@ -240,6 +240,12 @@ modus.module = function (name, factory, options) {
   return mod;
 };
 
+// Much like define.amd, this ensures that 'module' points
+// to a modus.module.
+modus.module.modus = {
+  // config options
+};
+
 // A shortcut for creating a `main` module. You can also
 // set config options by passing them as the first argument.
 //
@@ -261,8 +267,6 @@ modus.main = function (config, factory) {
   var moduleName = modus.config('main') || 'main';
   return modus.module(moduleName, factory);
 };
-
-var _previousDefine = root.define;
 
 // Define an AMD module. This is exported to the root
 // namespace so non-modus modules can be natively imported
@@ -293,21 +297,6 @@ modus.define = function (name, deps, factory) {
 modus.define.amd = {
   jQuery: true
 };
-
-// Helper to create root-level functions with a noConflict method.
-var makeRoot = function (name, value) {
-  var prevValue = root[name];
-  var newValue = root[name] = value;
-  newValue.noConflict = function () {
-    root[name] = prevValue;
-    return value;
-  }
-};
-
-// Export methods to the root.
-makeRoot('mod', modus.module);
-makeRoot('module', modus.module);
-makeRoot('define', modus.define);
 
 // Build API
 // ---------
@@ -350,4 +339,18 @@ modus.addBuildEvent = function (moduleName, callback) {
 modus.getBuildEvent = function (moduleName) {
   if (!moduleName) return _globalBuildEvents;
   return _moduleBuildEvents[moduleName] || false;
+};
+
+// Start a script by loading a main file. With modus.start, modus will 
+// try to parse the root path from the provided path, which often is 
+// all the configuration you need.
+modus.start = function (mainPath, done) {
+  mainPath = modus.normalizeModuleName(mainPath);
+  var lastSegment = (mainPath.lastIndexOf('.') + 1);
+  var root = mainPath.substring(0, lastSegment);
+  var main = mainPath.substring(lastSegment);
+  var loader = modus.Loader.getInstance();
+  modus.config('root', root.replace(/\./g, '/'));
+  modus.config('main', main);
+  loader.load(main, done);
 };

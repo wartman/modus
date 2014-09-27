@@ -1,6 +1,13 @@
 // Helpers
 // -------
 
+// Unique id. Used if there are multiple instances of Modus.
+var UID = root.UID || 0;
+var uniqueId = function () {
+  UID += 1;
+  return UID;
+};
+
 // Get all keys from an object
 var keys = function(obj) {
   if ("object" !== typeof obj) return [];
@@ -225,4 +232,14 @@ var isPath = function (obj) {
 // Excape characters for regular expressions.
 var escapeRegExp = function (str) {
   return str.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, "\\$&");
-}
+};
+
+// Helper to create root-level functions with a noConflict method.
+var makeRoot = function (name, value) {
+  var prevValue = root[name];
+  var newValue = root[name] = value;
+  newValue.noConflict = function () {
+    root[name] = prevValue;
+    return value;
+  }
+};

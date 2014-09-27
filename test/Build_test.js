@@ -1,4 +1,4 @@
-require('../lib/build');
+var Build = require('../lib/build');
 var expect = require('chai').expect;
 
 describe('modus.Build', function () {
@@ -6,12 +6,12 @@ describe('modus.Build', function () {
   var compiled = "";
 
   before(function (done) {
-    modus.config('root', 'test/');
-    var build = modus.Build.getInstance();
+    var build = Build.getInstance();
+    build.modus.config('root', 'test/');
     build.start({
       root: process.cwd() + '/',
       main: 'fixtures.build.main',
-      dest: 'tmp/compiled.js'
+      dest: 'test/tmp/compiled.js'
     }, function (data) {
       compiled = data;
       done(); 

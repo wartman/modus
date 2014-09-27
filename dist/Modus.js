@@ -4,7 +4,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-09-25T16:05Z
+  Date: 2014-09-27T17:18Z
 */
 
 (function (factory) {
@@ -13,8 +13,8 @@
     factory(__root);
   } else if (typeof module === "object" && typeof module.exports === "object") {
     // For CommonJS environments.
-    factory(global);
-    module.exports = global.modus;
+    factory(exports);
+    module.exports = exports.modus;
   } else if ('undefined' !== typeof window) {
     factory(window);
   }
@@ -23,20 +23,15 @@
 
 "use strict"
 
-// The main modus namespace
-var modus = {};
-
-// Save the current version.
-modus.VERSION = '0.3.1';
-
-// Save the previous value of root.modus
-var _previousModus = root.modus;
-
-// export modus
-root.modus = modus;
-
 // Helpers
 // -------
+
+// Unique id. Used if there are multiple instances of Modus.
+var UID = root.UID || 0;
+var uniqueId = function () {
+  UID += 1;
+  return UID;
+};
 
 // Get all keys from an object
 var keys = function(obj) {
@@ -262,7 +257,23 @@ var isPath = function (obj) {
 // Excape characters for regular expressions.
 var escapeRegExp = function (str) {
   return str.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, "\\$&");
-}
+};
+
+// Helper to create root-level functions with a noConflict method.
+var makeRoot = function (name, value) {
+  var prevValue = root[name];
+  var newValue = root[name] = value;
+  newValue.noConflict = function () {
+    root[name] = prevValue;
+    return value;
+  }
+};
+
+// Start a new context.
+var createContext = function () {
+
+// 'modus' will be exported.
+var modus = {};
 
 // modus.Loader
 // ------------
@@ -1010,6 +1021,12 @@ modus.module = function (name, factory, options) {
   return mod;
 };
 
+// Much like define.amd, this ensures that 'module' points
+// to a modus.module.
+modus.module.modus = {
+  // config options
+};
+
 // A shortcut for creating a `main` module. You can also
 // set config options by passing them as the first argument.
 //
@@ -1031,8 +1048,6 @@ modus.main = function (config, factory) {
   var moduleName = modus.config('main') || 'main';
   return modus.module(moduleName, factory);
 };
-
-var _previousDefine = root.define;
 
 // Define an AMD module. This is exported to the root
 // namespace so non-modus modules can be natively imported
@@ -1063,21 +1078,6 @@ modus.define = function (name, deps, factory) {
 modus.define.amd = {
   jQuery: true
 };
-
-// Helper to create root-level functions with a noConflict method.
-var makeRoot = function (name, value) {
-  var prevValue = root[name];
-  var newValue = root[name] = value;
-  newValue.noConflict = function () {
-    root[name] = prevValue;
-    return value;
-  }
-};
-
-// Export methods to the root.
-makeRoot('mod', modus.module);
-makeRoot('module', modus.module);
-makeRoot('define', modus.define);
 
 // Build API
 // ---------
@@ -1136,6 +1136,27 @@ modus.start = function (mainPath, done) {
   loader.load(main, done);
 };
 
+
+// Export the new context.
+return modus;
+
+};
+
+// Create the default exports
+var def = createContext();
+if (!root.modus) {
+  makeRoot('modus', def);
+  // Export helper methods to the root.
+  makeRoot('mod', def.module);
+  makeRoot('module', def.module);
+  makeRoot('define', def.define);
+} else {
+  makeRoot('modus' + uniqueId(), def);
+}
+
+// Allow the creation of new contexts.
+def.newContext = createContext;
+
 // If this script tag has 'data-main' attribute, we can
 // autostart without the need to explicitly call 'modus.start'.
 function _autostart() {
@@ -1144,7 +1165,7 @@ function _autostart() {
   if (script) {
     var main = script.getAttribute('data-main');
     if (main)
-      modus.start(main);
+      def.start(main);
   }
 };
 
