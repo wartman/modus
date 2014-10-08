@@ -27,14 +27,14 @@ gulp.task('build', function() {
     .pipe(gulp.dest('./dist/'));
 });
 
-gulp.task('mochaPhantomJs', ['build', 'mocha'], function () {
-  return gulp.src('./test/runner.html')
-    .pipe(mochaPhantomJs({reporter: 'spec'}));
-});
-
 gulp.task('mocha', ['build'], function () {
   return gulp.src('./test/Build_test.js')
     .pipe(mocha({reporter: 'spec'}));
+});
+
+gulp.task('mochaPhantomJs', ['build', 'mocha'], function () {
+  return gulp.src('./test/runner.html')
+    .pipe(mochaPhantomJs({reporter: 'spec'}));
 });
 
 gulp.task('default', ['build', 'mocha', 'mochaPhantomJs']);

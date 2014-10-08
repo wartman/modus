@@ -100,6 +100,7 @@ Module.prototype.imports = function (dep) {
   var alias;
   var unnormalizedDep;
   var depEnv;
+  var prevValue;
 
   if ('object' === typeof dep) {
     for (var key in dep) {
@@ -109,10 +110,9 @@ Module.prototype.imports = function (dep) {
   } else {
     unnormalizedDep = dep;
   }
-
-  var prevValue = this[alias];
   dep = normalizeModuleName(unnormalizedDep, this.getModuleName());
   alias = alias || dep.split('.').pop();
+  prevValue = this[alias];
   if (modus.moduleExists(dep)) {
     depEnv = modus.getModule(dep);
     _applyToModule.call(self, alias, depEnv, false);
