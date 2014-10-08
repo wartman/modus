@@ -4,7 +4,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-10-08T15:44Z
+  Date: 2014-10-08T15:57Z
 */
 
 (function (factory) {
@@ -504,21 +504,21 @@ Module.prototype.from = function (dep) {
 Module.prototype.imports = function (dep) {
   var self = this;
   var alias;
-  var unNormalizedDep;
+  var unnormalizedDep;
   var depEnv;
 
   if ('object' === typeof dep) {
     for (var key in dep) {
-      unNormalizedDep = key;
+      unnormalizedDep = key;
       alais = dep[key];
     }
   } else {
-    unNormalizedDep = dep;
-    alias = dep.split('.').pop();
+    unnormalizedDep = dep;
   }
 
   var prevValue = this[alias];
-  dep = normalizeModuleName(unNormalizedDep, this.getModuleName());
+  dep = normalizeModuleName(unnormalizedDep, this.getModuleName());
+  alias = alias || dep.split('.').pop();
   if (modus.moduleExists(dep)) {
     depEnv = modus.getModule(dep);
     _applyToModule.call(self, alias, depEnv, false);
@@ -721,10 +721,8 @@ var _runFactoryAMD = function () {
   else 
     this.__moduleFactory.apply(this, mods);
 
-  // Export the env
-  // @todo: I think I have the following check just to make underscore work. Seems a
-  // little odd? Is it even necessary?
-  if (typeof amdModule.exports === 'function')
+  // Export the env, ensuring that we have a 'default' export.
+  if ('function' === typeof amdModule.exports)
     amdModule.exports['default'] = amdModule.exports;
   extend(this, amdModule.exports);
 
