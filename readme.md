@@ -2,17 +2,18 @@ Modus
 =====
 
 **NOTE: Modus is very much in development.**
-The API shouldn't change too much from this point forward, but be warned.
+This version of Modus has switched to using a more Python-inspired
+syntax, mostly to make imports a little more readable.
 
-Modus is a JavaScript module loader for the web. It uses a Python and 
-ES6 inspired syntax, but can also load AMD modules.
+Modus is a JavaScript module loader for the web. It uses a Python 
+inspired syntax, but can also load AMD modules.
 
 Here's an example of a simple `modus.module`:
 
 ```javascript
 module(function (module) {
-    module.imports('foo', 'bar').from('.bar');
-    module.imports('View').from('backbone');
+    module.from('.bar').imports('foo', 'bar');
+    module.from('backbone').imports('View');
 
     module.MyView = module.View.extend({
         init: function () {
@@ -92,12 +93,14 @@ module();
 
 #### Importing
 
-To import something from a module, use the `this.imports(/* items */).from('module')` chain.
-These imports will then be available as properties in `this`;
+There are two ways to import things from other modules. If you've used Python before, this
+should look very familiar.
+
+To import properties from a module, use the `[this].from([module]).imports([props])` chain:
 
 ```javascript
 module('example.otherModule', function () {
-    this.imports('SomeExport', 'SomeOtherExport').from('example.module');
+    this.from('example.module').imports('SomeExport', 'SomeOtherExport');
     console.log(this.SomeExport, this.SomeOtherExport); 
     // --> 'foo bar'
 });
@@ -115,6 +118,17 @@ module('example.otherModule', function () {
 });
 ```
 
+You can omit the '.as' method if you'd like, in which case Modus will make the imported
+module available using the last segment of the imported module's name:
+
+```javascript
+module('example.otherModule', function () {
+    this.imports('example.module'); // --> imports as 'module'
+    console.log(this.module.SomeExport, this.module.someOtherExport);
+    // --> 'foo bar'
+});
+```
+
 The above example holds unless the requested module has a `default` property, in which case
 the `default` property will be imported instead.
 
@@ -125,8 +139,8 @@ module('example.hasDefault', function () {
 });
 
 module('example.otherModule', function () {
-    this.imports('example.hasDefault').as('def');
-    console.log(this.def, this.def.bar);
+    this.imports('example.hasDefault');
+    console.log(this.hasDefault, this.hasDefault.bar);
     // --> 'foo undefined';
 });
 ```
@@ -136,7 +150,7 @@ Relative imports can be created by prefixing a module with a dot. For example:
 ```javascript
 module('example.otherModule', function () {
     // Imports from 'example.module':
-    this.imports('SomeExport', 'SomeOtherExport').from('.module');
+    this.from('.module').imports('SomeExport', 'SomeOtherExport');
     console.log(this.SomeExport, this.SomeOtherExport); 
     // --> 'foo bar'
 });
@@ -147,13 +161,13 @@ of levels you move up, relative to the *current module* (rather then the current
 
 ```javascript
 module('app.foo.bar', function () {
-    this.imports('SomeExport').from('some.module');
+    this.from('some.module').imports('SomeExport');
     // --> resolves to 'some/module.js'
-    this.imports('SomeExport').from('.some.module');
+    this.from('.some.module').imports('SomeExport');
     // Up one level from the current module:
     // 'app.foo.<bar>'
     // --> resolves to 'app/foo/some/module.js'
-    this.imports('SomeExport').from('..some.module');
+    this.from('..some.module').imports('SomeExport');
     // Up two levels.
     // 'app.<foo.bar>';
     // --> resolves to 'app/some/module.js';
@@ -166,17 +180,17 @@ styles can work side-by-side with no issues.
 
 ```javascript
 module('app.foo.bar', function () {
-    this.imports('SomeExport').from('some/module');
+    this.from('some/module').imports('SomeExport');
     // --> resolves to 'some/module.js'
-    this.imports('SomeExport').from('./some/module');
+    this.from('./some/module').imports('SomeExport');
     // Up one level from the current module:
     // 'app.foo.<bar>'
     // --> resolves to 'app/foo/some/module.js'
-    this.imports('SomeExport').from('../some/module');
+    this.from('../some/module').imports('SomeExport');
     // Up two levels.
     // 'app.<foo.bar>';
     // --> resolves to 'app/some/module.js';
-    this.imports('SomeExport').from('../../some/module');
+    this.from('../../some/module').imports('SomeExport');
     // Up three levels.
     // '<app.foo.bar>';
     // --> resolves to 'some/module.js';
@@ -206,7 +220,7 @@ module('tests.wait', function (module, done) {
 module('tests.waiting', function () {
     // This factory won't be run until the following
     // import is enabled:
-    this.imports('foo').from('.wait');
+    this.from('.wait').imports('foo');
     console.log(this.foo);
     // --> 'waited'
 });
@@ -218,8 +232,8 @@ Using AMD modules is easy: just import the AMD module like you would anything el
 
 ```javascript
 module(function () {
-    this.imports('jquery').as('$');
-    this.$('#foo').html('This works!');
+    this.imports('jquery');
+    this.jquery('#foo').html('This works!');
     $('#fooBar').html('This too.');
 });
 ```
@@ -229,7 +243,7 @@ with Backbone:
 
 ```javascript
 module(function () {
-    this.imports('View', 'Model').from('backbone');
+    this.from('backbone').imports('View', 'Model');
     this.Foo = this.View.extend({
         // code
     });
@@ -262,7 +276,7 @@ modus.module('main', function () {
     // The following will import from 'bower_components/jquery/jquery.min.js':
     this.imports('jquery').as('$');
     // The following will import from 'some/long/path/foo.js':
-    this.imports('bar').from('foo.bar');
+    this.from('foo.bar').imports('bar');
 });
 ```
 
@@ -280,7 +294,7 @@ modus.main({
         'foo': 'bar'
     }
 }, function () {
-    this.imports('App').from('foo.app');
+    this.from('foo.app').imports('App');
     this.App.start(); // or whatever you need.
 });
 ```

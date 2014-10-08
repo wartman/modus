@@ -20,7 +20,7 @@ describe('modus.Build', function () {
         expect(main.foo).to.equal('foo');
         expect(main.anon).to.equal('anon');
         expect(main.fileload).to.equal('file loaded');
-        expect(main._).to.be.a('function');
+        expect(main.underscore).to.be.a('function');
         done();
       }, true);
     });

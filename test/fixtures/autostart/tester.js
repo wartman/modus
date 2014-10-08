@@ -1,6 +1,7 @@
 module(function () {
-  this.imports('$').from('jquery');
+  this.imports('jquery');
+  var self = this;
   this.default = function () {
-    $('#target').html('All good');
+    self.jquery('#target').html('All good');
   };
 });

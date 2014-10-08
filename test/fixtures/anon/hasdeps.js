@@ -1,7 +1,7 @@
 modus.module(function () {
   // Should be able to use namespace shortcuts, even if annon.
   // This will be super handy.
-  this.imports('one').from('.one');
-  this.imports('two').from('.two');
+  this.from('.one').imports('one');
+  this.from('.two').imports('two');
   this.hasDeps = 'hasDeps';
 });

@@ -1,5 +1,5 @@
 module(function () {
-  this.imports('textloader').from('.globalBuildEvent');
+  this.from('.globalBuildEvent').imports('textloader');
   this.textloader('./txt/file3');
   this.bar = 'bar';
   this.baz = 'baz';

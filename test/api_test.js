@@ -125,8 +125,8 @@ describe('modus', function () {
       modus.module('tests.notFunction.obj', {foo: 'foo'});
       modus.module('tests.notFunction.array', ['foo']);
       modus.module('tests.notFunction.tester', function () {
-        this.imports('.obj').as('obj');
-        this.imports('.array').as('array');
+        this.imports('.obj');
+        this.imports('.array');
         expect(this.obj.foo).to.equal('foo');
         expect(this.array[0]).to.equal('foo');
         done();
@@ -135,8 +135,8 @@ describe('modus', function () {
 
     it('imports modules', function (done) {
       modus.module('tests.real', function () {
-        this.imports(['foo']).from('fixtures.basic.named');
-        this.imports(['bar']).from('fixtures.basic.anon');
+        this.from('fixtures.basic.named').imports('foo');
+        this.from('fixtures.basic.anon').imports('bar');
         expect(this.foo).to.equal('foo');
         expect(this.bar).to.equal('bar');
         done();
@@ -155,15 +155,15 @@ describe('modus', function () {
 
     it('imports modules recursively', function (done) {
       modus.module('tests.stress', function () {
-        this.imports('foo', 'bar', 'bax').from('fixtures.stress.one');
+        this.from('fixtures.stress.one').imports('foo', 'bar', 'bax');
         expect(this.foo + this.bar + this.bax).to.equal('onetwothree');
         done();
       });
     });
 
     it('imports a shimmed global', function (done) {
-      modus.module('tests.global', function () {
-        this.imports('target').from('fixtures.global.shim');
+      modus.module('tests.global', function (_) {
+        _.from('fixtures.global.shim').imports('target');
         expect(this.target).to.equal('target');
         done();
       });
@@ -203,7 +203,7 @@ describe('modus', function () {
 
     it('imports AMD modules using a \'(require)\' signature', function (done) {
       modus.module('tests.importAmdCommonJs', function () {
-        this.imports('three', 'commonJs').from('fixtures.amd.commonJs');
+        this.from('fixtures.amd.commonJs').imports('three', 'commonJs');
         expect(this.three).to.equal('three');
         expect(this.commonJs).to.equal('commonJs');
         done();
@@ -231,8 +231,8 @@ describe('modus', function () {
           }, 10);
         });
         modus.module('tests.wait.tester', function () {
-          this.imports(['foo']).from('.target');
-          expect(this.foo).to.equal('waited');
+          this.imports('.target');
+          expect(this.target.foo).to.equal('waited');
           done();
         });
       });
@@ -293,7 +293,7 @@ describe('modus', function () {
     it('can handle things other then functions', function (done) {
       modus.define('tests/amd/nonFunction/obj', {testsObj:'foo'});
       modus.module('tests.amd.nonFunction.loader', function () {
-        this.imports('testsObj').from('.obj');
+        this.from('.obj').imports('testsObj');
         expect(this.testsObj).to.equal('foo');
         done();
       });
@@ -307,7 +307,7 @@ describe('modus', function () {
         };
       });
       modus.module('tests.amd.import', function () {
-        this.imports('foo', 'bar').from('tests/amd/targetTwo');
+        this.from('tests/amd/targetTwo').imports('foo', 'bar');
         expect(this.foo).to.equal('foo');
         expect(this.bar).to.equal('bar');
         done();

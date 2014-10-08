@@ -1,6 +1,6 @@
 module(function () {
-  this.imports('bar', 'baz').from('.two');
-  this.imports('textloader').from('.globalBuildEvent');
+  this.from('.two').imports('bar', 'baz');
+  this.from('.globalBuildEvent').imports('textloader');
   this.foo = 'foo';
   this.textloader('./txt/file2');
 });

@@ -60,53 +60,75 @@ function _applyToModule (props, dep, many) {
   }
 };
 
-// Start an import chain. You can import specific properties from a module
-// by using 'imports(<properties>).from(<moduleName>)'. For example:
+// Import components from a given module.
 //
-//    var mod = new modus.Module('test');
-//    // Pass an arbitrary number of arguments:
-//    mod.imports('Foo', 'Bar').from('some.module');
-//    // Or use an array:
-//    mod.imports(['Foo', 'Bar']).from('some.module');
-//    // Now all imported items are available in the current module:
-//    console.log(mod.Foo, mod.Bar);
+//    this.from('foo.bar').imports('bar', 'bin');
+//      // Imports `bar` and `bin` from `foo.bar`
+//    this.from('foo.bar').imports('bar', {'bin': 'box'});
+//      // Imports `bar` and `bin` from `foo.bar`, aliasing 'bin' as 'box'
 //
-// If you want to import everything from a module (or import the 'default'
-// export, if it is set) use 'imports(<moduleName>).as(<alias>)'. For example:
-//
-//    mod.imports('some.module').as('Module');
-//    // The module is now available in the current module:
-//    console.log(mod.Module.Foo, mod.Module.Bar);
-//
-// In both cases, '<moduleName>' will be parsed by modus and used to define
-// a dependency for the current module. See 'Module#_investigate' for more on
-// what's going on here.
-Module.prototype.imports = function (/* args */) {
+Module.prototype.from = function (dep) {
   var self = this;
-  var args = Array.prototype.slice.call(arguments, 0);
-  var props = [];
-  if (args[0] instanceof Array) {
-    props = args[0];
-  } else {
-    props = props.concat(args);
-  }
+  dep = normalizeModuleName(dep, this.getModuleName());
+
   return {
-    from: function (dep) {
-      dep = normalizeModuleName(dep, self.getModuleName());
+    imports: function (/*...*/) {
+      var args = Array.prototype.slice.call(arguments, 0);
+      var props = [];
+      if (args[0] instanceof Array) {
+        props = args[0]
+      } else {
+        props = props.concat(args);
+      }
       if (modus.moduleExists(dep)) {
         var depEnv = modus.getModule(dep);
         _applyToModule.call(self, props, depEnv, false);
       }
-    },
-    as: function (alias) {
-      var dep = props[0];
-      dep = normalizeModuleName(dep, self.getModuleName());
-      if (modus.moduleExists(dep)) {
-        var depEnv = modus.getModule(dep);
-        _applyToModule.call(self, alias, depEnv, false);
-      }
     }
-  };
+  }
+};
+
+// Import an entire module. This will either import all exported module properties,
+// or import the `default` export (if one exists).
+//
+//    this.imports('foo.bar'); // Will import the `foo.bar` module as `bar`.
+//    this.imports('foo.bar').as('bin'); // Imports the `foo.bar` module as `bin`.
+//    this.imports({'foo.bar': 'bin'}); // Imports the `foo.bar` module as `bin`.
+//
+Module.prototype.imports = function (dep) {
+  var self = this;
+  var alias;
+  var unNormalizedDep;
+  var depEnv;
+
+  if ('object' === typeof dep) {
+    for (var key in dep) {
+      unNormalizedDep = key;
+      alais = dep[key];
+    }
+  } else {
+    unNormalizedDep = dep;
+    alias = dep.split('.').pop();
+  }
+
+  var prevValue = this[alias];
+  dep = normalizeModuleName(unNormalizedDep, this.getModuleName());
+  if (modus.moduleExists(dep)) {
+    depEnv = modus.getModule(dep);
+    _applyToModule.call(self, alias, depEnv, false);
+  }
+
+  return {
+    // Alias an import to avoid naming conflicts.
+    // This will also restore the value of any overwritten
+    // modules.
+    as: function (newAlias) {
+      // Return aliased value to the last owner.
+      self[alias] = prevValue;
+      if (depEnv)
+        _applyToModule.call(self, newAlias, depEnv, false);
+    }
+  }
 };
 
 // Shim for CommonJs style require calls.
@@ -185,8 +207,8 @@ var _commentRegExp = /(\/\*([\s\S]*?)\*\/|([^:]|^)\/\/(.*)$)/mg;
 
 // RegExps to find imports.
 var _importRegExp = [
-  /\.from\(\s*["']([^'"\s]+)["']\s*\)/g,
-  /\.imports\(\s*["']([^'"\s]+)["']\s*\)\.as\([\s\S]+?\)/g,
+  /(?:[^\.'"\(\)]+)\.from\(\s*["']([^'"\s]+)["']\s*\)/g,
+  /(?:[^\.'"\(\)]+)\.imports\(\s*["']([^'"\s]+)["']\s*\)/g,
   /require\s*\(\s*["']([^'"\s]+)["']\s*\)/g
 ];
 
