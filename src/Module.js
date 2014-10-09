@@ -105,7 +105,7 @@ Module.prototype.imports = function (dep) {
   if ('object' === typeof dep) {
     for (var key in dep) {
       unnormalizedDep = key;
-      alais = dep[key];
+      alias = dep[key];
     }
   } else {
     unnormalizedDep = dep;
@@ -144,6 +144,8 @@ Module.prototype.require = function (dep) {
   }
   return result;
 };
+
+Module.prototype.require.amd = {jquery: true};
 
 // Set the module name and register the module, if a name is
 // provided.
@@ -225,6 +227,7 @@ Module.prototype.findModuleDependencies = function () {
       self.addModuleDependency(dep);
     });
   });
+  return this.__moduleDependencies;
 };
 
 // API method to set the factory function.

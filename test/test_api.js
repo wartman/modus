@@ -113,71 +113,12 @@ describe('modus', function () {
 
   });
 
+
+  /////////
+  // TODO:
+  // Remove all the module testing here (other then checks to see if it's actually working as a
+  // modus.Module factory) and move it to its own file (call it 'stress testing'?)
   describe('#module', function () {
-
-    describe('#from', function () {
-
-      it('imports components', function (done) {
-        modus.module('tests.from.target', function () {
-          this.foo = 'foo';
-          this.bar = 'bar';
-        });
-        modus.module('tests.from.tester', function () {
-          this.from('.target').imports('foo', 'bar');
-          expect(this.foo).to.equal('foo');
-          expect(this.bar).to.equal('bar');
-          done();
-        });
-      });
-
-    });
-
-    describe('#imports', function () {
-
-      it('imports modules using last segment as the property name', function (done) {
-        modus.module('tests.imports.target', function () {
-          this.foo = 'foo';
-          this.bar = 'bar';
-        });
-        modus.module('tests.imports.tester', function () {
-          this.imports('.target');
-          expect(this.target).to.be.an('object');
-          expect(this.target.foo).to.equal('foo');
-          expect(this.target.bar).to.equal('bar');
-          done();
-        });
-      });
-
-      describe('#as', function () {
-
-        it('aliases modules', function (done) {
-          modus.module('tests.imports.as.target', function () {
-            this.foo = 'foo';
-            this.bar = 'bar';
-          });
-          modus.module('tests.imports.as.tester', function () {
-            this.imports('.target').as('bix');
-            expect(this.bix).to.be.an('object');
-            expect(this.bix.foo).to.equal('foo');
-            expect(this.bix.bar).to.equal('bar');
-            done();
-          });
-        });
-
-        it('avoids naming conflicts', function (done) {
-          modus.module('tests.imports.as.target2', 'foo');
-          modus.module('tests.imports.as.tester2', function () {
-            this.target2 = 'saved'
-            this.imports('.target2').as('bix');
-            expect(this.bix).to.equal('foo');
-            expect(this.target2).to.equal('saved');
-            done();
-          });
-        });
-
-      });
-
-    });
 
     it('creates a new module', function () {
       var curMod = modus.module('tests.create', function () {});
