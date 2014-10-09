@@ -4,7 +4,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-10-09T15:31Z
+  Date: 2014-10-09T15:40Z
 */
 
 (function (factory) {
@@ -810,6 +810,8 @@ Module.prototype.disableModule = function (reason) {
 
 // Modus' env, where modules hang out.
 modus.env = {};
+
+modus.VERSION = '0.3.3';
 
 // Config options for modus.
 modus.options = {

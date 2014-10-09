@@ -7,6 +7,8 @@
 // Modus' env, where modules hang out.
 modus.env = {};
 
+modus.VERSION = '@VERSION';
+
 // Config options for modus.
 modus.options = {
   root: '',  maps: {},

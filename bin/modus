@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 var program = require('commander');
-require('../dist/Modus');
-require('../lib/build');
+var modus = require('../');
+var Build = require('../lib/build');
 
 program
   .version(modus.VERSION)
@@ -32,7 +32,7 @@ program
       minify: program.minify || false
     };
 
-    var build = modus.Build.getInstance();
+    var build = Build.getInstance();
     build.start(settings, function (compiled) {
       if (dest) build.writeOutput(dest, function () {
         console.log('Compiled to ', dest);
