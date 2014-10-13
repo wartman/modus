@@ -1,5 +1,3 @@
-if (modus.isServer()) var expect = require('chai').expect;
-
 describe('modus', function () {
   
   describe('#config', function () {
@@ -125,8 +123,8 @@ describe('modus', function () {
       modus.module('tests.notFunction.obj', {foo: 'foo'});
       modus.module('tests.notFunction.array', ['foo']);
       modus.module('tests.notFunction.tester', function () {
-        this.imports('.obj').as('obj');
-        this.imports('.array').as('array');
+        this.imports('.obj');
+        this.imports('.array');
         expect(this.obj.foo).to.equal('foo');
         expect(this.array[0]).to.equal('foo');
         done();
@@ -171,7 +169,7 @@ describe('modus', function () {
 
     it('imports anon modules', function (done) {
       modus.module('tests.anon', function () {
-        this.imports('fixtures.anon.basic').as('basic');
+        this.imports('fixtures.anon.basic');
         expect(this.basic).to.deep.equal({foo:'foo', bar:'bar'});
         done();
       });
@@ -179,7 +177,7 @@ describe('modus', function () {
 
     it('imports anon modules recursively', function (done) {
       modus.module('tests.anonRecursive', function () {
-        this.imports('fixtures.anon.hasDeps').as('hasDeps');
+        this.imports('fixtures.anon.hasDeps');
         expect(this.hasDeps).to.deep.equal({one:'one', two:'two', hasDeps: 'hasDeps'});
         done();
       })
@@ -187,7 +185,7 @@ describe('modus', function () {
 
     it('imports external, anon AMD modules', function (done) {
       modus.module('tests.importAmd', function () {
-        this.imports('fixtures.amd.basic').as('basic');
+        this.imports('fixtures.amd.basic');
         expect(this.basic).to.deep.equal({foo:'foo', bar:'bar'});
         done();
       });
@@ -195,7 +193,7 @@ describe('modus', function () {
 
     it('imports external, anon AMD modules recursively', function (done) {
       modus.module('tests.importAmdRecursive', function () {
-        this.imports('fixtures.amd.hasDeps').as('hasDeps');
+        this.imports('fixtures.amd.hasDeps');
         expect(this.hasDeps).to.deep.equal({one:'one', two:'two', hasDeps: 'hasDeps'});
         done();
       });
@@ -212,7 +210,7 @@ describe('modus', function () {
 
     it('imports AMD modules using a \'(require, exports, module)\' signature ', function (done) {
       modus.module('tests.importAmdCommonJsFull', function () {
-        this.imports('fixtures.amd.commonJsFull').as('commonJsFull');
+        this.imports('fixtures.amd.commonJsFull');
         expect(this.commonJsFull.check).to.equal('commonJsFull');
         expect(this.commonJsFull.four).to.equal('four');
         done();
@@ -333,7 +331,6 @@ describe('module', function () {
   });
 
 });
-
 
 describe('define', function () {
 

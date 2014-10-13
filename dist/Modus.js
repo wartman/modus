@@ -4,7 +4,7 @@
   Copyright 2014
   Released under the MIT license
   
-  Date: 2014-09-27T19:13Z
+  Date: 2014-10-13T14:59Z
 */
 
 (function (factory) {
@@ -466,52 +466,76 @@ function _applyToModule (props, dep, many) {
   }
 };
 
-// Start an import chain. You can import specific properties from a module
-// by using 'imports(<properties>).from(<moduleName>)'. For example:
+// Import a module. By default, modus will attempt to automatically
+// name the import using the last segment of the provided module name.
+// `Module#imports` returns two other methods: `from` and `as`. `from`
+// allows you to import specific properties from a module, while `as` 
+// lets you rename an import to avoid naming conflicts or unwieldy 
+// module names.
 //
-//    var mod = new modus.Module('test');
-//    // Pass an arbitrary number of arguments:
-//    mod.imports('Foo', 'Bar').from('some.module');
-//    // Or use an array:
-//    mod.imports(['Foo', 'Bar']).from('some.module');
-//    // Now all imported items are available in the current module:
-//    console.log(mod.Foo, mod.Bar);
+//    this.imports('foo.bar');
+//    // --> available as 'this.bar'
 //
-// If you want to import everything from a module (or import the 'default'
-// export, if it is set) use 'imports(<moduleName>).as(<alias>)'. For example:
-//
-//    mod.imports('some.module').as('Module');
-//    // The module is now available in the current module:
-//    console.log(mod.Module.Foo, mod.Module.Bar);
-//
-// In both cases, '<moduleName>' will be parsed by modus and used to define
-// a dependency for the current module. See 'Module#_investigate' for more on
-// what's going on here.
-Module.prototype.imports = function (/* args */) {
+Module.prototype.imports = function (/*...*/) {
   var self = this;
   var args = Array.prototype.slice.call(arguments, 0);
   var props = [];
+  var dep = args[0];
+  var depEnv, alias, lastValue;
   if (args[0] instanceof Array) {
     props = args[0];
   } else {
     props = props.concat(args);
+  } 
+  if (args.length === 1) {
+    if ('object' === typeof dep) {
+      for (var key in dep) {
+        alias = dep[key];
+        dep = normalizeModuleName(key, self.getModuleName());
+        break;
+      }
+    } else {
+      dep = normalizeModuleName(dep, self.getModuleName());
+      alias = dep.split('.').pop();
+    }
+    lastValue = self[alias];
+    if (modus.moduleExists(dep)) {
+      depEnv = modus.getModule(dep);
+      _applyToModule.call(self, alias, depEnv, false);
+    }
   }
+
   return {
+
+    // Import properties from a module. When using this method, arguments
+    // passed to `imports` are interpreted as properties.
+    //
+    //    this.imports('bin', 'bar').from('app.foo');
+    //
     from: function (dep) {
+      if (alias) {
+        self[alias] = lastValue;
+      }
       dep = normalizeModuleName(dep, self.getModuleName());
       if (modus.moduleExists(dep)) {
         var depEnv = modus.getModule(dep);
         _applyToModule.call(self, props, depEnv, false);
       }
     },
-    as: function (alias) {
-      var dep = props[0];
-      dep = normalizeModuleName(dep, self.getModuleName());
-      if (modus.moduleExists(dep)) {
-        var depEnv = modus.getModule(dep);
-        _applyToModule.call(self, alias, depEnv, false);
+
+    // Rename an import.
+    //
+    //    this.imports('app.foo').as('bar');
+    //
+    as: function (newAlias) {
+      if (alias) {
+        self[alias] = lastValue;
+      }
+      if (depEnv) {
+        _applyToModule.call(self, newAlias, depEnv, false);
       }
     }
+
   };
 };
 
@@ -592,7 +616,7 @@ var _commentRegExp = /(\/\*([\s\S]*?)\*\/|([^:]|^)\/\/(.*)$)/mg;
 // RegExps to find imports.
 var _importRegExp = [
   /\.from\(\s*["']([^'"\s]+)["']\s*\)/g,
-  /\.imports\(\s*["']([^'"\s]+)["']\s*\)\.as\([\s\S]+?\)/g,
+  /\.imports\(\s*["']([^'"\s]+)["']\s*\)(?!\.from)/g,
   /require\s*\(\s*["']([^'"\s]+)["']\s*\)/g
 ];
 
@@ -609,6 +633,7 @@ Module.prototype.findModuleDependencies = function () {
       self.addModuleDependency(dep);
     });
   });
+  return this.getModuleDependencies();
 };
 
 // API method to set the factory function.
