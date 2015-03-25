@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modus Tests</title>
+  </head>
+  <body>
+    <script src="../dist/modus.js"></script>
+    <script>
+      mod('main', function () {
+        this.imports('foo').from('./fixtures/foo');
+        this.imports('./fixtures/bar');
+        console.log(this.foo, this.bar);
+      })
+    </script>
+  </body>
+</html>

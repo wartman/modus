@@ -10,12 +10,12 @@ gulp.task('build', function() {
   var meta = require('./package.json');
   return gulp.src([
       './src/intro.js',
-      './src/helpers.js',
-      './src/startContext.js',
-      './src/Loader.js',
-      './src/Module.js',
+      './src/util.js',
+      './src/path.js',
+      './src/event-emitter.js',
+      './src/script-loader.js',
+      './src/module.js',
       './src/modus.js',
-      './src/endContext.js',
       './src/outro.js'
     ])
     .pipe(concat('modus.js'))
@@ -37,4 +37,5 @@ gulp.task('mocha', ['build'], function () {
     .pipe(mocha({reporter: 'spec'}));
 });
 
-gulp.task('default', ['build', 'mocha', 'mochaPhantomJs']);
+// gulp.task('default', ['build', 'mocha', 'mochaPhantomJs']);
+gulp.task('default', ['build']);

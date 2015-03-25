@@ -1,399 +1,198 @@
-// modus.Module
-// ------------
-// The core of modus. Exports are applied directly to each module
-// object, so some effort has been made to reduce the likelihood of 
-// name conflicts (mostly by making method names rather verbose).
-var Module = modus.Module = function (name, factory, options) {
-  var self = this;
-
-  // Allow for anon modules.
-  if('string' !== typeof name && (name !== false)) {
-    // options = factory;
-    factory = name;
-    name = false;
-  }
-
-  // Define module information
-  this.__modulePromise = when();
-  this.__moduleDependencies = [];
-  this.__moduleName = '';
-  this.__moduleFactory = null;
-  this.__moduleMeta = defaults({
-    throwErrors: true,
-    isAsync: false,
-    isAmd: false,
-    isDisabled: false,
-    isEnabled: false,
-    isEnabling: false,
-    isAnon: true
-  }, options);
-  
-  this.setModuleFactory(factory);
-  this.registerModule(name);
+// Constants to determine the module's state
+var MODULE_STATE = {
+  DISABLED: -1,
+  PENDING: 0,
+  ENABLING: 1,
+  READY: 2,
 };
 
-// A list of props to omit from module imports.
-var _moduleOmit = ['__moduleName', '__moduleFactory', '__modulePromise', '__moduleMeta', '__moduleDependencies'];
+// Module
+// ======
+// The core of modus, `Module` handles dependency management.
+var Module = function (name, factory, modusInstance) {
+  this._modus = modusInstance || root.modus; // Default to the root instance.
+  this._dependencies = [];
+  this._exports = {};
+  this._env = {};
+  this._state = MODULE_STATE.PENDING;
+  this
+    .setName(name)
+    .setFactory(factory);
+};
 
-// Private method to add imported properties to a module.
-function _applyToModule (props, dep, many) {
-  var env = this;
-  if (props instanceof Array) {
-    each(props, function (prop) {
-      _applyToModule.call(env, prop, dep, true);
-    });
-  } else if ('object' === typeof props) {
-    each(props, function (alias, actual) {
-      env[alias] = (dep.hasOwnProperty(actual))? dep[actual] : null;
-    });
+inherits(Module, EventEmitter);
+
+Module.prototype.setName = function (name) {
+  if (name) {
+    name = path.normalize(name);
+    this._name = path.isAbsolute(name) ? name : path.resolve(name); 
+  }
+  return this;
+};
+
+Module.prototype.getName = function() {
+  return this._name;
+};
+
+Module.prototype.getParentDir = function() {
+  return path.resolve(this.getName(), '../');
+};
+
+Module.prototype.setFactory = function (factory) {
+  this._factory = factory;
+  return this;
+};
+
+Module.prototype.getFactory = function() {
+  return this._factory;
+};
+
+Module.prototype.runFactory = function(next) {
+  var env = this.createEnv();
+  if (this._factory.length === 2) {
+    this._factory.call(env, env, next);
   } else {
-    if (many) {
-      // If 'many' is true, then we're iterating through props and
-      // assigning them.
-      env[props] = (dep.hasOwnProperty(props))? dep[props] : null;
-    } else {
-      if (dep.hasOwnProperty('default'))
-        env[props] = dep['default']
-      else
-        env[props] = omit(dep, _moduleOmit);
-    }
+    this._factory.call(env, env);
+    next(null);
   }
+  return this;
 };
 
-// Import a module. By default, modus will attempt to automatically
-// name the import using the last segment of the provided module name.
-// `Module#imports` returns two other methods: `from` and `as`. `from`
-// allows you to import specific properties from a module, while `as` 
-// lets you rename an import to avoid naming conflicts or unwieldy 
-// module names.
-//
-//    this.imports('foo.bar');
-//    // --> available as 'this.bar'
-//
-Module.prototype.imports = function (/*...*/) {
-  var self = this;
-  var args = Array.prototype.slice.call(arguments, 0);
-  var props = [];
-  var dep = args[0];
-  var depEnv, alias, lastValue;
-  if (args[0] instanceof Array) {
-    props = args[0];
-  } else {
-    props = props.concat(args);
-  } 
-  if (args.length === 1) {
-    if ('object' === typeof dep) {
-      for (var key in dep) {
-        alias = dep[key];
-        dep = normalizeModuleName(key, self.getModuleName());
-        break;
-      }
-    } else {
-      dep = normalizeModuleName(dep, self.getModuleName());
-      alias = dep.split('.').pop();
-    }
-    lastValue = self[alias];
-    if (modus.moduleExists(dep)) {
-      depEnv = modus.getModule(dep);
-      _applyToModule.call(self, alias, depEnv, false);
-    }
-  }
-
-  return {
-
-    // Import properties from a module. When using this method, arguments
-    // passed to `imports` are interpreted as properties.
-    //
-    //    this.imports('bin', 'bar').from('app.foo');
-    //
-    from: function (dep) {
-      if (alias) {
-        self[alias] = lastValue;
-      }
-      dep = normalizeModuleName(dep, self.getModuleName());
-      if (modus.moduleExists(dep)) {
-        var depEnv = modus.getModule(dep);
-        _applyToModule.call(self, props, depEnv, false);
-      }
-    },
-
-    // Rename an import.
-    //
-    //    this.imports('app.foo').as('bar');
-    //
-    as: function (newAlias) {
-      if (alias) {
-        self[alias] = lastValue;
-      }
-      if (depEnv) {
-        _applyToModule.call(self, newAlias, depEnv, false);
-      }
-    }
-
-  };
-};
-
-// Shim for CommonJs style require calls.
-Module.prototype.require = function (dep) {
-  dep = normalizeModuleName(dep, this.getModuleName());
-  var result = {};
-  if (modus.moduleExists(dep)) {
-    var depEnv = modus.getModule(dep);
-    if (depEnv.hasOwnProperty('default'))
-      result = depEnv['default']
-    else
-      result = omit(depEnv, _moduleOmit);
-  }
-  return result;
-};
-
-// Set the module name and register the module, if a name is
-// provided.
-Module.prototype.registerModule = function (name) {
-  if (this.getModuleMeta('isAnon') && name) {
-    this.setModuleMeta('isAnon', false);
-    this.__moduleName = normalizeModuleName(name);
-    // Register with modus
-  }
-  if (!this.getModuleMeta('isAnon'))
-    modus.addModule(this.getModuleName(), this);
-};
-
-// Get a meta item from the module, if it exists ('meta items' typically
-// being things like 'isAsync' or 'isEnabled'). Returns `false` if nothing
-// is found.
-Module.prototype.getModuleMeta = function (key) {
-  if(!key) return this.__moduleMeta;
-  return this.__moduleMeta[key] || false;
-};
-
-// Set a meta item.
-Module.prototype.setModuleMeta = function (key, value) {
-  this.__moduleMeta[key] = value;
-};
-
-// Use a promise
-Module.prototype.onModuleReady = function(onReady, onFail) {
-  if (arguments.length)
-    this.__modulePromise.then(onReady, onFail);
-  return this.__modulePromise;
-};
-
-// Get the name of the module, excluding the namespace.
-Module.prototype.getModuleName = function () {
-  return this.__moduleName;
-};
-
-// API method to add a dependency.
-Module.prototype.addModuleDependency = function (dep) {
-  var self = this;
-  if (dep instanceof Array) {
-    each(dep, function (item) {
-      self.addModuleDependency(item);
-    });
-    return;
-  }
-  dep = normalizeModuleName(dep, this.getModuleName());
-  this.__moduleDependencies.push(dep);
-  return dep;
-};
-
-// API method to get all dependencies.
-Module.prototype.getModuleDependencies = function () {
-  return this.__moduleDependencies || [];
-};
+// RegExps to find dependencies.
+var _importRegExp = [
+  /\.from\(\s*["']([^'"\s]+)["']\s*\)/g,
+  /\.imports\(\s*["']([^'"\s]+)["']\s*\)(?!\.from)/g,
+  // /require\s*\(\s*["']([^'"\s]+)["']\s*\)/g
+];
 
 // RegExp to remove comments, ensuring that we don't try to
 // import things that have been commented out.
 var _commentRegExp = /(\/\*([\s\S]*?)\*\/|([^:]|^)\/\/(.*)$)/mg;
 
-// RegExps to find imports.
-var _importRegExp = [
-  /\.from\(\s*["']([^'"\s]+)["']\s*\)/g,
-  /\.imports\(\s*["']([^'"\s]+)["']\s*\)(?!\.from)/g,
-  /require\s*\(\s*["']([^'"\s]+)["']\s*\)/g
-];
-
-// Use RegExp to find any imports this module needs, then add
-// them to the dependency stack.
-Module.prototype.findModuleDependencies = function () {
-  if (!this.__moduleFactory) return;
-  var self = this;
-  var factory = this.__moduleFactory
-    .toString()
-    .replace(_commentRegExp, '');
+Module.prototype.findDependencies = function () {
+  if (!this._factory) return this._dependencies;
+  var _this = this;
+  var factory = this._factory.toString().replace(_commentRegExp, '');
   each(_importRegExp, function (re) {
     factory.replace(re, function (matches, dep) {
-      self.addModuleDependency(dep);
+      _this.addDependency(dep);
     });
   });
-  return this.getModuleDependencies();
+  return this._dependencies;
 };
 
-// API method to set the factory function.
-// If the factory has more then one argument, this module
-// depends on some sort of async operation (unless this is an
-// amd module).
-Module.prototype.setModuleFactory = function (factory) {
-  if (!factory) return;
-  // Make sure factory is a function
-  if ('function' !== typeof factory) {
-    var value = factory;
-    if (this.getModuleMeta('isAmd')) {
-      factory = function () { return value; };
-    } else {
-      factory = function () { this['default'] = value; };
-    }
-  };
-  if (factory.length >= 2 && !this.getModuleMeta('isAmd'))
-    this.setModuleMeta('isAsync', true);
-  this.__moduleFactory = factory;
+Module.prototype.addDependency = function (name) {
+  this._dependencies.push(name);
+  return this;
 };
 
-// API method to get the factory function, if it exists.
-Module.prototype.getModuleFactory = function () {
-  return this.__moduleFactory || false;
+Module.prototype.getDependencies = function () {
+  return this._dependencies;
 };
 
-// Make sure a module is enabled and add event listeners.
-var _ensureModuleIsEnabled = function (dep, next, error) {
-  if (moduleExists(dep)) {
-    var mod = getModule(dep);
-    mod.enableModule().then(next, error);
+// Get the exports list, cloning it so it won't be
+// modified.
+Module.prototype.getExports = function () {
+  return clone(this._exports);
+};
+
+Module.prototype.createEnv = function () {
+  this._env.imports = this.createImporter();
+  this._env.exports = this.createExporter();
+  return this._env;
+};
+
+Module.prototype.applyToEnv = function(props, relativePath) {
+  var fullPath = path.resolve(this.getParentDir(), relativePath);
+  var mod = this._modus.getModule(fullPath);
+  if (!mod) return; // Probably mishandling a property request.
+  var modExports = mod.getExports();
+  var _this = this;
+  if (props instanceof Array) {
+    each(props, function (prop) {
+      _this._env[prop] = modExports[prop];
+    });
   } else {
-    error('Could not load dependency: ' + dep);
+    _this._env[props] = modExports['default'] || modExports;
   }
 };
 
-// Run the registered factory.
-var _runFactory = function () {
-  if (!this.__moduleFactory) return;
-  var self = this;
-  // Run the factory.
-  if (this.__moduleFactory.length <= 1) {
-    this.__moduleFactory.call(this, this);
+// Create an `imports` function for use inside the module environment.
+Module.prototype.createImporter = function () {
+  var _this = this;
+  return function (/* ...args */) {
+    var props = Array.prototype.slice.call(arguments, 0);
+    var alias, retValue;
+    if (props[0] instanceof Array) props = props[0];
+    if (props.length === 1) {
+      // Auto-create the name.
+      var modPath = props[0];
+      alias = modPath.split('/').pop();
+      retValue = _this._env[alias];
+      _this.applyToEnv(alias, modPath);
+    }
+
+    return {
+
+      from: function (modPath) {
+        if (alias) _this._env[alias] = retValue;
+        console.log('Loading', modPath);
+        _this.applyToEnv(props, modPath);
+      },
+
+      as: function (newAlias) {
+        if (alias) _this._env[alias] = retValue;
+        _this.applyToEnv(newAlias, modPath);
+      }
+
+    }
+  }
+};
+
+Module.prototype.createExporter = function () {
+  var _this = this;
+  return function (name, target) {
+
+    if (arguments.length === 1) {
+      _this._exports['default'] = arguments[0]
+    } else {
+      _this._exports[name] = target;
+    }
+
+    return {
+      as: function (name) {
+        _this._exports[name] = target
+      }
+    }
+  }
+};
+
+// Run the factory
+Module.prototype.enable = function () {
+  if (this._state === MODULE_STATE.READY) {
+    this.emit('ready');
+    return;
+  }
+  if (this._state !== MODULE_STATE.PENDING) return;
+  var _this = this;
+  var onReady = function (err) {
+    if (err) {
+      _this._state = MODULE_STATE.DISABLED;
+      _this.emit('disabled');
+      return;
+    }
+    _this._state = MODULE_STATE.READY;
+    _this.emit('ready');
+  }
+  var deps = this.findDependencies();
+  if (!deps.length) {
+    this._state = MODULE_STATE.ENABLING;
+    this.runFactory(onReady);
+    return;
   } else {
-    this.__moduleFactory.call(this, this, function (err) {
-      if (err)
-        self.__modulePromise.reject(err, self);
-      else
-        self.__modulePromise.resolve(self, self);
+    this._state = MODULE_STATE.ENABLING;
+    this._modus.loadModules(this.getParentDir(), deps, function (err) {
+      if (!err) _this.runFactory(onReady);
     });
   }
-  // Cleanup.
-  delete this.__moduleFactory;
-};
-
-// Run an AMD-style factory
-var _runFactoryAMD = function () {
-  if (!this.__moduleFactory) return;
-  var self = this;
-  var deps = this.getModuleDependencies();
-  var mods = [];
-  var usingExports = false;
-  var amdModule = {exports: {}};
-  // Create or get the current env.
-  each(deps, function (dep) {
-    if (dep === 'exports') {
-      mods.push(amdModule.exports);
-      usingExports = true;
-    } else if (dep === 'module') {
-      mods.push(amdModule);
-      usingExports = true;
-    } else if (dep === 'require') {
-      mods.push(bind(self.require, self));
-    } else {
-      dep = normalizeModuleName(dep);
-      if (moduleExists(dep)) {
-        var env = getModule(dep);
-        if (env.hasOwnProperty('default'))
-          mods.push(env['default']);
-        else
-          mods.push(env);
-      }
-    }
-  });
-  if (!usingExports) 
-    amdModule.exports = this.__moduleFactory.apply(this, mods) || {};
-  else 
-    this.__moduleFactory.apply(this, mods);
-
-  // Export the env
-  // @todo: I think I have the following check just to make underscore work. Seems a
-  // little odd? Is it even necessary?
-  if (typeof amdModule.exports === 'function')
-    amdModule.exports['default'] = amdModule.exports;
-  extend(this, amdModule.exports);
-
-  // Cleanup.
-  delete this.__moduleFactory;
-};
-
-// Enable this module.
-Module.prototype.enableModule = function() {
-  if (this.getModuleMeta('isDisabled') 
-      || this.getModuleMeta('isEnabling')
-      || this.getModuleMeta('isEnabled')) 
-    return this.__modulePromise;
-
-  var self = this;
-  var loader = modus.Loader.getInstance();
-  var deps = [];
-  var onFinal = function () {
-    self.setModuleMeta('isEnabling', false);
-    self.setModuleMeta('isEnabled', true);
-    if(!modus.isBuilding) {
-      if (self.getModuleMeta('isAmd'))
-        _runFactoryAMD.call(self);
-      else
-        _runFactory.call(self);
-    }
-    if(!self.getModuleMeta('isAsync'))
-      self.__modulePromise.resolve(null, self);
-  };
-
-  // Ensure we don't try to enable this module twice.
-  this.setModuleMeta('isEnabling', true);
-  this.findModuleDependencies();
-  deps = this.getModuleDependencies();
-
-  if (deps.length <= 0) {
-    onFinal();
-    return this.__modulePromise;
-  }
-
-  whenAll(deps, function (dep, next, error) {
-    if (self.getModuleMeta('isAmd') && inArray(['exports', 'require', 'module'], dep) >= 0) {
-      // Skip AMD/CommonJS helpers
-      next();
-    } else if (moduleExists(dep)) {
-      _ensureModuleIsEnabled(dep, next, error);
-    } else {
-      // Try to find the module.
-      if (moduleExists(dep)) {
-        _ensureModuleIsEnabled(dep, next, error);
-      } else {
-        loader
-          .load(dep)
-          .then(function () {
-            _ensureModuleIsEnabled(dep, next, error);
-          }, error);
-      }
-    }
-  }).then(onFinal, bind(this.disableModule, this));
-
-  return this.__modulePromise;
-};
-
-// Disable this module and run any error hooks. Once a 
-// module is disabled it cannot transition to an 'enabled' state.
-Module.prototype.disableModule = function (reason) {
-  this.setModuleMeta('isDisabled', true);
-  this.__modulePromise.reject(reason);
-  if (this.getModuleMeta('throwErrors') && reason instanceof Error) {
-    throw reason;
-  } else if (this.getModuleMeta('throwErrors')) {
-    throw new Error(reason);
-  }
-  return reason;
 };

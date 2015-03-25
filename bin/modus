@@ -1,3 +1,6 @@
+// THIS FILE IS DEPRECIATED
+// Only here as reference.
+
 #!/usr/bin/env node
 
 var program = require('commander');
