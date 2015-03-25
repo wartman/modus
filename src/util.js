@@ -37,6 +37,7 @@ var each = function (obj, fn, ctx) {
 };
 
 // Extend an object
+// NOTE: Look into removing this.
 var extend = function (obj) {
   each(Array.prototype.slice.call(arguments, 1), function (source) {
     if (source) {
@@ -46,17 +47,6 @@ var extend = function (obj) {
     }
   });
   return obj;
-};
-
-// Apply defaults to an object.
-var defaults = function (defaults, options){
-  if (!options) return defaults;
-  for (var key in defaults) {
-    if (defaults.hasOwnProperty(key) && !options.hasOwnProperty(key)) {
-      options[key] = defaults[key];
-    }
-  }
-  return options;
 };
 
 // A simple shim for `Function#bind`

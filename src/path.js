@@ -72,22 +72,6 @@ path.isAbsolute = function (pathname) {
   return pathname.charAt(0) === '/';
 };
 
-// Join a path.
-path.join = function () {
-  var newpath = '';
-  for (var i=0; i<arguments.length; i++) {
-    var segment = arguments[i];
-    if (segment) {
-      if (!newpath) {
-        newpath += segment;
-      } else {
-        newpath += '/' + segment;
-      }
-    }
-  }
-  return path.normalize(newpath);
-};
-
 // Get the directory of the current path.
 path.dirname = function(pathname) {
   var dir = pathname.substring(0, Math.max(pathname.lastIndexOf('/')));

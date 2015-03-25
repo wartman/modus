@@ -4,7 +4,7 @@
   Copyright 2015
   Released under the MIT license
   
-  Date: 2015-03-25T16:39Z
+  Date: 2015-03-25T20:13Z
 */
 
 (function (root) {
@@ -48,6 +48,7 @@ var each = function (obj, fn, ctx) {
 };
 
 // Extend an object
+// NOTE: Look into removing this.
 var extend = function (obj) {
   each(Array.prototype.slice.call(arguments, 1), function (source) {
     if (source) {
@@ -57,17 +58,6 @@ var extend = function (obj) {
     }
   });
   return obj;
-};
-
-// Apply defaults to an object.
-var defaults = function (defaults, options){
-  if (!options) return defaults;
-  for (var key in defaults) {
-    if (defaults.hasOwnProperty(key) && !options.hasOwnProperty(key)) {
-      options[key] = defaults[key];
-    }
-  }
-  return options;
 };
 
 // A simple shim for `Function#bind`
@@ -154,22 +144,6 @@ path.normalize = function (pathname) {
 // Check if this is an absolute path.
 path.isAbsolute = function (pathname) {
   return pathname.charAt(0) === '/';
-};
-
-// Join a path.
-path.join = function () {
-  var newpath = '';
-  for (var i=0; i<arguments.length; i++) {
-    var segment = arguments[i];
-    if (segment) {
-      if (!newpath) {
-        newpath += segment;
-      } else {
-        newpath += '/' + segment;
-      }
-    }
-  }
-  return path.normalize(newpath);
 };
 
 // Get the directory of the current path.
